@@ -82,19 +82,22 @@ def test_query_suggestion_history_reuse():
 
 def test_feedback_update():
     """Verifica aggiornamento feedback nello storico query."""
+    import uuid
+
     from utils.query_history_manager import QueryHistoryManager
 
+    description = f"Feedback integration test {uuid.uuid4().hex[:8]}"
     manager = QueryHistoryManager()
     query_id = manager.add_query(
-        description="Feedback integration test",
+        description=description,
         query_text="SELECT * FROM test",
         source_type="oracle",
         notes="Test feedback",
     )
 
     manager.update_feedback(query_id, success=False, feedback_score=0.15)
-    top_queries = manager.get_top_queries("oracle", limit=20)
-    row = next((item for item in top_queries if item["id"] == query_id), None)
+    similar = manager.find_similar_queries(description, "oracle", similarity_threshold=1.0)
+    row = next((item for item in similar if item["id"] == query_id), None)
 
     assert row is not None, "Query aggiornata non trovata"
     assert row["execution_count"] >= 2
