@@ -74,11 +74,12 @@ class QueryHistoryManager:
         try:
             with sqlite3.connect(self.DB_PATH) as conn:
                 cursor = conn.cursor()
+                now = datetime.now().isoformat()
                 cursor.execute("""
                     INSERT INTO query_history 
                     (description, query_text, source_type, notes, created_at, last_used)
                     VALUES (?, ?, ?, ?, ?, ?)
-                """, (description, query_text, source_type, notes, datetime.now(), datetime.now()))
+                """, (description, query_text, source_type, notes, now, now))
                 conn.commit()
                 query_id = cursor.lastrowid
                 logger.info(f"Query aggiunta con ID {query_id}")
@@ -175,7 +176,7 @@ class QueryHistoryManager:
                             feedback_score = ?,
                             last_used = ?
                         WHERE id = ?
-                    """, (new_exec_count, new_succ_count, final_score, datetime.now(), query_id))
+                    """, (new_exec_count, new_succ_count, final_score, datetime.now().isoformat(), query_id))
                     
                     conn.commit()
                     logger.info(f"Feedback aggiornato per query {query_id}: success={success}, score={final_score:.2f}")

@@ -8,6 +8,7 @@ import pandas as pd
 from agents.base_agent import BaseAgent
 from connectors.data_connectors import DataSourceFactory
 from utils.context import AgentContext
+from utils.oracle_query_validator import QuerySafetyValidator
 
 
 class DataSourceManagerAgent(BaseAgent):
@@ -55,6 +56,7 @@ class DataSourceManagerAgent(BaseAgent):
             query = context.metadata.get("oracle_query", "").strip()
             if not query:
                 raise ValueError("Inserire una query SELECT per estrarre i dati Oracle.")
+            QuerySafetyValidator.assert_read_only(query)
 
             connector = DataSourceFactory.create_connector(
                 "oracle",

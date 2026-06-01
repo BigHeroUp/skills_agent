@@ -217,11 +217,10 @@ Vincoli mantenuti:
 
 ## Prossimi passi consigliati
 
-1. Eseguire i test:
+1. Eseguire la verifica completa:
 
 ```powershell
-python test_new_modules.py
-python test_integration.py
+.\scripts\verify.ps1
 ```
 
 2. Avviare la dashboard:
@@ -243,6 +242,16 @@ python main.py
 - mostrare statistiche di successo nella dashboard;
 - permettere un rating piu granulare;
 - aggiungere note manuali dell'utente.
+
+## Hardening operativo aggiunto
+
+- `WORKING_CONTEXT.md` descrive stato corrente, vincoli e prossimi step.
+- `CAPABILITIES.md` cataloga le funzionalita del progetto.
+- `utils/oracle_query_validator.py` centralizza la validazione Oracle read-only.
+- `scripts/check_secrets.py` controlla possibili segreti nei file versionati.
+- `scripts/verify.ps1` esegue quality gate locale.
+- `.githooks/pre-commit` permette di collegare il quality gate a Git.
+- `tests/` contiene la suite pytest iniziale.
 
 ## Benefici ottenuti
 

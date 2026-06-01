@@ -39,7 +39,16 @@ def summarize_dataframe(df: pd.DataFrame, top_n: int = 5) -> Dict[str, Any]:
         }
 
     numeric_cols = list(df.select_dtypes(include="number").columns)
-    categorical_cols = list(df.select_dtypes(include=["object", "category", "bool"]).columns)
+    categorical_cols = [
+        column
+        for column in df.columns
+        if (
+            pd.api.types.is_object_dtype(df[column])
+            or pd.api.types.is_string_dtype(df[column])
+            or isinstance(df[column].dtype, pd.CategoricalDtype)
+            or pd.api.types.is_bool_dtype(df[column])
+        )
+    ]
     datetime_cols = list(df.select_dtypes(include=["datetime", "datetimetz"]).columns)
 
     for column in df.columns:

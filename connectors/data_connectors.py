@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 import dask.dataframe as dd
 from utils.logging_config import get_logger
+from utils.oracle_query_validator import QuerySafetyValidator
 
 
 logger = get_logger("connectors")
@@ -55,10 +56,10 @@ class OracleConnector:
     
     def query(self, sql: str, chunk_size: int = 10000) -> pd.DataFrame:
         """Esegui una query di sola lettura con chunking per grandi volumi."""
-        normalized_sql = sql.strip().lstrip("(").upper()
-        if not normalized_sql.startswith(("SELECT", "WITH")):
-            logger.warning("Query Oracle bloccata: comando non di sola lettura")
-            raise ValueError("Sono consentite solo query di lettura SELECT o WITH.")
+        validation = QuerySafetyValidator.validate_read_only(sql)
+        if not validation.is_valid:
+            logger.warning("Query Oracle bloccata: %s", validation.reason)
+            raise ValueError(validation.reason)
 
         if not self.connection:
             self.connect()

@@ -48,6 +48,8 @@ my_skill_agent/
 |-- app_dash.py
 |-- coordinator.py
 |-- requirements.txt
+|-- WORKING_CONTEXT.md
+|-- CAPABILITIES.md
 |-- APPLICATION_CONTEXT.md
 |-- IMPLEMENTATION_SUMMARY.md
 |-- agents/
@@ -64,6 +66,7 @@ my_skill_agent/
 |-- utils/
 |   |-- context.py
 |   |-- data_analysis.py
+|   |-- oracle_query_validator.py
 |   |-- chart_generator.py
 |   |-- logging_config.py
 |   |-- pdf_generator.py
@@ -174,6 +177,22 @@ Non sono consentite query mutative o DDL come:
 
 Le credenziali non devono essere salvate nei log o nei file versionati.
 
+La validazione delle query Oracle e centralizzata in
+`utils/oracle_query_validator.py`, usata sia dal source manager sia dal
+connettore Oracle.
+
+## Quality gate Git
+
+E disponibile un hook pre-commit opzionale in `.githooks/pre-commit`.
+
+Per abilitarlo:
+
+```powershell
+.\scripts\install_git_hooks.ps1
+```
+
+Da quel momento Git esegue `.\scripts\verify.ps1` prima di ogni commit.
+
 ## Grafici
 
 `utils/chart_generator.py` genera automaticamente grafici Plotly dal dataframe:
@@ -198,6 +217,21 @@ python test_integration.py
 
 `test_integration.py` verifica l'integrazione della pipeline con
 `QuerySuggestionAgent` e `QueryHistoryManager`.
+
+La suite pytest principale e in `tests/`:
+
+```powershell
+python -m pytest
+```
+
+La verifica completa del progetto e:
+
+```powershell
+.\scripts\verify.ps1
+```
+
+Lo script esegue compilazione Python, scanner anti-segreti, test pytest e import
+della dashboard.
 
 ## Feedback query
 

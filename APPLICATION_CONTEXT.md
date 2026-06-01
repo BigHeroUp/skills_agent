@@ -49,6 +49,7 @@ L'interfaccia web viene eseguita in locale con Dash su
 | `coordinator.py` | Orchestrazione sequenziale della pipeline multi-agent. |
 | `utils/context.py` | Definizione del contesto condiviso `AgentContext`. |
 | `utils/data_analysis.py` | Calcoli deterministici pandas sul dataframe reale. |
+| `utils/oracle_query_validator.py` | Validazione read-only delle query Oracle. |
 | `utils/chart_generator.py` | Produzione automatica di grafici Plotly dal dataframe. |
 | `utils/logging_config.py` | Configurazione centralizzata del logging applicativo. |
 | `connectors/data_connectors.py` | Connettori Oracle, CSV ed Excel e factory delle sorgenti. |
@@ -150,7 +151,9 @@ e `insights["deterministic_insights"]`.
 - Configurazione UI: host, porta, service/database, utente e password.
 - Test connessione disponibile dalla dashboard.
 - Esecuzione dati tramite `OracleConnector.query`.
-- Sono consentite in esecuzione solo query che iniziano con `SELECT` o `WITH`.
+- Sono consentite in esecuzione solo query read-only validate da
+  `QuerySafetyValidator`: `SELECT` o `WITH`, una sola istruzione, nessuna
+  keyword mutativa o DDL.
 
 ## Grafici generati
 
@@ -269,6 +272,18 @@ URL della dashboard:
 http://localhost:8050/
 ```
 
+Verifica completa:
+
+```powershell
+.\scripts\verify.ps1
+```
+
+Hook pre-commit opzionale:
+
+```powershell
+.\scripts\install_git_hooks.ps1
+```
+
 ## Sicurezza e vincoli per modifiche future
 
 Un AI o agent che lavora su questo progetto deve rispettare queste regole:
@@ -292,7 +307,8 @@ Un AI o agent che lavora su questo progetto deve rispettare queste regole:
   isolamento multiutente.
 - Lo stato della dashboard usa variabili globali di processo; non e adatto a
   esecuzioni concorrenti o deployment multi-worker.
-- Mancano test automatici strutturati nel repository.
+- La suite pytest copre le utility principali, ma non ancora tutti i callback
+  Dash.
 - Le skill `data_validation`, `data_processing` e `analysis` non sono ancora
   presenti come file dedicati.
 
