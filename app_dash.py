@@ -1136,6 +1136,16 @@ def handle_chat_message(n_intervals, n_clicks, user_message):
             followup_charts.append(chart_result)
             conversation_manager.add_assistant_message(chart_result["message"])
             return _render_chat_messages()
+
+        analysis_result = _try_run_followup_analysis(user_message)
+        if analysis_result:
+            if analysis_result.get("chart"):
+                followup_charts.append({
+                    "figure": analysis_result["chart"],
+                    "description": analysis_result["description"],
+                })
+            conversation_manager.add_assistant_message(analysis_result["message"])
+            return _render_chat_messages()
         
         # Genera risposta in background
         def generate_response():
@@ -1286,6 +1296,125 @@ def _find_status_column(df: pd.DataFrame):
         if 1 < df[column].nunique(dropna=True) <= 30
     ]
     return low_cardinality[0] if low_cardinality else None
+
+
+def _try_run_followup_analysis(user_message: str):
+    """Esegue analisi deterministiche richieste dalla chat quando possibile."""
+    if current_context is None:
+        return None
+
+    message = user_message.lower()
+    wants_elapsed_time = (
+        any(term in message for term in ["tempo medio", "durata media", "tempo trascorso", "tempo di risoluzione"])
+        and any(term in message for term in ["creazione", "apertura", "created", "creation"])
+        and any(term in message for term in ["risoluzione", "aggiornamento", "chiusura", "resolved", "updated", "closed"])
+    )
+    if not wants_elapsed_time:
+        return None
+
+    df = current_context.raw_data.get("dataframe")
+    if not isinstance(df, pd.DataFrame) or df.empty:
+        return {
+            "message": "Non posso calcolare il tempo medio: non trovo un dataframe disponibile nell'analisi corrente.",
+            "description": "Analisi tempo medio non eseguita.",
+        }
+
+    start_col = _find_datetime_column_by_keywords(df, [
+        "creazione", "apertura", "created", "creation", "open", "opened", "start", "data creazione",
+    ])
+    end_col = _find_datetime_column_by_keywords(df, [
+        "risoluzione", "aggiornamento", "chiusura", "resolved", "updated", "closed", "close", "end",
+        "data risoluzione", "data aggiornamento",
+    ])
+
+    if not start_col or not end_col or start_col == end_col:
+        available = ", ".join(map(str, df.columns[:20]))
+        return {
+            "message": (
+                "Non posso calcolare il tempo medio: non ho individuato una coppia chiara di colonne data "
+                f"per creazione e risoluzione/aggiornamento. Colonne disponibili: {available}"
+            ),
+            "description": "Analisi tempo medio non eseguita.",
+        }
+
+    start_dates = pd.to_datetime(df[start_col], errors="coerce")
+    end_dates = pd.to_datetime(df[end_col], errors="coerce")
+    durations = end_dates - start_dates
+    valid_durations = durations[(start_dates.notna()) & (end_dates.notna()) & (durations >= pd.Timedelta(0))]
+
+    if valid_durations.empty:
+        return {
+            "message": (
+                f"Ho trovato le colonne '{start_col}' e '{end_col}', ma non ci sono durate valide "
+                "con entrambe le date presenti e fine successiva alla creazione."
+            ),
+            "description": "Analisi tempo medio non eseguita.",
+        }
+
+    total_rows = len(df)
+    valid_rows = len(valid_durations)
+    invalid_rows = total_rows - valid_rows
+    average = valid_durations.mean()
+    median = valid_durations.median()
+    minimum = valid_durations.min()
+    maximum = valid_durations.max()
+
+    chart_df = pd.DataFrame({"Durata ore": valid_durations.dt.total_seconds() / 3600})
+    fig = px.histogram(
+        chart_df,
+        x="Durata ore",
+        nbins=30,
+        title=f"Distribuzione durata ticket: {start_col} -> {end_col}",
+        labels={"Durata ore": "Durata in ore"},
+    )
+    fig.update_layout(template="plotly_dark", height=440)
+
+    message_text = (
+        f"Ho calcolato il tempo tra '{start_col}' e '{end_col}' su {valid_rows} ticket validi "
+        f"su {total_rows} righe totali.\n\n"
+        f"- Tempo medio: {_format_timedelta_it(average)}\n"
+        f"- Mediana: {_format_timedelta_it(median)}\n"
+        f"- Minimo: {_format_timedelta_it(minimum)}\n"
+        f"- Massimo: {_format_timedelta_it(maximum)}\n"
+        f"- Righe escluse per date mancanti/non valide: {invalid_rows}\n\n"
+        "Ho aggiunto anche un grafico di distribuzione della durata nella sezione grafici."
+    )
+
+    return {
+        "message": message_text,
+        "chart": fig,
+        "description": f"Distribuzione della durata ticket calcolata tra '{start_col}' e '{end_col}'.",
+    }
+
+
+def _find_datetime_column_by_keywords(df: pd.DataFrame, keywords):
+    """Trova una colonna data coerente con una lista di keyword."""
+    candidates = [
+        column for column in df.columns
+        if any(keyword in str(column).lower().replace("_", " ") for keyword in keywords)
+    ]
+    for column in candidates:
+        parsed = pd.to_datetime(df[column], errors="coerce")
+        if parsed.notna().sum() >= max(2, int(len(df) * 0.2)):
+            return column
+    return None
+
+
+def _format_timedelta_it(delta: pd.Timedelta) -> str:
+    """Formatta una durata pandas in italiano leggibile."""
+    total_seconds = int(delta.total_seconds())
+    days, remainder = divmod(total_seconds, 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, _ = divmod(remainder, 60)
+
+    parts = []
+    if days:
+        parts.append(f"{days} giorni")
+    if hours:
+        parts.append(f"{hours} ore")
+    if minutes or not parts:
+        parts.append(f"{minutes} minuti")
+    return ", ".join(parts)
 
 
 if __name__ == '__main__':
