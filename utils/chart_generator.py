@@ -17,6 +17,33 @@ logger = get_logger("charts")
 
 class ChartGenerator:
     """Genera grafici automatici dai dati"""
+
+    @staticmethod
+    def generate_requested_charts(df: pd.DataFrame, user_request: str) -> List[go.Figure]:
+        """Genera grafici specifici richiesti dall'utente quando riconoscibili."""
+        charts: List[go.Figure] = []
+        if not isinstance(df, pd.DataFrame) or df.empty or not user_request:
+            return charts
+
+        request = user_request.lower()
+        wants_status_counts = (
+            any(term in request for term in ["stato", "stati", "status", "state"])
+            and any(term in request for term in ["occorren", "conteggio", "quanti", "totale", "somma"])
+        )
+        wants_bar = any(term in request for term in ["colonne", "barre", "bar chart", "grafico a colonna"])
+        wants_trend = any(term in request for term in ["andamento", "trend", "evoluzione", "nel tempo", "temporale"])
+
+        if wants_status_counts or (wants_bar and any(term in request for term in ["ticket", "stato", "status"])):
+            status_col = ChartGenerator._find_status_column(df)
+            if status_col:
+                charts.append(ChartGenerator._status_occurrence_chart(df, status_col))
+
+        if wants_trend:
+            trend_chart = ChartGenerator._ticket_trend_chart(df)
+            if trend_chart is not None:
+                charts.append(trend_chart)
+
+        return charts
     
     @staticmethod
     def auto_generate_charts(df: pd.DataFrame, insights: Dict[str, Any]) -> List[go.Figure]:
@@ -156,6 +183,115 @@ class ChartGenerator:
             print(f"⚠️ Errore generazione grafici: {e}")
         
         return charts
+
+    @staticmethod
+    def _status_occurrence_chart(df: pd.DataFrame, status_col: str) -> go.Figure:
+        counts = (
+            df[status_col]
+            .fillna("N/D")
+            .astype(str)
+            .value_counts(dropna=False)
+            .reset_index()
+        )
+        counts.columns = [str(status_col), "Occorrenze"]
+
+        fig = px.bar(
+            counts,
+            x=str(status_col),
+            y="Occorrenze",
+            title=f"Occorrenze per {status_col}",
+            labels={str(status_col): str(status_col), "Occorrenze": "Occorrenze"},
+            text="Occorrenze",
+            color="Occorrenze",
+            color_continuous_scale="Blues",
+        )
+        fig.update_layout(template="plotly_dark", height=460, xaxis_tickangle=-35, showlegend=False)
+        fig.update_traces(textposition="outside")
+        return fig
+
+    @staticmethod
+    def _ticket_trend_chart(df: pd.DataFrame) -> go.Figure | None:
+        date_col = ChartGenerator._find_datetime_column(df)
+        if not date_col:
+            return None
+
+        dates = pd.to_datetime(df[date_col], errors="coerce")
+        valid = df.loc[dates.notna()].copy()
+        if valid.empty:
+            return None
+
+        valid["_chart_date"] = dates.loc[dates.notna()]
+        span_days = max((valid["_chart_date"].max() - valid["_chart_date"].min()).days, 0)
+        if span_days > 730:
+            freq = "ME"
+            label = "Mese"
+        elif span_days > 120:
+            freq = "W"
+            label = "Settimana"
+        else:
+            freq = "D"
+            label = "Giorno"
+
+        trend = (
+            valid.set_index("_chart_date")
+            .resample(freq)
+            .size()
+            .reset_index(name="Ticket")
+        )
+
+        fig = px.line(
+            trend,
+            x="_chart_date",
+            y="Ticket",
+            markers=True,
+            title=f"Andamento lavorazione ticket per {date_col}",
+            labels={"_chart_date": label, "Ticket": "Ticket"},
+        )
+        fig.update_layout(template="plotly_dark", height=460)
+        return fig
+
+    @staticmethod
+    def _find_status_column(df: pd.DataFrame):
+        keywords = ["stato", "status", "state", "ticket status", "ticket state"]
+        normalized_columns = [(column, str(column).lower().replace("_", " ")) for column in df.columns]
+
+        for column, normalized in normalized_columns:
+            if any(keyword in normalized for keyword in keywords):
+                return column
+
+        categorical = [
+            column for column in df.columns
+            if pd.api.types.is_object_dtype(df[column])
+            or pd.api.types.is_string_dtype(df[column])
+            or isinstance(df[column].dtype, pd.CategoricalDtype)
+        ]
+        low_cardinality = [
+            column for column in categorical
+            if 1 < df[column].nunique(dropna=True) <= 50
+        ]
+        return low_cardinality[0] if low_cardinality else None
+
+    @staticmethod
+    def _find_datetime_column(df: pd.DataFrame):
+        name_keywords = [
+            "data", "date", "time", "ora", "created", "updated",
+            "apertura", "chiusura", "lavorazione", "creation", "update",
+        ]
+
+        for column in df.columns:
+            if pd.api.types.is_datetime64_any_dtype(df[column]):
+                return column
+
+        named_candidates = [
+            column for column in df.columns
+            if any(keyword in str(column).lower() for keyword in name_keywords)
+        ]
+        for column in named_candidates + list(df.columns):
+            parsed = pd.to_datetime(df[column], errors="coerce")
+            if parsed.notna().sum() >= max(3, int(len(df) * 0.2)):
+                return column
+
+        return None
     
     @staticmethod
     def create_summary_dashboard(df: pd.DataFrame) -> go.Figure:

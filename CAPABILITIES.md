@@ -12,7 +12,7 @@
 | Query learning | Done | `utils/query_history_manager.py` | Storico SQLite in `data/query_history.db`. |
 | Query feedback | Done | `app_dash.py`, `utils/query_history_manager.py` | Pulsanti utile/non utile dopo il report. |
 | Analisi deterministica | Done | `utils/data_analysis.py` | Metriche pandas reali su dataframe. |
-| Grafici Plotly | Done | `utils/chart_generator.py` | Grafici generati dal dataframe reale. |
+| Grafici Plotly | Done | `utils/chart_generator.py` | Grafici generati dal dataframe reale, inclusi grafici richiesti nella descrizione utente quando riconoscibili. |
 | Report finale LLM | Done | `agents/report_generator.py` | Report testuale in italiano. |
 | PDF report | Done | `utils/pdf_generator.py` | Generazione PDF locale. |
 | Chat follow-up | Done | `agents/conversation_agent.py`, `utils/conversation_manager.py` | Domande successive sull'analisi. |

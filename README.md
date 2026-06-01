@@ -204,6 +204,13 @@ Da quel momento Git esegue `.\scripts\verify.ps1` prima di ogni commit.
 - box plot per anomalie;
 - tabella di statistiche descrittive.
 
+Quando la descrizione utente richiede esplicitamente grafici riconoscibili, il
+sistema li genera prima dei grafici automatici. Per esempio:
+
+- grafico a colonne con occorrenze degli stati/status ticket;
+- grafico temporale dell'andamento della lavorazione ticket, se esiste una
+  colonna data/ora utilizzabile.
+
 ## Test
 
 Esegui i test principali con:

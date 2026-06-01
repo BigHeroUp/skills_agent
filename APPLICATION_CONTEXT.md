@@ -166,6 +166,11 @@ e `insights["deterministic_insights"]`.
 - box plot per anomalie;
 - tabella con statistiche descrittive.
 
+`ChartGenerator.generate_requested_charts` viene eseguito prima dei grafici
+automatici e produce grafici deterministici quando la richiesta utente e
+riconoscibile, per esempio occorrenze degli stati/status ticket e andamento
+temporale dei ticket.
+
 ## Skill presenti
 
 Sul filesystem sono presenti tre skill esplicite:

@@ -931,7 +931,9 @@ def display_results(n):
         result_df = current_context.raw_data.get("dataframe")
         if isinstance(result_df, pd.DataFrame) and not result_df.empty:
             chart_generator = ChartGenerator()
-            charts = chart_generator.auto_generate_charts(result_df, current_context.insights)
+            requested_charts = chart_generator.generate_requested_charts(result_df, current_context.user_input)
+            automatic_charts = chart_generator.auto_generate_charts(result_df, current_context.insights)
+            charts = requested_charts + automatic_charts
             
             for chart in charts:
                 charts_html.append(
@@ -1046,7 +1048,9 @@ def download_pdf(n_clicks):
         result_df = current_context.raw_data.get("dataframe")
         if isinstance(result_df, pd.DataFrame) and not result_df.empty:
             chart_generator = ChartGenerator()
-            charts_for_pdf = chart_generator.auto_generate_charts(result_df, current_context.insights)
+            requested_charts = chart_generator.generate_requested_charts(result_df, current_context.user_input)
+            automatic_charts = chart_generator.auto_generate_charts(result_df, current_context.insights)
+            charts_for_pdf = requested_charts + automatic_charts
         
         # Genera il PDF
         success = pdf_generator.generate_report(
