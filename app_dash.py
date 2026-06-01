@@ -14,6 +14,7 @@ from utils.conversation_manager import ConversationManager
 from utils.query_history_manager import QueryHistoryManager
 from agents.conversation_agent import ConversationAgent
 import pandas as pd
+import plotly.express as px
 import threading
 import json
 import uuid
@@ -40,6 +41,7 @@ conversation_manager: ConversationManager = None
 conversation_agent: ConversationAgent = None
 pdf_generator: PDFGenerator = PDFGenerator()
 current_charts = []  # Conserva i chart per PDF
+followup_charts = []  # Grafici richiesti dalla chat follow-up
 
 
 # Layout CSS personalizzato
@@ -779,7 +781,7 @@ def update_upload(contents, filename, source_type):
     prevent_initial_call=True
 )
 def start_analysis(n_clicks, description, context_metadata, source_type, oracle_state, oracle_query):
-    global processing_status, query_feedback_status
+    global processing_status, query_feedback_status, followup_charts
 
     if not description:
         logger.warning("Analisi non avviata: descrizione mancante")
@@ -799,6 +801,7 @@ def start_analysis(n_clicks, description, context_metadata, source_type, oracle_
         "progress": 0,
     }
     query_feedback_status = {"query_id": None, "submitted": False, "message": ""}
+    followup_charts = []
     logger.info("Analisi richiesta dalla dashboard. source_type=%s", source_type)
     
     def run_pipeline():
@@ -934,6 +937,14 @@ def display_results(n):
                 charts_html.append(
                     html.Div([dcc.Graph(figure=chart)], className="chart-card")
                 )
+
+        for item in followup_charts:
+            charts_html.append(
+                html.Div([
+                    dcc.Graph(figure=item["figure"]),
+                    html.Div(item["description"], style={"color": "#aaa", "marginTop": "8px"})
+                ], className="chart-card")
+            )
         
         return report_text, {"display": "block"}, charts_html, {"display": "block"}
     
@@ -1082,16 +1093,20 @@ def download_pdf(n_clicks):
 # Callback per chat follow-up
 @app.callback(
     Output('chat-messages', 'children'),
+    Input('interval-component', 'n_intervals'),
     Input('chat-send-button', 'n_clicks'),
     State('chat-input', 'value'),
     prevent_initial_call=True
 )
-def handle_chat_message(n_clicks, user_message):
+def handle_chat_message(n_intervals, n_clicks, user_message):
     """Gestisce i messaggi della chat follow-up"""
-    global conversation_manager, conversation_agent, current_context
+    global conversation_manager, conversation_agent, current_context, followup_charts
     
+    if ctx.triggered_id == 'interval-component':
+        return _render_chat_messages()
+
     if n_clicks == 0 or not user_message or not user_message.strip():
-        return []
+        return _render_chat_messages()
     
     try:
         # Inizializza conversation manager se necessario
@@ -1111,6 +1126,12 @@ def handle_chat_message(n_clicks, user_message):
         # Aggiunge messaggio utente
         conversation_manager.add_user_message(user_message)
         logger.info(f"Domanda follow-up: {user_message[:50]}")
+
+        chart_result = _try_generate_followup_chart(user_message)
+        if chart_result:
+            followup_charts.append(chart_result)
+            conversation_manager.add_assistant_message(chart_result["message"])
+            return _render_chat_messages()
         
         # Genera risposta in background
         def generate_response():
@@ -1150,7 +1171,7 @@ def handle_chat_message(n_clicks, user_message):
                     html.Span(msg.content)
                 ], style={"marginBottom": "10px", "padding": "8px", "backgroundColor": "rgba(255, 127, 14, 0.1)", "borderRadius": "8px"}))
         
-        return messages_html
+        return _render_chat_messages()
     
     except Exception as e:
         logger.error(f"Errore gestione chat: {type(e).__name__}")
@@ -1158,6 +1179,109 @@ def handle_chat_message(n_clicks, user_message):
             html.Span("❌ Errore: ", style={"color": "#d62728"}),
             html.Span(str(e))
         ])]
+
+def _render_chat_messages():
+    """Costruisce il rendering della chat corrente."""
+    if conversation_manager is None:
+        return []
+
+    messages_html = []
+    for msg in conversation_manager.messages:
+        if msg.role == "user":
+            messages_html.append(html.Div([
+                html.Span("Tu: ", style={"fontWeight": "bold", "color": "#1f77b4"}),
+                html.Span(msg.content)
+            ], style={"marginBottom": "10px", "padding": "8px", "backgroundColor": "rgba(31, 119, 180, 0.1)", "borderRadius": "8px"}))
+        else:
+            messages_html.append(html.Div([
+                html.Span("Assistente: ", style={"fontWeight": "bold", "color": "#ff7f0e"}),
+                html.Span(msg.content)
+            ], style={"marginBottom": "10px", "padding": "8px", "backgroundColor": "rgba(255, 127, 14, 0.1)", "borderRadius": "8px"}))
+
+    return messages_html
+
+
+def _try_generate_followup_chart(user_message: str):
+    """Genera grafici deterministici richiesti in chat quando possibile."""
+    if current_context is None:
+        return None
+
+    message = user_message.lower()
+    wants_chart = any(term in message for term in ["grafico", "chart", "colonne", "barre", "bar chart"])
+    wants_status = any(term in message for term in ["stato", "status", "state"])
+    wants_occurrence = any(term in message for term in ["occorrenza", "conteggio", "quanti", "totale", "somma"])
+    if not (wants_chart and (wants_status or wants_occurrence)):
+        return None
+
+    df = current_context.raw_data.get("dataframe")
+    if not isinstance(df, pd.DataFrame) or df.empty:
+        return None
+
+    status_col = _find_status_column(df)
+    if not status_col:
+        available = ", ".join(map(str, df.columns[:15]))
+        return {
+            "figure": px.bar(title="Colonna stato non trovata"),
+            "description": "Colonna stato/status non individuata.",
+            "message": (
+                "Non ho trovato una colonna riconducibile allo stato del ticket. "
+                f"Colonne disponibili: {available}"
+            ),
+        }
+
+    counts = (
+        df[status_col]
+        .fillna("N/D")
+        .astype(str)
+        .value_counts(dropna=False)
+        .reset_index()
+    )
+    counts.columns = [str(status_col), "Occorrenze"]
+
+    show_all = any(term in message for term in ["tutti", "tutte", "completo", "intera lista"])
+    suffix = ""
+    if not show_all and len(counts) > 50:
+        counts = counts.head(50)
+        suffix = " (prime 50 categorie)"
+
+    fig = px.bar(
+        counts,
+        x=str(status_col),
+        y="Occorrenze",
+        title=f"Occorrenze per {status_col}{suffix}",
+        labels={str(status_col): str(status_col), "Occorrenze": "Occorrenze"},
+        text="Occorrenze",
+    )
+    fig.update_layout(template="plotly_dark", height=460, xaxis_tickangle=-35)
+    fig.update_traces(textposition="outside")
+
+    return {
+        "figure": fig,
+        "description": f"Grafico generato dalla chat: conteggio occorrenze per '{status_col}'.",
+        "message": f"Ho generato un grafico a colonne con le occorrenze per '{status_col}' usando tutti i ticket disponibili nel dataframe.",
+    }
+
+
+def _find_status_column(df: pd.DataFrame):
+    """Trova la colonna piu probabile per stato/status ticket."""
+    keywords = ["stato", "status", "state", "ticket status", "ticket state"]
+    normalized_columns = [(column, str(column).lower().replace("_", " ")) for column in df.columns]
+
+    for column, normalized in normalized_columns:
+        if any(keyword in normalized for keyword in keywords):
+            return column
+
+    categorical = [
+        column for column in df.columns
+        if pd.api.types.is_object_dtype(df[column])
+        or pd.api.types.is_string_dtype(df[column])
+        or isinstance(df[column].dtype, pd.CategoricalDtype)
+    ]
+    low_cardinality = [
+        column for column in categorical
+        if 1 < df[column].nunique(dropna=True) <= 30
+    ]
+    return low_cardinality[0] if low_cardinality else None
 
 
 if __name__ == '__main__':
