@@ -213,12 +213,15 @@ Sono presenti anche le skill:
 - `skills/data_processing/SKILL.md`
 - `skills/analysis/SKILL.md`
 
-Nota: nella implementazione attuale gli agenti costruiscono direttamente il
-proprio prompt e non invocano `load_skill_prompt()` durante `process()`.
+Gli agenti LLM compongono il prompt tramite
+`BaseAgent.build_prompt_with_skill()`, includendo le istruzioni del rispettivo
+file `SKILL.md` prima del task specifico.
 
 ## OpenAI e lingua
 
 - Ogni agente eredita da `BaseAgent`.
+- I prompt LLM includono le istruzioni della skill associata tramite
+  `build_prompt_with_skill()`.
 - Il client OpenAI richiede `OPENAI_API_KEY` nel file `.env`.
 - Il modello configurato nel codice e `gpt-3.5-turbo`.
 - `BaseAgent.call_openai()` aggiunge un messaggio di sistema che richiede

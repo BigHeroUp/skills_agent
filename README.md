@@ -128,6 +128,10 @@ python main.py
 
 Gli agenti leggono e aggiornano la stessa istanza di `AgentContext`.
 
+Ogni agente LLM include nel prompt le istruzioni della propria skill tramite
+`BaseAgent.build_prompt_with_skill()`. Le regole operative possono quindi essere
+aggiornate nei file `skills/*/SKILL.md` senza riscrivere il codice Python.
+
 ## QuerySuggestionAgent
 
 Il `QuerySuggestionAgent` consente all'utente di descrivere l'analisi in

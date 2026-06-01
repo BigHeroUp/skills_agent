@@ -19,11 +19,11 @@ class ReportGeneratorAgent(BaseAgent):
         
         try:
             # Prepara il prompt per OpenAI
-            prompt = f"""
+            task_prompt = f"""
             Crea un report professionale COMPLETAMENTE IN ITALIANO con:
             
-            Insight: {str(context.insights)[:200]}
-            Dati Processati: {str(context.processed_data)[:200]}
+            Insight: {str(context.insights)[:1600]}
+            Dati Processati: {str(context.processed_data)[:1600]}
             
             Formato del report (tutto in ITALIANO):
             1. Riepilogo Esecutivo
@@ -34,6 +34,7 @@ class ReportGeneratorAgent(BaseAgent):
             
             Tono: Professionale, chiaro, conciso - SEMPRE IN ITALIANO
             """
+            prompt = self.build_prompt_with_skill(task_prompt)
             
             messages = [{"role": "user", "content": prompt}]
             response = self.call_openai(messages, temperature=0.5)

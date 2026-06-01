@@ -23,9 +23,9 @@ class DataValidatorAgent(BaseAgent):
                 return context
             
             # Prepara il prompt per OpenAI
-            prompt = f"""
+            task_prompt = f"""
             Valida questi dati estratti (rispondi SEMPRE in italiano):
-            {str(context.raw_data)[:200]}
+            {str(context.raw_data)[:1200]}
             
             Verifica in italiano:
             1. Completezza dei dati
@@ -41,6 +41,7 @@ class DataValidatorAgent(BaseAgent):
                 "raccomandazioni": [...]
             }}
             """
+            prompt = self.build_prompt_with_skill(task_prompt)
             
             messages = [{"role": "user", "content": prompt}]
             response = self.call_openai(messages)

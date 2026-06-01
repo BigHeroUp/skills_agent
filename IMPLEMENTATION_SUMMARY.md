@@ -251,3 +251,5 @@ python main.py
 - Le query ricorrenti diventano piu veloci da generare.
 - Il costo LLM si riduce quando esiste uno storico utile.
 - Lo storico crea una base per miglioramenti futuri tramite feedback.
+- Gli agenti LLM usano i file `SKILL.md` come istruzioni operative caricabili,
+  riducendo prompt hardcoded e rendendo il comportamento piu configurabile.

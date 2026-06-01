@@ -27,7 +27,7 @@ class AnalystAgent(BaseAgent):
             deterministic_insights = build_deterministic_insights(deterministic_summary)
 
             # Prepara il prompt per OpenAI
-            prompt = f"""
+            task_prompt = f"""
             Analizza questi dati processati (rispondi SEMPRE in italiano):
             Risultati calcolati dal dataframe reale:
             {str(deterministic_insights)[:2000]}
@@ -48,6 +48,7 @@ class AnalystAgent(BaseAgent):
                 "livello_confidenza": 0-100
             }}
             """
+            prompt = self.build_prompt_with_skill(task_prompt)
             
             messages = [{"role": "user", "content": prompt}]
             response = self.call_openai(messages)

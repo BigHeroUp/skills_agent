@@ -40,6 +40,16 @@ class BaseAgent(ABC):
         
         with open(skill_path, "r", encoding="utf-8") as f:
             return f.read()
+
+    def build_prompt_with_skill(self, task_prompt: str) -> str:
+        """Combina istruzioni della skill e prompt specifico del task."""
+        skill_prompt = self.load_skill_prompt()
+        return f"""ISTRUZIONI SKILL ({self.skill_name}):
+{skill_prompt}
+
+TASK CORRENTE:
+{task_prompt}
+"""
     
     def call_openai(self, messages: list, temperature: float = 0.7) -> str:
         """Chiama l'API OpenAI e ritorna la risposta"""

@@ -27,7 +27,7 @@ class DataProcessorAgent(BaseAgent):
             deterministic_summary = summarize_dataframe(df)
 
             # Prepara il prompt per OpenAI
-            prompt = f"""
+            task_prompt = f"""
             Elabora questi dati validati (rispondi SEMPRE in italiano):
             Riepilogo calcolato dal dataframe reale:
             {str(deterministic_summary)[:2000]}
@@ -46,6 +46,7 @@ class DataProcessorAgent(BaseAgent):
                 "note_elaborazione": "..."
             }}
             """
+            prompt = self.build_prompt_with_skill(task_prompt)
             
             messages = [{"role": "user", "content": prompt}]
             response = self.call_openai(messages)

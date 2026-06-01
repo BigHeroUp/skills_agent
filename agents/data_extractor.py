@@ -19,8 +19,11 @@ class DataExtractorAgent(BaseAgent):
         
         try:
             # Prepara il prompt per OpenAI
-            prompt = f"""
+            task_prompt = f"""
             L'utente ha richiesto: {context.user_input}
+
+            Suggerimento di estrazione disponibile:
+            {str(context.raw_data.get("extraction_suggestion", {}))[:1200]}
             
             Genera un piano di estrazione dati in ITALIANO:
             1. Quale fonte dati usare (Oracle, CSV, API)?
@@ -35,6 +38,7 @@ class DataExtractorAgent(BaseAgent):
                 "description": "..."
             }}
             """
+            prompt = self.build_prompt_with_skill(task_prompt)
             
             messages = [{"role": "user", "content": prompt}]
             response = self.call_openai(messages)

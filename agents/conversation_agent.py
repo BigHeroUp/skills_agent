@@ -102,7 +102,7 @@ La tua specialità è:
             # Costruisce il prompt con il contesto
             prompt = self._build_prompt(question, previous_context, conversation_history)
             
-            messages = [{"role": "user", "content": prompt}]
+            messages = [{"role": "user", "content": self.build_prompt_with_skill(prompt)}]
             response = self.call_openai(messages, temperature=0.5)
             
             self.log("✅ Risposta generata")

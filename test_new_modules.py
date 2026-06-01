@@ -133,6 +133,31 @@ def test_skill_files():
         traceback.print_exc()
         return False
 
+def test_skill_prompt_builder():
+    """Verify agents can compose task prompts with their SKILL.md content."""
+    try:
+        print("\n" + "="*50)
+        print("Testing skill prompt builder...")
+        print("="*50)
+
+        from agents.query_suggestion_agent import QuerySuggestionAgent
+
+        agent = QuerySuggestionAgent()
+        prompt = agent.build_prompt_with_skill("Genera un suggerimento di test.")
+
+        assert "ISTRUZIONI SKILL (query_suggestion)" in prompt
+        assert "Query Suggestion Skill" in prompt
+        assert "TASK CORRENTE" in prompt
+        assert "Genera un suggerimento di test." in prompt
+
+        print("OK skill prompt builder")
+        return True
+    except Exception as e:
+        print(f"Skill prompt builder test FAILED: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
 if __name__ == "__main__":
     print("\nTESTING NEW MODULES\n")
     
@@ -141,6 +166,7 @@ if __name__ == "__main__":
     success = test_history_manager() and success
     success = test_data_analysis() and success
     success = test_skill_files() and success
+    success = test_skill_prompt_builder() and success
     
     if success:
         print("\n" + "="*50)

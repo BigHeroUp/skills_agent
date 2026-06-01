@@ -156,7 +156,7 @@ FETCH FIRST 5 ROWS ONLY;
                 instructions = self._get_generic_instructions(context)
             
             # Chiama LLM
-            messages = [{"role": "user", "content": instructions}]
+            messages = [{"role": "user", "content": self.build_prompt_with_skill(instructions)}]
             response = self.call_openai(messages, temperature=0.5)
             
             # Parsifica risposta (dovrebbe contenere JSON)
