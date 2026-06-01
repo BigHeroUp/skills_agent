@@ -1,256 +1,231 @@
-# My Skill Agent 🤖 - Multi-Agent Hub & Spoke
+# My Skill Agent - Multi-Agent Hub & Spoke
 
-Un sistema avanzato di agenti OpenAI che lavorano insieme in un'architettura Hub & Spoke.
+Dashboard locale di analisi dati assistita da LLM, costruita con una pipeline di
+agenti specializzati che lavorano in sequenza su un contesto condiviso.
 
-## 🏗️ Architettura
+## Architettura
 
-5 agenti specializzati che lavorano in sequenza, passandosi un **context condiviso**:
-
+```text
+Input utente
+    |
+    v
+[Hub - Coordinator]
+    |-> DataSourceManager  carica dati da CSV, Excel o Oracle
+    |-> QuerySuggestion    suggerisce query o colonne da descrizione naturale
+    |-> DataExtractor      prepara il piano di estrazione
+    |-> DataValidator      valida i dati
+    |-> DataProcessor      elabora il contenuto
+    |-> Analyst            genera insight
+    |-> ReportGenerator    crea il report finale
+    |
+    v
+Output finale
 ```
-Input Utente
-    ↓
-[Hub - Coordinatore]
-    ├→ DataExtractor    (estrae dati)
-    ├→ DataValidator    (valida dati)
-    ├→ DataProcessor    (elabora dati)
-    ├→ Analyst          (analizza)
-    └→ ReportGenerator  (crea report)
-    ↓
-Output Finale
+
+La dashboard viene eseguita in locale con Dash su:
+
+```text
+http://localhost:8050/
 ```
 
-## 📁 Struttura
+## Funzionalita
 
-```
+- Upload e analisi di file CSV.
+- Upload e analisi di file Excel.
+- Connessione read-only a database Oracle.
+- Descrizione dell'analisi in linguaggio naturale.
+- Suggerimento automatico di query o colonne tramite `QuerySuggestionAgent`.
+- Grafici Plotly generati dal dataframe reale.
+- Report testuale in italiano generato tramite OpenAI.
+- Logging applicativo con rotazione in `logs/app.log`.
+- Storico locale delle query apprese in SQLite.
+
+## Struttura del progetto
+
+```text
 my_skill_agent/
-├── main.py                 # Entry point principale
-├── coordinator.py          # Orizzazione del flusso
-├── requirements.txt        # Dipendenze
-├── .env.template           # Template configurazione
-├── agents/
-│   ├── base_agent.py      # Classe base (tutti gli agenti ereditano)
-│   ├── data_extractor.py  # Estrae dati
-│   ├── data_validator.py  # Valida dati
-│   ├── data_processor.py  # Elabora dati
-│   ├── analyst.py         # Analizza dati
-│   └── report_generator.py # Genera report
-├── utils/
-│   ├── context.py         # AgentContext condiviso
-│   └── __init__.py
-└── skills/
-    ├── oracle_sql/SKILL.md
-    ├── email_writer/SKILL.md
-    └── ...
+|-- main.py
+|-- app_dash.py
+|-- coordinator.py
+|-- requirements.txt
+|-- APPLICATION_CONTEXT.md
+|-- IMPLEMENTATION_SUMMARY.md
+|-- agents/
+|   |-- base_agent.py
+|   |-- data_source_manager.py
+|   |-- query_suggestion_agent.py
+|   |-- data_extractor.py
+|   |-- data_validator.py
+|   |-- data_processor.py
+|   |-- analyst.py
+|   `-- report_generator.py
+|-- connectors/
+|   `-- data_connectors.py
+|-- utils/
+|   |-- context.py
+|   |-- chart_generator.py
+|   |-- logging_config.py
+|   |-- pdf_generator.py
+|   `-- query_history_manager.py
+|-- skills/
+|   |-- oracle_sql/SKILL.md
+|   |-- email_writer/SKILL.md
+|   |-- query_suggestion/SKILL.md
+|   `-- conversation/SKILL.md
+`-- tests/
 ```
 
-## 🚀 Setup
+Nota: i test attuali sono script nella root del progetto:
 
-1. **Installa dipendenze:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+- `test_new_modules.py`
+- `test_integration.py`
 
-2. **Configura API key:**
-   ```bash
-   copy .env.template .env
-   # Edita .env e aggiungi: OPENAI_API_KEY=sk-...
-   ```
+## Setup
 
-3. **Esegui il sistema:**
-   ```bash
-   python main.py
-   ```
+1. Crea o attiva un ambiente virtuale Python.
 
-## 🤖 I 7 Agenti (Nuovo: QuerySuggestion!)
-
-| # | Agente | Compito | Input | Output |
-|---|--------|--------|-------|--------|
-| 0 | **DataSourceManager** | Carica dati dalla fonte | metadata sorgente | raw_data con dataframe |
-| 1 | **QuerySuggestion** 🆕 | **Suggerisce query da descrizione naturale** | **user_input + source_type** | **extraction_suggestion** |
-| 2 | **DataExtractor** | Estrae dati usando il suggerimento | Richiesta utente | extraction_plan |
-| 3 | **DataValidator** | Valida i dati | raw_data | validation_results |
-| 4 | **DataProcessor** | Elabora e trasforma | raw_data validato | processed_data |
-| 5 | **Analyst** | Genera insight | processed_data | insights |
-| 6 | **ReportGenerator** | Crea report | insights + processed_data | final_report |
-
-## 🔄 Flusso di Comunicazione
-
-Gli agenti comunicano tramite un **AgentContext** condiviso:
-
-```python
-context = {
-    'user_input': str,           # Input originale
-    'raw_data': dict,            # Dati estratti
-    'validation_results': dict,  # Risultati validazione
-    'processed_data': dict,      # Dati elaborati
-    'insights': dict,            # Analisi e insight
-    'final_report': str,         # Report finale
-    'errors': list,              # Errori accumulati
-}
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-## 🧠 QuerySuggestionAgent - Learning da Descrizioni Naturali (NUOVO!)
+2. Installa le dipendenze.
 
-**Risolve il problema**: Utenti non esperti non devono più scrivere query SQL o selezionare colonne manualmente.
-
-### Come Funziona
-
-1. **Input**: L'utente scrive solo una descrizione naturale dell'analisi
-   - Es: "Analizza i top 5 clienti per volume di ordini"
-   - Es: "Mostra le vendite per regione nel tempo"
-
-2. **Query Suggestion Agent**:
-   - Consulta una **storia di query apprese** (SQLite in `data/query_history.db`)
-   - Se trova una query simile con buon score → la suggerisce
-   - Altrimenti → genera una nuova query con LLM (Oracle SQL o CSV columns)
-
-3. **Learning Automatico**:
-   - Ogni query viene memorizzata con la descrizione utente
-   - Dopo l'analisi, il sistema registra se la query ha dato buoni risultati
-   - Query di successo ricevono uno score più alto
-   - Le volte successive, query simili vengono suggerite automaticamente
-
-4. **Output**: `extraction_suggestion` nel context
-   - Contiene la query/piano ottimale
-   - Include metadati (source, similarity score, success count)
-
-### Database di Learning
-
-```
-data/query_history.db
-├── query_history table
-│   ├── id, description, query_text
-│   ├── source_type (oracle|csv|excel)
-│   ├── feedback_score (0-1)
-│   ├── execution_count, success_count
-│   └── created_at, last_used
+```powershell
+pip install -r requirements.txt
 ```
 
-### Skill Utilisé
+3. Crea il file `.env` partendo dal template.
 
-- **`skills/query_suggestion/SKILL.md`**: Istruzioni LLM per generare query da descrizioni naturali
-- **`utils/query_history_manager.py`**: Gestione SQLite della storia
-
-## 💡 Come Aggiungere un Nuovo Agente
-
-1. Crea un file in `agents/nuovo_agent.py`:
-```python
-from agents.base_agent import BaseAgent
-from utils.context import AgentContext
-
-class NuovoAgent(BaseAgent):
-    def __init__(self):
-        super().__init__(name="NuovoAgent", skill_name="nuovo_skill")
-    
-    def process(self, context: AgentContext) -> AgentContext:
-        # Elabora il context
-        return context
+```powershell
+copy .env.template .env
 ```
 
-2. Aggiungi a `coordinator.py` nella lista `self.agents`
+4. Inserisci nel file `.env` una chiave OpenAI valida.
 
-3. Crea il file `skills/nuovo_skill/SKILL.md` con la descrizione
+```text
+OPENAI_API_KEY=sk-...
+```
 
-## 🧪 Test
+5. Avvia l'applicazione.
 
-Per testare il sistema, esegui:
-```bash
+```powershell
 python main.py
-# Scegli opzione 1 e descrivi una task di analisi dati
 ```
 
-Esempio: "Analizza i clienti top per volume di ordini"
+## Agenti della pipeline
 
-### Test del QuerySuggestionAgent (senza UI)
+| Ordine | Agente | Responsabilita | Output principale |
+| --- | --- | --- | --- |
+| 1 | `DataSourceManagerAgent` | Carica dati da CSV, Excel o Oracle | `raw_data` |
+| 2 | `QuerySuggestionAgent` | Suggerisce query o colonne da descrizione naturale | `extraction_suggestion` |
+| 3 | `DataExtractorAgent` | Prepara il piano di estrazione | `extraction_plan` |
+| 4 | `DataValidatorAgent` | Valida i dati caricati | `validation_results`, `is_valid` |
+| 5 | `DataProcessorAgent` | Elabora i dati validati | `processed_data` |
+| 6 | `AnalystAgent` | Genera insight | `insights` |
+| 7 | `ReportGeneratorAgent` | Produce il report finale | `final_report` |
 
-```bash
+Gli agenti leggono e aggiornano la stessa istanza di `AgentContext`.
+
+## QuerySuggestionAgent
+
+Il `QuerySuggestionAgent` consente all'utente di descrivere l'analisi in
+linguaggio naturale senza scrivere manualmente SQL o selezionare colonne.
+
+Esempi:
+
+- "Analizza i top 5 clienti per volume di ordini"
+- "Mostra le vendite per regione nel tempo"
+- "Trova anomalie negli importi mensili"
+
+Il funzionamento e il seguente:
+
+1. legge `user_input` e `source_type`;
+2. cerca query simili in `data/query_history.db`;
+3. se trova un match sopra soglia, riusa la query storica;
+4. se non trova match, genera una nuova query o un piano con LLM;
+5. salva il suggerimento nel contesto.
+
+Il database SQLite contiene la tabella `query_history` con descrizione, query,
+tipo sorgente, score di feedback, contatori di utilizzo e timestamp.
+
+## Oracle
+
+La connessione Oracle e gestita in modalita read-only.
+
+Sono consentite solo query che iniziano con:
+
+- `SELECT`
+- `WITH`
+
+Non sono consentite query mutative o DDL come:
+
+- `INSERT`
+- `UPDATE`
+- `DELETE`
+- `DROP`
+- `CREATE`
+- `ALTER`
+
+Le credenziali non devono essere salvate nei log o nei file versionati.
+
+## Grafici
+
+`utils/chart_generator.py` genera automaticamente grafici Plotly dal dataframe:
+
+- istogrammi per colonne numeriche;
+- heatmap di correlazione;
+- top valori per colonne categoriche;
+- serie temporali se esistono colonne data/ora;
+- box plot per anomalie;
+- tabella di statistiche descrittive.
+
+## Test
+
+Esegui i test principali con:
+
+```powershell
+python test_new_modules.py
 python test_integration.py
 ```
 
-Output atteso:
-```
-✅ TUTTI I TEST PASSATI - Sistema pronto!
-```
+`test_new_modules.py` verifica import e moduli singoli.
 
-Questo test verifica:
-- ✓ Import di tutti i moduli
-- ✓ Pipeline con QuerySuggestionAgent incluso
-- ✓ Generazione di suggerimenti per CSV
-- ✓ Generazione di suggerimenti per Oracle
-- ✓ Funzionamento di QueryHistoryManager
-- ✓ Creazione di SKILL.md
+`test_integration.py` verifica l'integrazione della pipeline con
+`QuerySuggestionAgent` e `QueryHistoryManager`.
 
-## 📊 Esempio di Output
+## Logging
 
-```
-🚀 INIZIO ELABORAZIONE MULTI-AGENT
-============================================================
+L'applicazione scrive gli eventi operativi in:
 
-→ Esecuzione: DataSourceManager
-🤖 [DataSourceManager] Caricamento dati da fonte...
-🤖 [DataSourceManager] ✅ Dati caricati con successo
-
-→ Esecuzione: QuerySuggestion (NUOVO!)
-🤖 [QuerySuggestion] Analizzando: Analizza i clienti top...
-🤖 [QuerySuggestion] ✅ Trovata query simile (somiglianza: 82%)
-🤖 [QuerySuggestion] Suggerimento: SELECT TOP 5 customers BY order_volume
-
-→ Esecuzione: DataExtractor
-🤖 [DataExtractor] Estrazione dati da: Analizza i clienti top...
-🤖 [DataExtractor] ✅ Dati estratti con successo
-
-→ Esecuzione: DataValidator
-🤖 [DataValidator] Validazione dati in corso...
-🤖 [DataValidator] ✅ Validazione completata
-
-→ Esecuzione: DataProcessor
-🤖 [DataProcessor] Elaborazione dati...
-🤖 [DataProcessor] ✅ Elaborazione completata
-
-→ Esecuzione: Analyst
-🤖 [Analyst] Analisi in corso...
-🤖 [Analyst] ✅ Insight generati
-
-→ Esecuzione: ReportGenerator
-🤖 [ReportGenerator] Generazione report finale...
-🤖 [ReportGenerator] ✅ Report generato
-
-✅ ELABORAZIONE COMPLETATA
-============================================================
+```text
+logs/app.log
 ```
 
-## 🔗 Pattern: Sequential Relay
+Il log usa rotazione automatica quando il file raggiunge 2 MB e conserva gli
+ultimi 5 archivi.
 
-Ogni agente:
-1. **Legge** il context
-2. **Elabora** i dati
-3. **Aggiorna** il context
-4. **Passa** al prossimo agente
-
-Vantaggi:
-- ✅ Semplice da capire e debuggare
-- ✅ Facile aggiungere/rimuovere agenti
-- ✅ Tutto tracciabile
-- ✅ Error handling robusto
-
-## 📝 Requisiti
-
-- Python 3.8+
-- OpenAI API key
-- Librerie: openai, python-dotenv
-
-## Log applicativi
-
-L'applicazione scrive gli eventi operativi in `logs/app.log`, con rotazione automatica
-quando il file raggiunge 2 MB e conservazione degli ultimi 5 archivi.
-
-Sono registrati avvio applicazione, upload, test connessione Oracle, avanzamento
-della pipeline, chiamate OpenAI ed errori tecnici. Password e testo delle query
-Oracle non vengono registrati.
-
-Per seguire i log in PowerShell durante l'esecuzione:
+Per seguire il log in PowerShell:
 
 ```powershell
 Get-Content .\logs\app.log -Encoding UTF8 -Wait
 ```
 
+## Limiti noti
+
+- Il feedback loop completo del `QuerySuggestionAgent` non e ancora collegato
+  alla UI.
+- Le skill `data_validation`, `data_processing` e `analysis` sono citate dagli
+  agenti ma non hanno ancora file `SKILL.md` dedicato.
+- I grafici sono generati dal dataframe reale, ma parte dell'analisi testuale e
+  ancora prodotta dall'LLM invece che da calcoli deterministici completi.
+- Lo stato della dashboard usa variabili globali di processo e non e pensato
+  per deployment multiutente o multi-worker.
+
+## Repository
+
+Repository GitHub:
+
+```text
+https://github.com/BigHeroUp/skills_agent
+```

@@ -1,236 +1,259 @@
-# 🎉 Implementation Summary: Learning Query Suggestion Agent
+# Implementation Summary - Learning Query Suggestion Agent
 
-## ✅ IMPLEMENTAZIONE COMPLETATA
+## Stato
 
-### Obiettivo
-Creare un agente che **apprende dai risultati** e suggerisce automaticamente **query da descrizioni in linguaggio naturale**, permettendo a utenti non esperti di analizzare dati senza scrivere SQL.
+Implementazione MVP completata.
 
----
+Il progetto include un agente che interpreta descrizioni in linguaggio naturale,
+suggerisce query o colonne per l'estrazione dati e apprende dalle query usate in
+precedenza tramite uno storico SQLite locale.
 
-## 📋 File Creati
+## Obiettivo
 
-### Core Implementation
-1. **`agents/query_suggestion_agent.py`** (281 righe)
-   - Nuovo agente che interpreta descrizioni naturali
-   - Consulta history SQLite per query simili
-   - Genera query con LLM se nessun match trovato
-   - Auto-crea `skills/query_suggestion/SKILL.md` al first run
+Permettere a utenti non esperti di analizzare dati senza scrivere manualmente SQL
+o selezionare colonne una per una.
 
-2. **`utils/query_history_manager.py`** (287 righe)
-   - Gestione SQLite persistente di query storiche
-   - Tabella `query_history` con schema ottimizzato
-   - Metodi: `add_query()`, `find_similar_queries()`, `update_feedback()`, `get_top_queries()`
-   - Similarità calcolata con SequenceMatcher (nessun costo OpenAI extra)
+L'utente descrive l'analisi desiderata, per esempio:
 
-### Testing & Documentation
-3. **`test_integration.py`** (220 righe)
-   - Test completo dell'integrazione
-   - Valida pipeline con QuerySuggestionAgent
-   - Testa QueryHistoryManager CRUD
-   - Verifica creazione SKILL.md
-
-4. **`test_new_modules.py`** (160 righe)
-   - Test di import e moduli singoli
-   - Test funzionalità QueryHistoryManager
-
----
-
-## 📝 File Modificati
-
-### Coordinatore
-**`coordinator.py`**
-- Aggiunto import: `from agents.query_suggestion_agent import QuerySuggestionAgent`
-- Aggiunto `_ensure_directories()` per creare cartelle necessarie
-- Inserito `QuerySuggestionAgent()` in posizione 2 della pipeline
-- Aggiornata documentazione del flusso
-
-### UI Dashboard
-**`app_dash.py`**
-- Aggiornato `update_timeline()` per includere "QuerySuggestion" tra gli agenti
-- Timeline UI ora mostra 7 agenti invece di 6
-
-### Documentazione
-**`README.md`**
-- Aggiornata sezione "I 7 Agenti" (era "I 5 Agenti")
-- Nuova sezione "QuerySuggestionAgent - Learning da Descrizioni Naturali"
-- Documenta: database di learning, skill utilizzate, processo
-- Aggiunto test integration nel section testing
-
-**`APPLICATION_CONTEXT.md`**
-- Aggiornata tabella Pipeline multi-agent (7 ordine)
-- Nuova sezione su `skills/query_suggestion/SKILL.md`
-- Documentazione di QueryHistoryManager
-
----
-
-## 🏗️ Architettura Pipeline
-
-```
-Input Utente: "Analizza i clienti top per volume di ordini"
-    ↓
-[1] DataSourceManager → Carica dati dalla fonte
-    ↓
-[2] QuerySuggestion (NEW) → Suggerisce query:
-    ├ Consulta data/query_history.db
-    ├ Se match simile (>60% similarity) → Riusa query storica
-    └ Altrimenti → Genera query fresca con LLM
-    ↓ extraction_suggestion: {source, query, similarity_score, query_id}
-    ↓
-[3] DataExtractor → Estrae dati usando suggerimento
-[4] DataValidator → Valida
-[5] DataProcessor → Elabora
-[6] Analyst → Analizza
-[7] ReportGenerator → Crea report
-    ↓
-Output: Report + Grafici + Database aggiornato con feedback
+```text
+Analizza i top 5 clienti per volume di ordini
 ```
 
----
+Il sistema produce un suggerimento di estrazione dati coerente con la sorgente:
 
-## 🧠 Learning System
+- query Oracle read-only per database Oracle;
+- colonne e piano di analisi per CSV o Excel.
 
-### Database (SQLite)
+## File creati
+
+### `agents/query_suggestion_agent.py`
+
+Nuovo agente della pipeline.
+
+Responsabilita:
+
+- leggere la descrizione naturale dell'utente;
+- identificare il tipo sorgente (`oracle`, `csv`, `excel`);
+- cercare query simili nello storico;
+- riusare query storiche con buona similarita;
+- generare nuove query o piani tramite LLM quando non esistono match;
+- salvare il suggerimento nel contesto.
+
+### `utils/query_history_manager.py`
+
+Gestore dello storico SQLite delle query.
+
+Responsabilita:
+
+- creare e inizializzare `data/query_history.db`;
+- aggiungere nuove query;
+- cercare query simili con `SequenceMatcher`;
+- aggiornare feedback e contatori;
+- restituire le query migliori per tipo sorgente.
+
+Metodi principali:
+
+- `add_query()`
+- `find_similar_queries()`
+- `update_feedback()`
+- `get_top_queries()`
+- `clear_history()`
+
+### `skills/query_suggestion/SKILL.md`
+
+Skill dedicata alla generazione di query o piani di estrazione da descrizioni
+in linguaggio naturale.
+
+### `test_integration.py`
+
+Script di test per verificare:
+
+- import dei moduli principali;
+- integrazione del `QuerySuggestionAgent`;
+- funzionamento del `QueryHistoryManager`;
+- generazione di suggerimenti per sorgenti Oracle, CSV ed Excel.
+
+### `test_new_modules.py`
+
+Script di test focalizzato su nuovi moduli e import.
+
+## File modificati
+
+### `coordinator.py`
+
+Modifiche principali:
+
+- import di `QuerySuggestionAgent`;
+- creazione delle directory richieste;
+- inserimento del nuovo agente nella pipeline;
+- aggiornamento del flusso a 7 agenti.
+
+Pipeline attuale:
+
+```text
+DataSourceManager
+QuerySuggestion
+DataExtractor
+DataValidator
+DataProcessor
+Analyst
+ReportGenerator
 ```
+
+### `app_dash.py`
+
+Modifiche principali:
+
+- timeline aggiornata per includere `QuerySuggestion`;
+- flusso UI allineato alla pipeline a 7 agenti.
+
+### `README.md`
+
+Documentazione aggiornata con:
+
+- nuova architettura;
+- sezione sul `QuerySuggestionAgent`;
+- note su SQLite e apprendimento;
+- comandi di setup e test;
+- limiti noti.
+
+### `APPLICATION_CONTEXT.md`
+
+Contesto applicativo aggiornato per descrivere il comportamento effettivamente
+implementato dell'applicazione.
+
+## Architettura della pipeline
+
+```text
+Input utente
+    |
+    v
+DataSourceManager
+    |
+    v
+QuerySuggestion
+    |-- cerca query simili in data/query_history.db
+    |-- se trova match, riusa la query storica
+    `-- altrimenti genera un nuovo suggerimento con LLM
+    |
+    v
+DataExtractor
+    |
+    v
+DataValidator
+    |
+    v
+DataProcessor
+    |
+    v
+Analyst
+    |
+    v
+ReportGenerator
+    |
+    v
+Report finale e grafici
+```
+
+## Database di learning
+
+Il database e:
+
+```text
 data/query_history.db
-└── query_history
-    ├── id (PK)
-    ├── description (indexed)
-    ├── query_text
-    ├── source_type (oracle|csv|excel)
-    ├── feedback_score (0.0-1.0)
-    ├── execution_count
-    ├── success_count
-    ├── created_at
-    ├── last_used
-    └── notes
 ```
 
-### Flusso di Apprendimento
+Tabella principale:
 
-1. **First Run**: Utente descrive "Analizza top 5 clienti"
-   - Agent genera query fresca
-   - Salva in `query_history` (query_id=1)
+```text
+query_history
+|-- id
+|-- description
+|-- query_text
+|-- source_type
+|-- feedback_score
+|-- execution_count
+|-- success_count
+|-- created_at
+|-- last_used
+`-- notes
+```
 
-2. **Analisi**: Pipeline elabora, genera report buono
-   - Sistema registra successo
-   - `update_feedback(query_id=1, success=True, feedback_score=0.95)`
+## Flusso di apprendimento
 
-3. **Second Run**: Utente: "Top clienti per volume"
-   - Agent trova query simile (86% similarity)
-   - Riusa query_id=1 (già di successo!)
-   - Utente non scrive SQL, non seleziona colonne
+1. L'utente descrive un'analisi.
+2. Il sistema cerca richieste simili nello storico.
+3. Se trova una query utile, la riusa.
+4. Se non trova query simili, ne genera una nuova.
+5. La nuova query viene salvata nello storico.
+6. In futuro, richieste simili possono riutilizzare quella query.
 
-### Similarity Matching
-- **Algoritmo**: Python `SequenceMatcher` (Levenshtein-like)
-- **Threshold**: 0.6 (60% somiglianza minima)
-- **No costi OpenAI**: Calcolo locale, nessuna API call aggiuntiva
+Il calcolo della similarita usa `SequenceMatcher`, quindi non genera costi
+OpenAI aggiuntivi.
 
----
+## Sicurezza
 
-## 🛡️ Sicurezza & Vincoli
+Vincoli mantenuti:
 
-✅ **Mantenuti**:
-- Oracle read-only: Solo `SELECT` e `WITH` consentiti
-- No `INSERT`, `UPDATE`, `DELETE`, DDL
-- Credenziali non loggabili (già implementato nel progetto)
-- Skill in italiano (coerenza progetto)
+- Oracle e read-only.
+- Sono consentite solo query `SELECT` o `WITH`.
+- Non sono consentite query mutative o DDL.
+- Password e query Oracle non devono essere scritte nei log.
+- `.env` non deve essere versionato.
 
-✅ **CSV/Excel**: Suggerisce colonne, non esegue operazioni mutative
+## Stato delle fasi
 
----
+| Fase | Task | Stato |
+| --- | --- | --- |
+| 1 | Creare database storico query | Completato |
+| 1 | Creare skill query suggestion | Completato |
+| 1 | Creare history manager | Completato |
+| 2 | Creare learning agent | Completato |
+| 2 | Integrare agent nel coordinator | Completato |
+| 3 | Collegare feedback handler | Da fare |
+| 3 | Aggiornare report generator con feedback | Da fare |
+| 4 | Testare learning agent | Completato |
+| 4 | Aggiornare timeline UI | Completato |
 
-## 🚀 Come Usare
+## Prossimi passi consigliati
 
-### Per Utenti (UI)
-1. Accedi a `http://localhost:8050`
-2. Carica CSV/Excel o connettiti a Oracle
-3. Scrivi descrizione naturale: **"Analizza i top 5 clienti per volume"**
-   - NO: Non serve scrivere `SELECT customer_id, SUM(amount) FROM orders...`
-4. Clicca "Avvia Analisi"
-5. Agent suggerisce query automaticamente (da history o LLM)
+1. Eseguire i test:
 
-### Per Sviluppatori (Testing)
-```bash
-# Test integrazione completa
+```powershell
+python test_new_modules.py
 python test_integration.py
-
-# Accedi a history database
-sqlite3 data/query_history.db
-SELECT * FROM query_history;
 ```
 
----
+2. Avviare la dashboard:
 
-## 📊 Stato Implementazione
-
-| Fase | Task | Status |
-|------|------|--------|
-| 1 | create-query-history-db | ✅ Done |
-| 1 | create-query-suggestion-skill | ✅ Done (auto-creation) |
-| 1 | create-history-manager | ✅ Done |
-| 2 | create-learning-agent | ✅ Done |
-| 2 | integrate-in-coordinator | ✅ Done |
-| 3 | create-feedback-handler | ⏸️ Phase 3 (can be added later) |
-| 3 | update-report-generator | ⏸️ Phase 3 (can be added later) |
-| 4 | test-learning-agent | ✅ Done |
-| 4 | update-ui-hints | ✅ Done (timeline updated) |
-
-**Note**: Fase 3 (feedback loop completo) è facoltativa per MVP. Funzionalità base di apprendimento è già operativa.
-
----
-
-## 💾 Storage
-
-File system:
-```
-my_skill_agent/
-├── agents/
-│   └── query_suggestion_agent.py (NEW)
-├── utils/
-│   └── query_history_manager.py (NEW)
-├── data/
-│   └── query_history.db (created at first run)
-├── skills/
-│   └── query_suggestion/
-│       └── SKILL.md (auto-created at first run)
-├── test_integration.py (NEW)
-├── test_new_modules.py (NEW)
-└── [modified files: coordinator.py, app_dash.py, README.md, APPLICATION_CONTEXT.md]
+```powershell
+python main.py
 ```
 
----
+3. Completare il feedback loop:
 
-## 🎯 Benefici
+- controllo UI per indicare se il suggerimento e stato utile;
+- chiamata a `QueryHistoryManager.update_feedback()`;
+- aggiornamento di `success_count`, `execution_count` e `feedback_score`.
 
-✅ **Per Utenti Non Esperti**:
-- Niente più query SQL da scrivere
-- Niente più selezione manuale di colonne
-- Descrizione naturale → Query automatica
+4. Aggiungere le skill mancanti:
 
-✅ **Per Power Users**:
-- Sistema apprende dai loro usi
-- Query di successo riusate → più velocità
-- Feedback loop migliora quality
+- `skills/data_validation/SKILL.md`
+- `skills/data_processing/SKILL.md`
+- `skills/analysis/SKILL.md`
 
-✅ **Per Il Sistema**:
-- Database persistente di pattern di successo
-- Riduce costi OpenAI (riusa query simili)
-- Tracciabilità completa di analisi
+5. Rafforzare l'analisi deterministica sui dataframe con calcoli pandas:
 
----
+- KPI;
+- aggregazioni;
+- trend;
+- anomalie;
+- statistiche descrittive.
 
-## 🔮 Prossimi Passi Opzionali (Phase 3+)
+## Benefici ottenuti
 
-- [ ] Aggiungere feedback UI: "Questa query è stata utile?" → salva score
-- [ ] Dashboard statistiche: "Top query usate", "Success rate per source type"
-- [ ] Advanced similarity: Embedding con OpenAI (vs. SequenceMatcher attuale)
-- [ ] Analytics: "Quali tipi di analisi fanno gli utenti?"
-- [ ] A/B testing: Suggerimento LLM vs. storico, quale preferisce?
-
----
-
-## ✨ Summary
-
-**Un nuovo agent intelligente che impara dai tuoi usi precedenti e suggerisce query da semplici descrizioni naturali. Zero SQL richiesto. Velocità x10 per analisi ricorrenti.**
-
-🚀 **Ready to go!**
+- L'utente puo descrivere l'analisi in linguaggio naturale.
+- Il sistema puo riusare query storiche.
+- Le query ricorrenti diventano piu veloci da generare.
+- Il costo LLM si riduce quando esiste uno storico utile.
+- Lo storico crea una base per miglioramenti futuri tramite feedback.
