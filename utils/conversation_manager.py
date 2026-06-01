@@ -62,7 +62,7 @@ class ConversationManager:
         if len(self.messages) > self.max_history:
             self.messages = self.messages[-self.max_history:]
         
-        self.logger.info(f"Messaggio aggiunto: {role} ({len(self.content)} char)")
+        self.logger.info(f"Messaggio aggiunto: {role} ({len(content)} char)")
         return msg
     
     def add_user_message(self, content: str) -> ConversationMessage:
