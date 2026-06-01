@@ -1304,6 +1304,17 @@ def _try_run_followup_analysis(user_message: str):
         return None
 
     message = user_message.lower()
+    wants_ticket_overview = any(term in message for term in [
+        "puoi procedere", "procedi", "fammi tutto", "fai tutto", "quanto hai detto",
+        "quello che hai detto", "andamento chiusura", "andamento delle chiusura",
+        "chiusura ticket", "chiusure ticket", "numero totali degli stati",
+        "totali degli stati", "stati per tutta la lista",
+    ])
+    if wants_ticket_overview:
+        result = _run_ticket_overview_analysis()
+        if result:
+            return result
+
     wants_elapsed_time = (
         any(term in message for term in ["tempo medio", "durata media", "tempo trascorso", "tempo di risoluzione"])
         and any(term in message for term in ["creazione", "apertura", "created", "creation"])
@@ -1385,6 +1396,106 @@ def _try_run_followup_analysis(user_message: str):
         "chart": fig,
         "description": f"Distribuzione della durata ticket calcolata tra '{start_col}' e '{end_col}'.",
     }
+
+
+def _run_ticket_overview_analysis():
+    """Calcola analisi ticket principali dal dataframe corrente."""
+    df = current_context.raw_data.get("dataframe") if current_context else None
+    if not isinstance(df, pd.DataFrame) or df.empty:
+        return {
+            "message": "Non posso procedere: non trovo il dataframe dell'analisi corrente.",
+            "description": "Analisi ticket non eseguita.",
+        }
+
+    messages = [f"Ho analizzato il dataframe corrente: {len(df)} righe e {len(df.columns)} colonne."]
+    chart = None
+    description = "Analisi ticket deterministica."
+
+    status_col = _find_status_column(df)
+    if status_col:
+        counts = df[status_col].fillna("N/D").astype(str).value_counts(dropna=False)
+        messages.append(f"\nTotale ticket per stato usando la colonna '{status_col}':")
+        for status, count in counts.items():
+            messages.append(f"- {status}: {int(count)}")
+
+        counts_df = counts.reset_index()
+        counts_df.columns = [str(status_col), "Occorrenze"]
+        chart = px.bar(
+            counts_df,
+            x=str(status_col),
+            y="Occorrenze",
+            title=f"Occorrenze per {status_col}",
+            labels={str(status_col): str(status_col), "Occorrenze": "Occorrenze"},
+            text="Occorrenze",
+        )
+        chart.update_layout(template="plotly_dark", height=460, xaxis_tickangle=-35)
+        chart.update_traces(textposition="outside")
+        description = f"Totale ticket per stato calcolato su '{status_col}'."
+    else:
+        messages.append("\nNon ho individuato una colonna stato/status per il conteggio per stato.")
+
+    closure_col = _find_datetime_column_by_keywords(df, [
+        "risoluzione", "chiusura", "resolved", "closed", "close", "data risoluzione", "data chiusura",
+        "pyresolvedtimestamp",
+    ])
+    if closure_col:
+        closure_dates = pd.to_datetime(df[closure_col], errors="coerce")
+        valid_closures = closure_dates.dropna()
+        if not valid_closures.empty:
+            span_days = max((valid_closures.max() - valid_closures.min()).days, 0)
+            freq = "ME" if span_days > 730 else "W" if span_days > 120 else "D"
+            trend = valid_closures.to_frame(name="data").set_index("data").resample(freq).size()
+            messages.append(f"\nAndamento chiusure usando la colonna '{closure_col}':")
+            messages.append(f"- Chiusure con data valida: {int(valid_closures.count())}")
+            messages.append(f"- Prima chiusura: {valid_closures.min().date()}")
+            messages.append(f"- Ultima chiusura: {valid_closures.max().date()}")
+            if not trend.empty:
+                peak_date = trend.idxmax()
+                messages.append(f"- Periodo con piu chiusure: {peak_date.date()} ({int(trend.max())} ticket)")
+        else:
+            messages.append(f"\nLa colonna '{closure_col}' non contiene date di chiusura valide.")
+    else:
+        messages.append("\nNon ho individuato una colonna data di chiusura/risoluzione per l'andamento nel tempo.")
+
+    elapsed = _calculate_elapsed_time_summary(df)
+    if elapsed:
+        messages.append("\nTempo tra creazione e risoluzione/aggiornamento:")
+        messages.extend(elapsed)
+
+    return {
+        "message": "\n".join(messages),
+        "chart": chart,
+        "description": description,
+    }
+
+
+def _calculate_elapsed_time_summary(df: pd.DataFrame):
+    start_col = _find_datetime_column_by_keywords(df, [
+        "creazione", "apertura", "created", "creation", "open", "opened", "start", "data creazione",
+        "pxcreatedatetime",
+    ])
+    end_col = _find_datetime_column_by_keywords(df, [
+        "risoluzione", "aggiornamento", "chiusura", "resolved", "updated", "closed", "close", "end",
+        "data risoluzione", "data aggiornamento", "pyresolvedtimestamp", "pyupdatedatetime", "pxupdatedatetime",
+    ])
+    if not start_col or not end_col or start_col == end_col:
+        return []
+
+    start_dates = pd.to_datetime(df[start_col], errors="coerce")
+    end_dates = pd.to_datetime(df[end_col], errors="coerce")
+    durations = end_dates - start_dates
+    valid_durations = durations[(start_dates.notna()) & (end_dates.notna()) & (durations >= pd.Timedelta(0))]
+    if valid_durations.empty:
+        return []
+
+    return [
+        f"- Colonne usate: '{start_col}' -> '{end_col}'",
+        f"- Ticket validi: {len(valid_durations)} su {len(df)}",
+        f"- Tempo medio: {_format_timedelta_it(valid_durations.mean())}",
+        f"- Mediana: {_format_timedelta_it(valid_durations.median())}",
+        f"- Minimo: {_format_timedelta_it(valid_durations.min())}",
+        f"- Massimo: {_format_timedelta_it(valid_durations.max())}",
+    ]
 
 
 def _find_datetime_column_by_keywords(df: pd.DataFrame, keywords):
