@@ -48,6 +48,7 @@ L'interfaccia web viene eseguita in locale con Dash su
 | `app_dash.py` | Layout responsive, callback UI, upload, verifica Oracle, avvio analisi e rendering risultati. |
 | `coordinator.py` | Orchestrazione sequenziale della pipeline multi-agent. |
 | `utils/context.py` | Definizione del contesto condiviso `AgentContext`. |
+| `utils/data_analysis.py` | Calcoli deterministici pandas sul dataframe reale. |
 | `utils/chart_generator.py` | Produzione automatica di grafici Plotly dal dataframe. |
 | `utils/logging_config.py` | Configurazione centralizzata del logging applicativo. |
 | `connectors/data_connectors.py` | Connettori Oracle, CSV ed Excel e factory delle sorgenti. |
@@ -92,8 +93,8 @@ Il coordinatore esegue gli agenti nell'ordine seguente:
 | 2 | `QuerySuggestionAgent` (NUOVO) | `user_input` + `source_type` | `extraction_suggestion` con query suggerita e similarity score |
 | 3 | `DataExtractorAgent` | richiesta utente e `extraction_suggestion` | `extraction_plan` prodotto dal LLM |
 | 4 | `DataValidatorAgent` | `raw_data` | `validation_results`, `is_valid` |
-| 5 | `DataProcessorAgent` | dati ritenuti validi | `processed_data` testuale |
-| 6 | `AnalystAgent` | `processed_data` | `insights` testuali |
+| 5 | `DataProcessorAgent` | dati ritenuti validi | `processed_data` con `deterministic_summary` e report testuale |
+| 6 | `AnalystAgent` | `processed_data` | `insights` con `deterministic_insights` e report testuale |
 | 7 | `ReportGeneratorAgent` | insight e dati processati | `final_report` |
 
 La pipeline è sequenziale: ogni agente riceve e aggiorna la medesima istanza di
@@ -109,8 +110,8 @@ Il contesto condiviso contiene:
 | `raw_data` | Dati caricati e piano di estrazione; include il dataframe reale. |
 | `validation_results` | Report di validazione generato dal LLM. |
 | `is_valid` | Indicatore di validita usato per consentire la lavorazione successiva. |
-| `processed_data` | Report testuale di trasformazione/elaborazione. |
-| `insights` | Analisi e KPI generati dal LLM. |
+| `processed_data` | Report testuale e riepilogo deterministico del dataframe. |
+| `insights` | Analisi LLM e insight deterministici calcolati. |
 | `final_report` | Report finale mostrato nella UI. |
 | `errors` | Errori accumulati durante la pipeline. |
 | `metadata` | Configurazione sorgente e informazioni operative. |
@@ -121,13 +122,14 @@ Il contesto condiviso contiene:
 Il dataframe reale viene acquisito da CSV, Excel o Oracle e viene usato per
 generare i grafici. La pipeline mantiene tale dataframe in `raw_data`.
 
-Allo stato attuale, validazione, elaborazione analitica, insight e report sono
-principalmente contenuti testuali prodotti dal modello OpenAI a partire da una
-descrizione parziale del contesto. Non rappresentano una completa elaborazione
-statistica programmata del dataframe.
+Il sistema calcola anche un riepilogo deterministico del dataframe reale tramite
+pandas: forma del dataset, tipi dato, valori mancanti, duplicati, statistiche
+numeriche, top valori categorici, correlazioni e range temporali.
 
-Conseguenza per agenti futuri: non descrivere il sistema come motore di analisi
-deterministico completo finche i calcoli non saranno implementati in codice.
+Validazione e report finale restano principalmente contenuti testuali prodotti
+dal modello OpenAI. Elaborazione e insight sono affiancati da risultati
+deterministici salvati rispettivamente in `processed_data["deterministic_summary"]`
+e `insights["deterministic_insights"]`.
 
 ## Sorgenti dati supportate
 
@@ -203,19 +205,15 @@ Utilizzo attuale nel codice:
 
 - `ReportGeneratorAgent` la dichiara come skill per produrre il report finale.
 
-### Skill referenziate ma non presenti
+### Skill data_validation, data_processing e analysis
 
-I seguenti agenti specificano nomi di skill per cui non esiste al momento un
-file `SKILL.md`:
+Sono presenti anche le skill:
 
-| Agente | Skill richiesta |
-| --- | --- |
-| `DataValidatorAgent` | `data_validation` |
-| `DataProcessorAgent` | `data_processing` |
-| `AnalystAgent` | `analysis` |
+- `skills/data_validation/SKILL.md`
+- `skills/data_processing/SKILL.md`
+- `skills/analysis/SKILL.md`
 
-In questi casi `BaseAgent.load_skill_prompt()` produrrebbe un prompt fallback.
-Inoltre, nella implementazione attuale gli agenti costruiscono direttamente il
+Nota: nella implementazione attuale gli agenti costruiscono direttamente il
 proprio prompt e non invocano `load_skill_prompt()` durante `process()`.
 
 ## OpenAI e lingua

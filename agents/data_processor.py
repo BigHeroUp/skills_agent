@@ -5,6 +5,7 @@ Elabora e trasforma i dati validati
 
 from agents.base_agent import BaseAgent
 from utils.context import AgentContext
+from utils.data_analysis import summarize_dataframe
 
 
 class DataProcessorAgent(BaseAgent):
@@ -22,10 +23,14 @@ class DataProcessorAgent(BaseAgent):
                 context.add_error("Dati non validi, impossibile elaborare", agent=self.name)
                 return context
             
+            df = context.raw_data.get("dataframe")
+            deterministic_summary = summarize_dataframe(df)
+
             # Prepara il prompt per OpenAI
             prompt = f"""
             Elabora questi dati validati (rispondi SEMPRE in italiano):
-            {str(context.raw_data)[:200]}
+            Riepilogo calcolato dal dataframe reale:
+            {str(deterministic_summary)[:2000]}
             
             Applica in italiano:
             1. Aggregazioni necessarie
@@ -47,7 +52,8 @@ class DataProcessorAgent(BaseAgent):
             
             context.processed_data = {
                 "processing_report": response,
-                "shape": "100 righe, 5 colonne",
+                "deterministic_summary": deterministic_summary,
+                "shape": f"{deterministic_summary.get('row_count', 0)} righe, {deterministic_summary.get('column_count', 0)} colonne",
                 "status": "elaborato"
             }
             

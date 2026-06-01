@@ -63,6 +63,7 @@ my_skill_agent/
 |   `-- data_connectors.py
 |-- utils/
 |   |-- context.py
+|   |-- data_analysis.py
 |   |-- chart_generator.py
 |   |-- logging_config.py
 |   |-- pdf_generator.py
@@ -121,8 +122,8 @@ python main.py
 | 2 | `QuerySuggestionAgent` | Suggerisce query o colonne da descrizione naturale | `extraction_suggestion` |
 | 3 | `DataExtractorAgent` | Prepara il piano di estrazione | `extraction_plan` |
 | 4 | `DataValidatorAgent` | Valida i dati caricati | `validation_results`, `is_valid` |
-| 5 | `DataProcessorAgent` | Elabora i dati validati | `processed_data` |
-| 6 | `AnalystAgent` | Genera insight | `insights` |
+| 5 | `DataProcessorAgent` | Elabora i dati validati | `processed_data`, `deterministic_summary` |
+| 6 | `AnalystAgent` | Genera insight | `insights`, `deterministic_insights` |
 | 7 | `ReportGeneratorAgent` | Produce il report finale | `final_report` |
 
 Gli agenti leggono e aggiornano la stessa istanza di `AgentContext`.
@@ -194,6 +195,39 @@ python test_integration.py
 `test_integration.py` verifica l'integrazione della pipeline con
 `QuerySuggestionAgent` e `QueryHistoryManager`.
 
+## Feedback query
+
+Dopo il completamento dell'analisi la dashboard mostra un controllo di feedback
+per il suggerimento query usato.
+
+L'utente puo indicare se il suggerimento e stato:
+
+- utile;
+- non utile.
+
+Il feedback aggiorna `data/query_history.db` tramite
+`QueryHistoryManager.update_feedback()`, modificando `execution_count`,
+`success_count`, `feedback_score` e `last_used`.
+
+## Analisi deterministica
+
+`utils/data_analysis.py` calcola statistiche direttamente dal dataframe reale.
+
+I risultati deterministici includono:
+
+- numero righe e colonne;
+- tipi dato;
+- valori mancanti;
+- righe duplicate;
+- statistiche numeriche;
+- top valori categorici;
+- correlazioni numeriche principali;
+- range temporali per colonne data/ora.
+
+Questi risultati vengono salvati in `processed_data["deterministic_summary"]` e
+usati dall'`AnalystAgent` per produrre insight separati dal testo generato dal
+modello.
+
 ## Logging
 
 L'applicazione scrive gli eventi operativi in:
@@ -213,12 +247,8 @@ Get-Content .\logs\app.log -Encoding UTF8 -Wait
 
 ## Limiti noti
 
-- Il feedback loop completo del `QuerySuggestionAgent` non e ancora collegato
-  alla UI.
-- Le skill `data_validation`, `data_processing` e `analysis` sono citate dagli
-  agenti ma non hanno ancora file `SKILL.md` dedicato.
-- I grafici sono generati dal dataframe reale, ma parte dell'analisi testuale e
-  ancora prodotta dall'LLM invece che da calcoli deterministici completi.
+- Parte dell'analisi testuale e ancora prodotta dall'LLM, ma ora e affiancata da
+  statistiche deterministiche calcolate dal dataframe reale.
 - Lo stato della dashboard usa variabili globali di processo e non e pensato
   per deployment multiutente o multi-worker.
 

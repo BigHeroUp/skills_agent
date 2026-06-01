@@ -5,6 +5,7 @@ Analizza i dati e genera insight
 
 from agents.base_agent import BaseAgent
 from utils.context import AgentContext
+from utils.data_analysis import build_deterministic_insights
 
 
 class AnalystAgent(BaseAgent):
@@ -22,10 +23,14 @@ class AnalystAgent(BaseAgent):
                 context.add_error("Nessun dato processato da analizzare", agent=self.name)
                 return context
             
+            deterministic_summary = context.processed_data.get("deterministic_summary", {})
+            deterministic_insights = build_deterministic_insights(deterministic_summary)
+
             # Prepara il prompt per OpenAI
             prompt = f"""
             Analizza questi dati processati (rispondi SEMPRE in italiano):
-            {str(context.processed_data)[:200]}
+            Risultati calcolati dal dataframe reale:
+            {str(deterministic_insights)[:2000]}
             
             Genera insight in italiano su:
             1. Trend principali
@@ -49,11 +54,8 @@ class AnalystAgent(BaseAgent):
             
             context.insights = {
                 "analysis_report": response,
-                "key_metrics": {
-                    "trend": "ascendente",
-                    "significato": "alto",
-                    "confidenza": 85
-                },
+                "deterministic_insights": deterministic_insights,
+                "key_metrics": deterministic_insights.get("key_metrics", {}),
                 "status": "analizzato"
             }
             

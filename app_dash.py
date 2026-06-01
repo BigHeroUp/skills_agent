@@ -11,6 +11,7 @@ from utils.chart_generator import ChartGenerator
 from utils.logging_config import get_logger
 from utils.pdf_generator import PDFGenerator
 from utils.conversation_manager import ConversationManager
+from utils.query_history_manager import QueryHistoryManager
 from agents.conversation_agent import ConversationAgent
 import pandas as pd
 import threading
@@ -31,6 +32,7 @@ current_context = None
 processing_status = {"status": "idle", "current_agent": "", "progress": 0}
 uploaded_df = None
 oracle_connection_config = None
+query_feedback_status = {"query_id": None, "submitted": False, "message": ""}
 logger = get_logger("dashboard")
 
 # Conversazione e PDF
@@ -545,7 +547,31 @@ app.layout = html.Div([
                     className='secondary-button',
                     style={"marginTop": "15px"}
                 ),
-                html.Div(id='pdf-download-status', style={"marginTop": "10px"})
+                html.Div(id='pdf-download-status', style={"marginTop": "10px"}),
+                html.Div([
+                    html.H4("Feedback suggerimento query", style={"marginTop": "22px", "marginBottom": "10px"}),
+                    html.Div(
+                        "Indica se il suggerimento usato per l'estrazione e stato utile.",
+                        style={"color": "#aaa", "marginBottom": "12px"}
+                    ),
+                    html.Div([
+                        html.Button(
+                            "Utile",
+                            id='feedback-useful-button',
+                            n_clicks=0,
+                            className='secondary-button',
+                            style={"marginRight": "10px", "width": "auto"}
+                        ),
+                        html.Button(
+                            "Non utile",
+                            id='feedback-not-useful-button',
+                            n_clicks=0,
+                            className='secondary-button',
+                            style={"background": "#6c757d", "width": "auto"}
+                        ),
+                    ]),
+                    html.Div(id='query-feedback-status', style={"marginTop": "10px"})
+                ], id='query-feedback-container', style={"display": "none"})
             ], className="card")
         ], id='report-container', style={"display": "none"}),
         
@@ -753,7 +779,7 @@ def update_upload(contents, filename, source_type):
     prevent_initial_call=True
 )
 def start_analysis(n_clicks, description, context_metadata, source_type, oracle_state, oracle_query):
-    global processing_status
+    global processing_status, query_feedback_status
 
     if not description:
         logger.warning("Analisi non avviata: descrizione mancante")
@@ -772,6 +798,7 @@ def start_analysis(n_clicks, description, context_metadata, source_type, oracle_
         "current_agent": "DataSourceManager",
         "progress": 0,
     }
+    query_feedback_status = {"query_id": None, "submitted": False, "message": ""}
     logger.info("Analisi richiesta dalla dashboard. source_type=%s", source_type)
     
     def run_pipeline():
@@ -913,6 +940,65 @@ def display_results(n):
     except Exception as e:
         logger.error("Visualizzazione risultati fallita: %s", type(e).__name__)
         return f"❌ Errore nella visualizzazione: {str(e)}", {"display": "block"}, [], {"display": "none"}
+
+
+@app.callback(
+    Output('query-feedback-container', 'style'),
+    Output('query-feedback-status', 'children'),
+    Input('interval-component', 'n_intervals'),
+    Input('feedback-useful-button', 'n_clicks'),
+    Input('feedback-not-useful-button', 'n_clicks'),
+    prevent_initial_call=True
+)
+def handle_query_feedback(n_intervals, useful_clicks, not_useful_clicks):
+    """Registra feedback manuale sul suggerimento query usato dall'analisi."""
+    global query_feedback_status
+
+    if processing_status.get('status') != 'completed' or current_context is None:
+        return {"display": "none"}, ""
+
+    suggestion = current_context.raw_data.get("extraction_suggestion", {})
+    query_id = suggestion.get("query_id")
+    if not query_id:
+        return {"display": "none"}, html.Span(
+            "Feedback non disponibile: il suggerimento non ha un ID storico.",
+            style={"color": "#aaa"}
+        )
+
+    if query_feedback_status.get("query_id") != query_id:
+        query_feedback_status = {"query_id": query_id, "submitted": False, "message": ""}
+
+    triggered = ctx.triggered_id
+    if triggered in {"feedback-useful-button", "feedback-not-useful-button"}:
+        if query_feedback_status.get("submitted"):
+            return {"display": "block"}, html.Span(
+                query_feedback_status.get("message", "Feedback gia registrato."),
+                style={"color": "#2ca02c"}
+            )
+
+        success = triggered == "feedback-useful-button"
+        feedback_score = 1.0 if success else 0.15
+        manager = QueryHistoryManager()
+        manager.update_feedback(query_id=query_id, success=success, feedback_score=feedback_score)
+
+        query_feedback_status = {
+            "query_id": query_id,
+            "submitted": True,
+            "message": "Feedback registrato: utile." if success else "Feedback registrato: non utile.",
+        }
+        logger.info("Feedback query registrato. query_id=%s success=%s", query_id, success)
+
+    if query_feedback_status.get("submitted"):
+        return {"display": "block"}, html.Span(
+            query_feedback_status.get("message"),
+            style={"color": "#2ca02c"}
+        )
+
+    source = suggestion.get("source", "sconosciuta")
+    return {"display": "block"}, html.Span(
+        f"Suggerimento da {source}. In attesa di feedback.",
+        style={"color": "#aaa"}
+    )
 
 
 # Callback per mostrare chat container
@@ -1076,4 +1162,3 @@ def handle_chat_message(n_clicks, user_message):
 
 if __name__ == '__main__':
     app.run(debug=True, port=8050)
-

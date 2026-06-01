@@ -210,8 +210,8 @@ Vincoli mantenuti:
 | 1 | Creare history manager | Completato |
 | 2 | Creare learning agent | Completato |
 | 2 | Integrare agent nel coordinator | Completato |
-| 3 | Collegare feedback handler | Da fare |
-| 3 | Aggiornare report generator con feedback | Da fare |
+| 3 | Collegare feedback handler | Completato |
+| 3 | Aggiornare dashboard con feedback | Completato |
 | 4 | Testare learning agent | Completato |
 | 4 | Aggiornare timeline UI | Completato |
 
@@ -230,25 +230,19 @@ python test_integration.py
 python main.py
 ```
 
-3. Completare il feedback loop:
-
-- controllo UI per indicare se il suggerimento e stato utile;
-- chiamata a `QueryHistoryManager.update_feedback()`;
-- aggiornamento di `success_count`, `execution_count` e `feedback_score`.
-
-4. Aggiungere le skill mancanti:
-
-- `skills/data_validation/SKILL.md`
-- `skills/data_processing/SKILL.md`
-- `skills/analysis/SKILL.md`
-
-5. Rafforzare l'analisi deterministica sui dataframe con calcoli pandas:
+3. Rafforzare ulteriormente l'analisi deterministica sui dataframe con calcoli pandas:
 
 - KPI;
 - aggregazioni;
 - trend;
 - anomalie;
 - statistiche descrittive.
+
+4. Migliorare il feedback loop:
+
+- mostrare statistiche di successo nella dashboard;
+- permettere un rating piu granulare;
+- aggiungere note manuali dell'utente.
 
 ## Benefici ottenuti
 
