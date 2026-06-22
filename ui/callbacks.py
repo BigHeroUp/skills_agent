@@ -405,10 +405,13 @@ def register_callbacks(app, state, logger):
         source = suggestion.get("source", "sconosciuta")
         plan_source = getattr(state.current_context, "plan_source", "new")
         confidence_score = getattr(state.current_context, "confidence_score", 0.0)
+        similarity_method = getattr(state.current_context, "similarity_method", None)
         return {"display": "block"}, html.Span(
             (
                 f"Suggerimento da {source}. Piano analitico: {plan_source}, "
-                f"confidence {confidence_score}. In attesa di feedback."
+                f"confidence {confidence_score}"
+                f"{f', similarita {similarity_method}' if similarity_method else ''}. "
+                "In attesa di feedback."
             ),
             style={"color": "#aaa"}
         )

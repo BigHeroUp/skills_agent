@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import datetime
-from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
+from services.semantic_memory import SemanticMemory
 from utils.logging_config import get_logger
 
 
@@ -20,8 +20,9 @@ class AnalysisHistoryManager:
 
     DB_PATH = Path("data") / "analysis_history.db"
 
-    def __init__(self, db_path: str | Path | None = None):
+    def __init__(self, db_path: str | Path | None = None, semantic_memory: SemanticMemory | None = None):
         self.db_path = Path(db_path) if db_path else self.DB_PATH
+        self.semantic_memory = semantic_memory or SemanticMemory()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
@@ -35,6 +36,7 @@ class AnalysisHistoryManager:
                     source_type TEXT NOT NULL,
                     analysis_plan TEXT NOT NULL,
                     columns_used TEXT NOT NULL,
+                    embedding_json TEXT,
                     feedback_score REAL DEFAULT 0.0,
                     confidence_score REAL DEFAULT 0.0,
                     execution_count INTEGER DEFAULT 1,
@@ -53,6 +55,7 @@ class AnalysisHistoryManager:
                 ON analysis_history(description)
             """)
             self._ensure_column(cursor, "analysis_history", "confidence_score", "REAL DEFAULT 0.0")
+            self._ensure_column(cursor, "analysis_history", "embedding_json", "TEXT")
             conn.commit()
 
     def _ensure_column(self, cursor, table_name: str, column_name: str, definition: str):
@@ -73,6 +76,8 @@ class AnalysisHistoryManager:
     ) -> int:
         """Salva un pattern analitico e ritorna l'id."""
         now = datetime.now().isoformat()
+        embedding = self.semantic_memory.embed_text(description)
+        embedding_json = json.dumps(embedding) if embedding is not None else None
         execution_count = 1
         success_count = 1 if success else 0
         confidence_score = self._compute_confidence(
@@ -89,6 +94,7 @@ class AnalysisHistoryManager:
                     source_type,
                     analysis_plan,
                     columns_used,
+                    embedding_json,
                     feedback_score,
                     confidence_score,
                     execution_count,
@@ -97,12 +103,13 @@ class AnalysisHistoryManager:
                     last_used,
                     notes
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 description,
                 source_type,
                 json.dumps(analysis_plan, ensure_ascii=False),
                 json.dumps(columns_used, ensure_ascii=False),
+                embedding_json,
                 float(feedback_score),
                 confidence_score,
                 execution_count,
@@ -133,6 +140,7 @@ class AnalysisHistoryManager:
                     source_type,
                     analysis_plan,
                     columns_used,
+                    embedding_json,
                     feedback_score,
                     confidence_score,
                     execution_count,
@@ -147,8 +155,15 @@ class AnalysisHistoryManager:
             rows = cursor.fetchall()
 
         matches = []
+        query_embedding = self.semantic_memory.embed_text(description)
         for row in rows:
-            similarity = self._compute_similarity(description, row[1])
+            stored_embedding = self._load_or_create_embedding(row[0], row[1], row[5])
+            if query_embedding is not None and stored_embedding is not None:
+                similarity = self.semantic_memory.cosine_similarity(query_embedding, stored_embedding)
+                similarity_method = "embedding"
+            else:
+                similarity = self._compute_similarity(description, row[1])
+                similarity_method = "text"
             if similarity < similarity_threshold:
                 continue
             matches.append({
@@ -157,14 +172,17 @@ class AnalysisHistoryManager:
                 "source_type": row[2],
                 "analysis_plan": json.loads(row[3]),
                 "columns_used": json.loads(row[4]),
-                "feedback_score": row[5],
-                "confidence_score": row[6],
-                "execution_count": row[7],
-                "success_count": row[8],
-                "created_at": row[9],
-                "last_used": row[10],
-                "notes": row[11],
+                "embedding_json": row[5],
+                "feedback_score": row[6],
+                "confidence_score": row[7],
+                "execution_count": row[8],
+                "success_count": row[9],
+                "created_at": row[10],
+                "last_used": row[11],
+                "notes": row[12],
                 "similarity": similarity,
+                "similarity_score": similarity,
+                "similarity_method": similarity_method,
             })
 
         matches.sort(
@@ -188,6 +206,7 @@ class AnalysisHistoryManager:
                     source_type,
                     analysis_plan,
                     columns_used,
+                    embedding_json,
                     feedback_score,
                     confidence_score,
                     execution_count,
@@ -209,13 +228,14 @@ class AnalysisHistoryManager:
             "source_type": row[2],
             "analysis_plan": json.loads(row[3]),
             "columns_used": json.loads(row[4]),
-            "feedback_score": row[5],
-            "confidence_score": row[6],
-            "execution_count": row[7],
-            "success_count": row[8],
-            "created_at": row[9],
-            "last_used": row[10],
-            "notes": row[11],
+            "embedding_json": row[5],
+            "feedback_score": row[6],
+            "confidence_score": row[7],
+            "execution_count": row[8],
+            "success_count": row[9],
+            "created_at": row[10],
+            "last_used": row[11],
+            "notes": row[12],
         }
 
     def calculate_confidence_score(self, pattern_id: int) -> float:
@@ -320,9 +340,28 @@ class AnalysisHistoryManager:
 
     @staticmethod
     def _compute_similarity(left: str, right: str) -> float:
-        normalized_left = " ".join((left or "").lower().split())
-        normalized_right = " ".join((right or "").lower().split())
-        return SequenceMatcher(None, normalized_left, normalized_right).ratio()
+        return SemanticMemory(client=None).text_similarity(left, right)
+
+    def _load_or_create_embedding(self, pattern_id: int, description: str, embedding_json: str | None):
+        if embedding_json:
+            try:
+                return json.loads(embedding_json)
+            except json.JSONDecodeError:
+                pass
+
+        embedding = self.semantic_memory.embed_text(description)
+        if embedding is None:
+            return None
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE analysis_history
+                SET embedding_json = ?
+                WHERE id = ?
+            """, (json.dumps(embedding), pattern_id))
+            conn.commit()
+        return embedding
 
     @staticmethod
     def _compute_confidence(execution_count: int, success_count: int, feedback_score: float) -> float:

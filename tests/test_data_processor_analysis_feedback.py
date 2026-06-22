@@ -28,6 +28,8 @@ def test_data_processor_enriches_context_with_analysis_pattern_metadata(monkeypa
     assert result.plan_source == "new"
     assert result.confidence_score == 0.0
     assert result.similarity_score is None
+    assert result.similarity_method is None
     assert result.processed_data["analysis_pattern_id"] == result.analysis_pattern_id
     assert result.processed_data["confidence_score"] == 0.0
+    assert result.processed_data["similarity_method"] is None
     assert result.execution_summary["analysis_pattern_id"] == result.analysis_pattern_id

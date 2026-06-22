@@ -80,11 +80,13 @@ class AnalysisEngine:
                     "plan_source": "new",
                     "confidence_score": 0.0,
                     "similarity_score": None,
+                    "similarity_method": None,
                 },
                 "analysis_pattern_id": None,
                 "plan_source": "new",
                 "confidence_score": 0.0,
                 "similarity_score": None,
+                "similarity_method": None,
             }
 
         selected_plan, plan_metadata = self._coerce_or_infer_plan(user_request, df, source_type, plan)
@@ -100,6 +102,7 @@ class AnalysisEngine:
         results["analysis_pattern_id"] = plan_metadata["analysis_pattern_id"]
         results["confidence_score"] = plan_metadata["confidence_score"]
         results["similarity_score"] = plan_metadata["similarity_score"]
+        results["similarity_method"] = plan_metadata["similarity_method"]
         summary = {
             "status": "completed",
             "source": "analysis_engine",
@@ -110,6 +113,7 @@ class AnalysisEngine:
             "analysis_pattern_id": plan_metadata["analysis_pattern_id"],
             "confidence_score": plan_metadata["confidence_score"],
             "similarity_score": plan_metadata["similarity_score"],
+            "similarity_method": plan_metadata["similarity_method"],
         }
 
         return {
@@ -120,6 +124,7 @@ class AnalysisEngine:
             "plan_source": plan_metadata["plan_source"],
             "confidence_score": plan_metadata["confidence_score"],
             "similarity_score": plan_metadata["similarity_score"],
+            "similarity_method": plan_metadata["similarity_method"],
         }
 
     def infer_plan(self, user_request: str, df: pd.DataFrame, source_type: str = "unknown") -> AnalysisPlan:
@@ -165,7 +170,8 @@ class AnalysisEngine:
                 "analysis_pattern_id": historical["id"],
                 "plan_source": "history",
                 "confidence_score": historical.get("confidence_score", 0.0),
-                "similarity_score": historical.get("similarity"),
+                "similarity_score": historical.get("similarity_score", historical.get("similarity")),
+                "similarity_method": historical.get("similarity_method", "text"),
             }
         return self._infer_new_plan(user_request, df), self._new_plan_metadata()
 
@@ -241,6 +247,7 @@ class AnalysisEngine:
             "plan_source": "new",
             "confidence_score": 0.0,
             "similarity_score": None,
+            "similarity_method": None,
         }
 
     def _count_occurrences(self, df: pd.DataFrame, plan: AnalysisPlan) -> dict[str, Any]:

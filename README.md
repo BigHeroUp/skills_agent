@@ -364,7 +364,8 @@ Ogni esecuzione dell'`AnalysisEngine` espone nel context e in `processed_data`:
 - `analysis_pattern_id`;
 - `plan_source`, con valore `new` o `history`;
 - `confidence_score`;
-- `similarity_score`, quando il piano viene riusato dalla history.
+- `similarity_score`, quando il piano viene riusato dalla history;
+- `similarity_method`, con valore `embedding` o `text`.
 
 Il feedback gia presente in dashboard aggiorna ora due memorie distinte:
 
@@ -375,6 +376,46 @@ Un pattern nuovo parte con `confidence_score=0.0`. Quando l'utente indica che il
 risultato e utile, il sistema aggiorna `execution_count`, `success_count`,
 `feedback_score` e ricalcola `confidence_score`. I pattern con feedback basso
 non vengono riusati automaticamente.
+
+## Milestone 3: Semantic Memory Engine
+
+La Milestone 3 estende `AnalysisHistoryManager` con una memoria semantica basata
+su embeddings. L'obiettivo e riusare pattern non solo quando la richiesta e
+simile nel testo, ma quando ha significato simile.
+
+Esempi di richieste che possono convergere sullo stesso pattern:
+
+- "Mostrami i ticket per stato"
+- "Distribuzione dei ticket per stato"
+- "Quanti ticket ci sono per ogni stato?"
+- "Fammi il conteggio delle pratiche per status"
+
+Il modulo `services/semantic_memory.py` gestisce:
+
+- generazione embedding da testo;
+- normalizzazione vettori;
+- cosine similarity;
+- fallback locale a `SequenceMatcher` quando embeddings non sono disponibili.
+
+Il modello embedding non e hardcoded. Si configura con:
+
+```text
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+```
+
+Se la variabile non e valorizzata, il default e:
+
+```text
+text-embedding-3-small
+```
+
+La chiamata embeddings non e obbligatoria: se `OPENAI_API_KEY` manca, se il
+client OpenAI non e disponibile o se la chiamata fallisce, il sistema continua a
+funzionare usando la similarita testuale locale.
+
+Lo storico SQLite e migrato in modo compatibile: la colonna `embedding_json`
+viene aggiunta se assente e i pattern esistenti restano validi. Quando possibile,
+gli embedding mancanti vengono calcolati e salvati al primo riuso.
 
 ## Logging
 

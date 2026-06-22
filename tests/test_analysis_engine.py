@@ -3,7 +3,18 @@ import json
 import pandas as pd
 
 from services.analysis_engine import AnalysisEngine, AnalysisPlan
+from services.semantic_memory import SemanticMemory
 from utils.analysis_history_manager import AnalysisHistoryManager
+
+
+class StaticSemanticMemory(SemanticMemory):
+    def __init__(self, vectors):
+        super().__init__(client=None)
+        self.vectors = vectors
+
+    def embed_text(self, text: str):
+        vector = self.vectors.get(text)
+        return self.normalize_vector(vector) if vector is not None else None
 
 
 def test_count_occurrences_by_category_is_deterministic_and_json_safe():
@@ -154,3 +165,29 @@ def test_engine_reuses_high_feedback_pattern_with_scores(tmp_path):
     assert payload["analysis_pattern_id"] == pattern_id
     assert payload["similarity_score"] >= 0.65
     assert payload["confidence_score"] > 0.0
+
+
+def test_engine_propagates_embedding_similarity_method(tmp_path):
+    memory = StaticSemanticMemory({
+        "mostrami i ticket per stato": [1, 0],
+        "quanti ticket ci sono per ogni stato": [0.95, 0.05],
+    })
+    manager = AnalysisHistoryManager(db_path=tmp_path / "analysis_history.db", semantic_memory=memory)
+    pattern_id = manager.add_pattern(
+        description="mostrami i ticket per stato",
+        source_type="csv",
+        analysis_plan=AnalysisPlan(analysis_type="count_occurrences", target_column="stato").to_dict(),
+        columns_used=["stato"],
+        feedback_score=0.95,
+        success=True,
+    )
+    df = pd.DataFrame({"stato": ["open", "closed", "open"]})
+    engine = AnalysisEngine(history_manager=manager)
+
+    payload = engine.run("quanti ticket ci sono per ogni stato", df, source_type="csv")
+
+    assert payload["plan_source"] == "history"
+    assert payload["analysis_pattern_id"] == pattern_id
+    assert payload["similarity_method"] == "embedding"
+    assert payload["similarity_score"] > 0.9
+    assert payload["execution_summary"]["similarity_method"] == "embedding"

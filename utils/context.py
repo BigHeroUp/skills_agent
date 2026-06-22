@@ -33,6 +33,7 @@ class AgentContext:
     plan_source: str = "new"
     confidence_score: float = 0.0
     similarity_score: float | None = None
+    similarity_method: str | None = None
     
     # Analisi e insight
     insights: Dict[str, Any] = field(default_factory=dict)

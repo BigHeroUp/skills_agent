@@ -40,6 +40,7 @@ class DataProcessorAgent(BaseAgent):
             context.plan_source = analysis_payload.get("plan_source", "new")
             context.confidence_score = analysis_payload.get("confidence_score", 0.0)
             context.similarity_score = analysis_payload.get("similarity_score")
+            context.similarity_method = analysis_payload.get("similarity_method")
 
             # Prepara il prompt per OpenAI
             task_prompt = f"""
@@ -57,6 +58,7 @@ class DataProcessorAgent(BaseAgent):
             - Fonte piano: {"memoria storica" if context.plan_source == "history" else "nuovo piano"}
             - Confidence score: {context.confidence_score}
             - Similarity score: {context.similarity_score}
+            - Similarity method: {context.similarity_method}
             
             Applica in italiano:
             1. Aggregazioni necessarie
@@ -87,6 +89,7 @@ class DataProcessorAgent(BaseAgent):
                 "plan_source": context.plan_source,
                 "confidence_score": context.confidence_score,
                 "similarity_score": context.similarity_score,
+                "similarity_method": context.similarity_method,
                 "shape": f"{deterministic_summary.get('row_count', 0)} righe, {deterministic_summary.get('column_count', 0)} colonne",
                 "status": "elaborato"
             }
