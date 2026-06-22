@@ -63,6 +63,12 @@ my_skill_agent/
 |   `-- report_generator.py
 |-- connectors/
 |   `-- data_connectors.py
+|-- services/
+|   |-- analysis_service.py
+|   `-- oracle_service.py
+|-- ui/
+|   |-- callbacks.py
+|   `-- layout.py
 |-- utils/
 |   |-- context.py
 |   |-- data_analysis.py
@@ -78,6 +84,18 @@ my_skill_agent/
 |   `-- conversation/SKILL.md
 `-- tests/
 ```
+
+La dashboard Dash e organizzata in tre layer:
+
+- `app_dash.py` inizializza l'app, collega layout e callback, e mantiene solo
+  wrapper di compatibilita per i test esistenti.
+- `ui/layout.py` contiene CSS/template Dash e albero dei componenti UI.
+- `ui/callbacks.py` registra le callback Dash e delega la logica applicativa ai
+  service.
+- `services/analysis_service.py` centralizza stato runtime, parsing upload
+  CSV/Excel, invocazione pipeline multi-agent e analisi follow-up deterministiche.
+- `services/oracle_service.py` incapsula il test di connessione Oracle senza
+  esporre la password allo store browser.
 
 Nota: i test attuali sono script nella root del progetto:
 
@@ -294,8 +312,8 @@ Get-Content .\logs\app.log -Encoding UTF8 -Wait
 
 - Parte dell'analisi testuale e ancora prodotta dall'LLM, ma ora e affiancata da
   statistiche deterministiche calcolate dal dataframe reale.
-- Lo stato della dashboard usa variabili globali di processo e non e pensato
-  per deployment multiutente o multi-worker.
+- Lo stato runtime della dashboard e centralizzato in memoria di processo e non
+  e pensato per deployment multiutente o multi-worker.
 
 ## Repository
 
