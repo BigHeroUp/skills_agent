@@ -343,6 +343,39 @@ risultati sul dataframe corrente. Questo evita che risultati numerici vengano
 inventati dal modello: il modello puo proporre o spiegare il piano, ma i valori
 finali sono prodotti dal motore deterministico.
 
+## Milestone 2.5: Feedback Engine
+
+La Milestone 2.5 rende operativo il ciclo di apprendimento sui pattern
+analitici:
+
+```text
+Richiesta utente
+    -> AnalysisPlan
+    -> AnalysisEngine
+    -> deterministic_results
+    -> feedback utente
+    -> aggiornamento pattern
+    -> confidence_score
+    -> riuso nelle analisi future
+```
+
+Ogni esecuzione dell'`AnalysisEngine` espone nel context e in `processed_data`:
+
+- `analysis_pattern_id`;
+- `plan_source`, con valore `new` o `history`;
+- `confidence_score`;
+- `similarity_score`, quando il piano viene riusato dalla history.
+
+Il feedback gia presente in dashboard aggiorna ora due memorie distinte:
+
+- `QueryHistoryManager`, per il suggerimento query esistente;
+- `AnalysisHistoryManager`, per il pattern analitico deterministico.
+
+Un pattern nuovo parte con `confidence_score=0.0`. Quando l'utente indica che il
+risultato e utile, il sistema aggiorna `execution_count`, `success_count`,
+`feedback_score` e ricalcola `confidence_score`. I pattern con feedback basso
+non vengono riusati automaticamente.
+
 ## Logging
 
 L'applicazione scrive gli eventi operativi in:

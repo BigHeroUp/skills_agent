@@ -36,6 +36,10 @@ class DataProcessorAgent(BaseAgent):
             context.analysis_plan = analysis_payload["analysis_plan"]
             context.deterministic_results = analysis_payload["deterministic_results"]
             context.execution_summary = analysis_payload["execution_summary"]
+            context.analysis_pattern_id = analysis_payload.get("analysis_pattern_id")
+            context.plan_source = analysis_payload.get("plan_source", "new")
+            context.confidence_score = analysis_payload.get("confidence_score", 0.0)
+            context.similarity_score = analysis_payload.get("similarity_score")
 
             # Prepara il prompt per OpenAI
             task_prompt = f"""
@@ -48,6 +52,11 @@ class DataProcessorAgent(BaseAgent):
 
             Risultati deterministici calcolati dal dataframe:
             {str(context.deterministic_results)[:2000]}
+
+            Memoria operativa:
+            - Fonte piano: {"memoria storica" if context.plan_source == "history" else "nuovo piano"}
+            - Confidence score: {context.confidence_score}
+            - Similarity score: {context.similarity_score}
             
             Applica in italiano:
             1. Aggregazioni necessarie
@@ -74,6 +83,10 @@ class DataProcessorAgent(BaseAgent):
                 "analysis_plan": context.analysis_plan,
                 "deterministic_results": context.deterministic_results,
                 "execution_summary": context.execution_summary,
+                "analysis_pattern_id": context.analysis_pattern_id,
+                "plan_source": context.plan_source,
+                "confidence_score": context.confidence_score,
+                "similarity_score": context.similarity_score,
                 "shape": f"{deterministic_summary.get('row_count', 0)} righe, {deterministic_summary.get('column_count', 0)} colonne",
                 "status": "elaborato"
             }

@@ -29,6 +29,10 @@ class AgentContext:
     analysis_plan: Dict[str, Any] = field(default_factory=dict)
     deterministic_results: Dict[str, Any] = field(default_factory=dict)
     execution_summary: Dict[str, Any] = field(default_factory=dict)
+    analysis_pattern_id: int | None = None
+    plan_source: str = "new"
+    confidence_score: float = 0.0
+    similarity_score: float | None = None
     
     # Analisi e insight
     insights: Dict[str, Any] = field(default_factory=dict)

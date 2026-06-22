@@ -17,6 +17,7 @@ from services.analysis_service import (
 from services.oracle_service import verify_oracle_connection
 from utils.chart_generator import ChartGenerator
 from utils.conversation_manager import ConversationManager
+from utils.analysis_history_manager import AnalysisHistoryManager
 from utils.query_history_manager import QueryHistoryManager
 
 
@@ -332,14 +333,22 @@ def register_callbacks(app, state, logger):
     
         suggestion = state.current_context.raw_data.get("extraction_suggestion", {})
         query_id = suggestion.get("query_id")
-        if not query_id:
+        analysis_pattern_id = getattr(state.current_context, "analysis_pattern_id", None)
+        if not query_id and not analysis_pattern_id:
             return {"display": "none"}, html.Span(
-                "Feedback non disponibile: il suggerimento non ha un ID storico.",
+                "Feedback non disponibile: non ci sono query o pattern analitici storicizzabili.",
                 style={"color": "#aaa"}
             )
     
-        if state.query_feedback_status.get("query_id") != query_id:
-            state.query_feedback_status = {"query_id": query_id, "submitted": False, "message": ""}
+        feedback_key = f"query:{query_id}|analysis:{analysis_pattern_id}"
+        if state.query_feedback_status.get("feedback_key") != feedback_key:
+            state.query_feedback_status = {
+                "feedback_key": feedback_key,
+                "query_id": query_id,
+                "analysis_pattern_id": analysis_pattern_id,
+                "submitted": False,
+                "message": "",
+            }
     
         triggered = ctx.triggered_id
         if triggered in {"feedback-useful-button", "feedback-not-useful-button"}:
@@ -351,15 +360,41 @@ def register_callbacks(app, state, logger):
     
             success = triggered == "feedback-useful-button"
             feedback_score = 1.0 if success else 0.15
-            manager = QueryHistoryManager()
-            manager.update_feedback(query_id=query_id, success=success, feedback_score=feedback_score)
+            updated_targets = []
+            if query_id:
+                manager = QueryHistoryManager()
+                manager.update_feedback(query_id=query_id, success=success, feedback_score=feedback_score)
+                updated_targets.append("query")
+                logger.info("Feedback query registrato. query_id=%s success=%s", query_id, success)
+
+            if analysis_pattern_id:
+                analysis_manager = AnalysisHistoryManager()
+                updated_pattern = analysis_manager.update_feedback(
+                    pattern_id=analysis_pattern_id,
+                    success=success,
+                    feedback_score=feedback_score,
+                )
+                if updated_pattern:
+                    state.current_context.confidence_score = updated_pattern.get("confidence_score", 0.0)
+                    state.current_context.execution_summary["confidence_score"] = state.current_context.confidence_score
+                    state.current_context.processed_data["confidence_score"] = state.current_context.confidence_score
+                updated_targets.append("pattern analitico")
+                logger.info(
+                    "Feedback pattern analitico registrato. pattern_id=%s success=%s",
+                    analysis_pattern_id,
+                    success,
+                )
     
             state.query_feedback_status = {
+                "feedback_key": feedback_key,
                 "query_id": query_id,
+                "analysis_pattern_id": analysis_pattern_id,
                 "submitted": True,
-                "message": "Feedback registrato: utile." if success else "Feedback registrato: non utile.",
+                "message": (
+                    f"Feedback registrato: {'utile' if success else 'non utile'} "
+                    f"({', '.join(updated_targets)})."
+                ),
             }
-            logger.info("Feedback query registrato. query_id=%s success=%s", query_id, success)
     
         if state.query_feedback_status.get("submitted"):
             return {"display": "block"}, html.Span(
@@ -368,8 +403,13 @@ def register_callbacks(app, state, logger):
             )
     
         source = suggestion.get("source", "sconosciuta")
+        plan_source = getattr(state.current_context, "plan_source", "new")
+        confidence_score = getattr(state.current_context, "confidence_score", 0.0)
         return {"display": "block"}, html.Span(
-            f"Suggerimento da {source}. In attesa di feedback.",
+            (
+                f"Suggerimento da {source}. Piano analitico: {plan_source}, "
+                f"confidence {confidence_score}. In attesa di feedback."
+            ),
             style={"color": "#aaa"}
         )
     

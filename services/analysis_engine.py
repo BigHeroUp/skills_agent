@@ -76,36 +76,100 @@ class AnalysisEngine:
                     "source": "analysis_engine",
                     "row_count": 0,
                     "columns_used": [],
+                    "analysis_pattern_id": None,
+                    "plan_source": "new",
+                    "confidence_score": 0.0,
+                    "similarity_score": None,
                 },
+                "analysis_pattern_id": None,
+                "plan_source": "new",
+                "confidence_score": 0.0,
+                "similarity_score": None,
             }
 
-        selected_plan = self._coerce_or_infer_plan(user_request, df, source_type, plan)
+        selected_plan, plan_metadata = self._coerce_or_infer_plan(user_request, df, source_type, plan)
         results = self.execute_plan(df, selected_plan)
         columns_used = self._columns_used(selected_plan)
+        if plan_metadata["plan_source"] == "new":
+            saved_pattern = self._save_pattern(user_request, source_type, selected_plan, columns_used)
+            if saved_pattern:
+                plan_metadata["analysis_pattern_id"] = saved_pattern["id"]
+                plan_metadata["confidence_score"] = saved_pattern["confidence_score"]
+
+        results["plan_source"] = plan_metadata["plan_source"]
+        results["analysis_pattern_id"] = plan_metadata["analysis_pattern_id"]
+        results["confidence_score"] = plan_metadata["confidence_score"]
+        results["similarity_score"] = plan_metadata["similarity_score"]
         summary = {
             "status": "completed",
-            "source": results.get("plan_source", "analysis_engine"),
+            "source": "analysis_engine",
+            "plan_source": plan_metadata["plan_source"],
             "analysis_type": selected_plan.analysis_type,
             "row_count": int(len(df)),
             "columns_used": columns_used,
+            "analysis_pattern_id": plan_metadata["analysis_pattern_id"],
+            "confidence_score": plan_metadata["confidence_score"],
+            "similarity_score": plan_metadata["similarity_score"],
         }
-
-        self._save_pattern(user_request, source_type, selected_plan, columns_used, summary)
 
         return {
             "analysis_plan": selected_plan.to_dict(),
             "deterministic_results": results,
             "execution_summary": summary,
+            "analysis_pattern_id": plan_metadata["analysis_pattern_id"],
+            "plan_source": plan_metadata["plan_source"],
+            "confidence_score": plan_metadata["confidence_score"],
+            "similarity_score": plan_metadata["similarity_score"],
         }
 
     def infer_plan(self, user_request: str, df: pd.DataFrame, source_type: str = "unknown") -> AnalysisPlan:
         """Inferisce un piano semplice usando richiesta, schema dataframe e history."""
+        plan, _ = self._infer_plan_with_metadata(user_request, df, source_type)
+        return plan
+
+    def execute_plan(self, df: pd.DataFrame, plan: AnalysisPlan | dict[str, Any]) -> dict[str, Any]:
+        """Esegue il piano sul dataframe."""
+        if isinstance(plan, dict):
+            plan = AnalysisPlan.from_dict(plan)
+
+        if plan.analysis_type not in self.SUPPORTED_ANALYSES:
+            raise ValueError(f"Tipo analisi non supportato: {plan.analysis_type}")
+
+        handlers = {
+            "count_occurrences": self._count_occurrences,
+            "top_n": self._top_n,
+            "numeric_aggregation": self._numeric_aggregation,
+            "time_trend": self._time_trend,
+            "null_detection": self._null_detection,
+            "duplicate_detection": self._duplicate_detection,
+        }
+        result = handlers[plan.analysis_type](df, plan)
+        result["analysis_type"] = plan.analysis_type
+        result["plan"] = plan.to_dict()
+        result.setdefault("status", "computed")
+        return self._json_safe(result)
+
+    def _coerce_or_infer_plan(self, user_request, df, source_type, plan):
+        if plan is None:
+            return self._infer_plan_with_metadata(user_request, df, source_type)
+        if isinstance(plan, AnalysisPlan):
+            return plan, self._new_plan_metadata()
+        return AnalysisPlan.from_dict(plan), self._new_plan_metadata()
+
+    def _infer_plan_with_metadata(self, user_request: str, df: pd.DataFrame, source_type: str):
         historical = self._find_reusable_plan(user_request, source_type)
         if historical:
             plan = AnalysisPlan.from_dict(historical["analysis_plan"])
             plan.description = plan.description or historical.get("description", "")
-            return plan
+            return plan, {
+                "analysis_pattern_id": historical["id"],
+                "plan_source": "history",
+                "confidence_score": historical.get("confidence_score", 0.0),
+                "similarity_score": historical.get("similarity"),
+            }
+        return self._infer_new_plan(user_request, df), self._new_plan_metadata()
 
+    def _infer_new_plan(self, user_request: str, df: pd.DataFrame) -> AnalysisPlan:
         request = (user_request or "").lower()
         limit = self._extract_limit(request) or 10
 
@@ -171,34 +235,13 @@ class AnalysisEngine:
             description="Piano fallback: conteggio della prima colonna categoriale utile.",
         )
 
-    def execute_plan(self, df: pd.DataFrame, plan: AnalysisPlan | dict[str, Any]) -> dict[str, Any]:
-        """Esegue il piano sul dataframe."""
-        if isinstance(plan, dict):
-            plan = AnalysisPlan.from_dict(plan)
-
-        if plan.analysis_type not in self.SUPPORTED_ANALYSES:
-            raise ValueError(f"Tipo analisi non supportato: {plan.analysis_type}")
-
-        handlers = {
-            "count_occurrences": self._count_occurrences,
-            "top_n": self._top_n,
-            "numeric_aggregation": self._numeric_aggregation,
-            "time_trend": self._time_trend,
-            "null_detection": self._null_detection,
-            "duplicate_detection": self._duplicate_detection,
+    def _new_plan_metadata(self):
+        return {
+            "analysis_pattern_id": None,
+            "plan_source": "new",
+            "confidence_score": 0.0,
+            "similarity_score": None,
         }
-        result = handlers[plan.analysis_type](df, plan)
-        result["analysis_type"] = plan.analysis_type
-        result["plan"] = plan.to_dict()
-        result.setdefault("status", "computed")
-        return self._json_safe(result)
-
-    def _coerce_or_infer_plan(self, user_request, df, source_type, plan):
-        if plan is None:
-            return self.infer_plan(user_request, df, source_type)
-        if isinstance(plan, AnalysisPlan):
-            return plan
-        return AnalysisPlan.from_dict(plan)
 
     def _count_occurrences(self, df: pd.DataFrame, plan: AnalysisPlan) -> dict[str, Any]:
         column = self._require_column(df, plan.target_column or self._find_categorical_column(df, ""))
@@ -337,11 +380,11 @@ class AnalysisEngine:
             ),
         }
 
-    def _save_pattern(self, user_request, source_type, plan, columns_used, summary):
-        if not self.history_manager or summary.get("status") != "completed":
-            return
+    def _save_pattern(self, user_request, source_type, plan, columns_used):
+        if not self.history_manager:
+            return None
         try:
-            self.history_manager.add_pattern(
+            pattern_id = self.history_manager.add_pattern(
                 description=user_request,
                 source_type=source_type,
                 analysis_plan=plan.to_dict(),
@@ -350,8 +393,9 @@ class AnalysisEngine:
                 success=False,
                 notes="Pattern salvato automaticamente dopo esecuzione deterministica.",
             )
+            return self.history_manager.get_pattern(pattern_id)
         except Exception:
-            return
+            return None
 
     def _find_reusable_plan(self, user_request: str, source_type: str) -> dict[str, Any] | None:
         if not self.history_manager:
@@ -367,6 +411,9 @@ class AnalysisEngine:
         best = matches[0]
         try:
             self.history_manager.record_usage(best["id"])
+            refreshed = self.history_manager.get_pattern(best["id"])
+            if refreshed:
+                best.update(refreshed)
         except Exception:
             pass
         return best

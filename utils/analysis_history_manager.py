@@ -36,6 +36,7 @@ class AnalysisHistoryManager:
                     analysis_plan TEXT NOT NULL,
                     columns_used TEXT NOT NULL,
                     feedback_score REAL DEFAULT 0.0,
+                    confidence_score REAL DEFAULT 0.0,
                     execution_count INTEGER DEFAULT 1,
                     success_count INTEGER DEFAULT 0,
                     created_at TEXT NOT NULL,
@@ -51,7 +52,14 @@ class AnalysisHistoryManager:
                 CREATE INDEX IF NOT EXISTS idx_analysis_history_description
                 ON analysis_history(description)
             """)
+            self._ensure_column(cursor, "analysis_history", "confidence_score", "REAL DEFAULT 0.0")
             conn.commit()
+
+    def _ensure_column(self, cursor, table_name: str, column_name: str, definition: str):
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        columns = {row[1] for row in cursor.fetchall()}
+        if column_name not in columns:
+            cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}")
 
     def add_pattern(
         self,
@@ -65,6 +73,13 @@ class AnalysisHistoryManager:
     ) -> int:
         """Salva un pattern analitico e ritorna l'id."""
         now = datetime.now().isoformat()
+        execution_count = 1
+        success_count = 1 if success else 0
+        confidence_score = self._compute_confidence(
+            execution_count=execution_count,
+            success_count=success_count,
+            feedback_score=feedback_score,
+        )
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
@@ -75,21 +90,23 @@ class AnalysisHistoryManager:
                     analysis_plan,
                     columns_used,
                     feedback_score,
+                    confidence_score,
                     execution_count,
                     success_count,
                     created_at,
                     last_used,
                     notes
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 description,
                 source_type,
                 json.dumps(analysis_plan, ensure_ascii=False),
                 json.dumps(columns_used, ensure_ascii=False),
                 float(feedback_score),
-                1,
-                1 if success else 0,
+                confidence_score,
+                execution_count,
+                success_count,
                 now,
                 now,
                 notes,
@@ -117,6 +134,7 @@ class AnalysisHistoryManager:
                     analysis_plan,
                     columns_used,
                     feedback_score,
+                    confidence_score,
                     execution_count,
                     success_count,
                     created_at,
@@ -140,11 +158,12 @@ class AnalysisHistoryManager:
                 "analysis_plan": json.loads(row[3]),
                 "columns_used": json.loads(row[4]),
                 "feedback_score": row[5],
-                "execution_count": row[6],
-                "success_count": row[7],
-                "created_at": row[8],
-                "last_used": row[9],
-                "notes": row[10],
+                "confidence_score": row[6],
+                "execution_count": row[7],
+                "success_count": row[8],
+                "created_at": row[9],
+                "last_used": row[10],
+                "notes": row[11],
                 "similarity": similarity,
             })
 
@@ -157,6 +176,73 @@ class AnalysisHistoryManager:
             reverse=True,
         )
         return matches
+
+    def get_pattern(self, pattern_id: int) -> dict[str, Any] | None:
+        """Ritorna un pattern con metriche di feedback e confidence."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    id,
+                    description,
+                    source_type,
+                    analysis_plan,
+                    columns_used,
+                    feedback_score,
+                    confidence_score,
+                    execution_count,
+                    success_count,
+                    created_at,
+                    last_used,
+                    notes
+                FROM analysis_history
+                WHERE id = ?
+            """, (pattern_id,))
+            row = cursor.fetchone()
+
+        if not row:
+            return None
+
+        return {
+            "id": row[0],
+            "description": row[1],
+            "source_type": row[2],
+            "analysis_plan": json.loads(row[3]),
+            "columns_used": json.loads(row[4]),
+            "feedback_score": row[5],
+            "confidence_score": row[6],
+            "execution_count": row[7],
+            "success_count": row[8],
+            "created_at": row[9],
+            "last_used": row[10],
+            "notes": row[11],
+        }
+
+    def calculate_confidence_score(self, pattern_id: int) -> float:
+        """Calcola e persiste il confidence score del pattern."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT execution_count, success_count, feedback_score
+                FROM analysis_history
+                WHERE id = ?
+            """, (pattern_id,))
+            row = cursor.fetchone()
+            if not row:
+                return 0.0
+
+            confidence_score = self._compute_confidence(
+                execution_count=int(row[0]),
+                success_count=int(row[1]),
+                feedback_score=float(row[2] or 0.0),
+            )
+            cursor.execute("""
+                UPDATE analysis_history
+                SET confidence_score = ?
+                WHERE id = ?
+            """, (confidence_score, pattern_id))
+            conn.commit()
+            return confidence_score
 
     def update_feedback(
         self,
@@ -181,18 +267,25 @@ class AnalysisHistoryManager:
             new_success_count = int(success_count) + (1 if success else 0)
             success_rate = new_success_count / new_execution_count
             final_score = float(feedback_score) if feedback_score is not None else success_rate
+            confidence_score = self._compute_confidence(
+                execution_count=new_execution_count,
+                success_count=new_success_count,
+                feedback_score=final_score,
+            )
 
             cursor.execute("""
                 UPDATE analysis_history
                 SET execution_count = ?,
                     success_count = ?,
                     feedback_score = ?,
+                    confidence_score = ?,
                     last_used = ?
                 WHERE id = ?
             """, (
                 new_execution_count,
                 new_success_count,
                 final_score,
+                confidence_score,
                 datetime.now().isoformat(),
                 pattern_id,
             ))
@@ -203,6 +296,7 @@ class AnalysisHistoryManager:
                 success,
                 final_score,
             )
+            return self.get_pattern(pattern_id)
 
     def record_usage(self, pattern_id: int):
         """Incrementa il numero utilizzi quando un pattern viene riusato."""
@@ -215,6 +309,7 @@ class AnalysisHistoryManager:
                 WHERE id = ?
             """, (datetime.now().isoformat(), pattern_id))
             conn.commit()
+        self.calculate_confidence_score(pattern_id)
 
     def clear_history(self):
         """Pulisce lo storico. Usato solo nei test."""
@@ -228,3 +323,12 @@ class AnalysisHistoryManager:
         normalized_left = " ".join((left or "").lower().split())
         normalized_right = " ".join((right or "").lower().split())
         return SequenceMatcher(None, normalized_left, normalized_right).ratio()
+
+    @staticmethod
+    def _compute_confidence(execution_count: int, success_count: int, feedback_score: float) -> float:
+        if execution_count <= 0:
+            return 0.0
+        success_rate = success_count / execution_count
+        sample_factor = min(1.0, execution_count / 5)
+        confidence = ((0.6 * feedback_score) + (0.4 * success_rate)) * sample_factor
+        return round(max(0.0, min(1.0, confidence)), 4)

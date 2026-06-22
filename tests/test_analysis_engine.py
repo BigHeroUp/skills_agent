@@ -3,6 +3,7 @@ import json
 import pandas as pd
 
 from services.analysis_engine import AnalysisEngine, AnalysisPlan
+from utils.analysis_history_manager import AnalysisHistoryManager
 
 
 def test_count_occurrences_by_category_is_deterministic_and_json_safe():
@@ -114,3 +115,42 @@ def test_null_and_duplicate_detection():
     assert nulls["total_nulls"] == 3
     assert {"column": "valore", "null_count": 2, "null_percent": 40.0} in nulls["columns_with_nulls"]
     assert duplicates["duplicate_rows"] == 2
+
+
+def test_engine_returns_new_pattern_metadata(tmp_path):
+    manager = AnalysisHistoryManager(db_path=tmp_path / "analysis_history.db")
+    df = pd.DataFrame({"stato": ["open", "closed", "open"]})
+    engine = AnalysisEngine(history_manager=manager)
+
+    payload = engine.run("conta ticket per stato", df, source_type="csv")
+
+    assert payload["plan_source"] == "new"
+    assert payload["analysis_pattern_id"] is not None
+    assert payload["confidence_score"] == 0.0
+    assert payload["similarity_score"] is None
+    saved = manager.get_pattern(payload["analysis_pattern_id"])
+    assert saved["confidence_score"] == 0.0
+
+
+def test_engine_reuses_high_feedback_pattern_with_scores(tmp_path):
+    manager = AnalysisHistoryManager(db_path=tmp_path / "analysis_history.db")
+    pattern_id = manager.add_pattern(
+        description="conta ticket per stato",
+        source_type="csv",
+        analysis_plan=AnalysisPlan(
+            analysis_type="count_occurrences",
+            target_column="stato",
+        ).to_dict(),
+        columns_used=["stato"],
+        feedback_score=0.95,
+        success=True,
+    )
+    df = pd.DataFrame({"stato": ["open", "closed", "open"]})
+    engine = AnalysisEngine(history_manager=manager)
+
+    payload = engine.run("conteggio ticket per stato", df, source_type="csv")
+
+    assert payload["plan_source"] == "history"
+    assert payload["analysis_pattern_id"] == pattern_id
+    assert payload["similarity_score"] >= 0.65
+    assert payload["confidence_score"] > 0.0
