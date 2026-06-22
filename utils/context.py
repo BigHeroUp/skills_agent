@@ -34,6 +34,13 @@ class AgentContext:
     confidence_score: float = 0.0
     similarity_score: float | None = None
     similarity_method: str | None = None
+
+    # Analisi autonoma multi-step della Milestone 4
+    autonomous_analysis_plan: Dict[str, Any] = field(default_factory=dict)
+    autonomous_analysis_results: List[Dict[str, Any]] = field(default_factory=list)
+    autonomous_executive_summary: str = ""
+    autonomous_recommendations: List[str] = field(default_factory=list)
+    autonomous_mode: bool = False
     
     # Analisi e insight
     insights: Dict[str, Any] = field(default_factory=dict)

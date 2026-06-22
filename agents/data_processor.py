@@ -5,6 +5,7 @@ Elabora e trasforma i dati validati
 
 from agents.base_agent import BaseAgent
 from services.analysis_engine import AnalysisEngine
+from services.autonomous_analyst import AutonomousAnalyst
 from utils.context import AgentContext
 from utils.analysis_history_manager import AnalysisHistoryManager
 from utils.data_analysis import summarize_dataframe
@@ -28,11 +29,43 @@ class DataProcessorAgent(BaseAgent):
             df = context.raw_data.get("dataframe")
             deterministic_summary = summarize_dataframe(df)
             analysis_engine = AnalysisEngine(history_manager=AnalysisHistoryManager())
-            analysis_payload = analysis_engine.run(
-                user_request=context.user_input,
-                df=df,
-                source_type=context.metadata.get("source_type", "unknown"),
-            )
+            autonomous_analyst = AutonomousAnalyst()
+            context.autonomous_mode = autonomous_analyst.should_run_autonomous(context.user_input)
+
+            if context.autonomous_mode:
+                autonomous_payload = autonomous_analyst.run(context.user_input, df)
+                context.autonomous_analysis_plan = autonomous_payload["autonomous_analysis_plan"]
+                context.autonomous_analysis_results = autonomous_payload["autonomous_analysis_results"]
+                context.autonomous_executive_summary = autonomous_payload["autonomous_executive_summary"]
+                context.autonomous_recommendations = autonomous_payload["autonomous_recommendations"]
+                first_completed = next(
+                    (
+                        item for item in context.autonomous_analysis_results
+                        if item.get("status") == "completed"
+                    ),
+                    {},
+                )
+                first_result = first_completed.get("result", {})
+                analysis_payload = {
+                    "analysis_plan": first_result.get("plan", {}),
+                    "deterministic_results": first_result,
+                    "execution_summary": {
+                        "status": "completed",
+                        "source": "autonomous_analyst",
+                        "step_count": len(context.autonomous_analysis_results),
+                    },
+                    "analysis_pattern_id": None,
+                    "plan_source": "autonomous",
+                    "confidence_score": 0.0,
+                    "similarity_score": None,
+                    "similarity_method": None,
+                }
+            else:
+                analysis_payload = analysis_engine.run(
+                    user_request=context.user_input,
+                    df=df,
+                    source_type=context.metadata.get("source_type", "unknown"),
+                )
             context.analysis_plan = analysis_payload["analysis_plan"]
             context.deterministic_results = analysis_payload["deterministic_results"]
             context.execution_summary = analysis_payload["execution_summary"]
@@ -59,6 +92,11 @@ class DataProcessorAgent(BaseAgent):
             - Confidence score: {context.confidence_score}
             - Similarity score: {context.similarity_score}
             - Similarity method: {context.similarity_method}
+
+            Analisi autonoma:
+            - Modalita autonoma: {context.autonomous_mode}
+            - Executive summary autonoma: {context.autonomous_executive_summary[:1200]}
+            - Raccomandazioni autonome: {str(context.autonomous_recommendations)[:1200]}
             
             Applica in italiano:
             1. Aggregazioni necessarie
@@ -90,6 +128,11 @@ class DataProcessorAgent(BaseAgent):
                 "confidence_score": context.confidence_score,
                 "similarity_score": context.similarity_score,
                 "similarity_method": context.similarity_method,
+                "autonomous_analysis_plan": context.autonomous_analysis_plan,
+                "autonomous_analysis_results": context.autonomous_analysis_results,
+                "autonomous_executive_summary": context.autonomous_executive_summary,
+                "autonomous_recommendations": context.autonomous_recommendations,
+                "autonomous_mode": context.autonomous_mode,
                 "shape": f"{deterministic_summary.get('row_count', 0)} righe, {deterministic_summary.get('column_count', 0)} colonne",
                 "status": "elaborato"
             }

@@ -417,6 +417,46 @@ Lo storico SQLite e migrato in modo compatibile: la colonna `embedding_json`
 viene aggiunta se assente e i pattern esistenti restano validi. Quando possibile,
 gli embedding mancanti vengono calcolati e salvati al primo riuso.
 
+## Milestone 4: Autonomous Analyst
+
+La Milestone 4 introduce `services/autonomous_analyst.py`, un planner
+deterministico multi-step che opera sopra `AnalysisEngine`.
+
+La differenza principale e:
+
+- single-plan analysis: una richiesta specifica produce un solo `AnalysisPlan`;
+- autonomous multi-step analysis: una richiesta ampia produce un
+  `AutonomousAnalysisPlan` con piu step deterministici.
+
+Esempi di richieste ampie:
+
+- "analizza il dataset";
+- "analizza i ticket";
+- "fammi un'analisi completa";
+- "trova anomalie";
+- "dimmi cosa vedi nei dati";
+- "fai una panoramica".
+
+In modalita autonoma il sistema puo eseguire:
+
+- distribuzione per colonna categoriale/stato;
+- trend temporale se trova una colonna data;
+- durata media se trova colonne inizio/fine;
+- rilevazione valori nulli;
+- rilevazione duplicati;
+- top N su colonne categoriali rilevanti;
+- aggregazioni numeriche principali.
+
+Il planner non usa nuove chiamate LLM: legge schema, tipi dato e riepilogo
+deterministico del dataframe, poi costruisce step Pandas verificabili. I risultati
+vengono salvati nel context e in `processed_data`:
+
+- `autonomous_analysis_plan`;
+- `autonomous_analysis_results`;
+- `autonomous_executive_summary`;
+- `autonomous_recommendations`;
+- `autonomous_mode`.
+
 ## Logging
 
 L'applicazione scrive gli eventi operativi in:

@@ -24,6 +24,9 @@ class ReportGeneratorAgent(BaseAgent):
             
             Insight: {str(context.insights)[:1600]}
             Dati Processati: {str(context.processed_data)[:1600]}
+            Analisi Autonoma: {str(context.autonomous_analysis_results)[:1600] if context.autonomous_mode else "Non eseguita"}
+            Executive Summary Autonoma: {context.autonomous_executive_summary[:1200] if context.autonomous_mode else "Non disponibile"}
+            Raccomandazioni Autonome: {str(context.autonomous_recommendations)[:1200] if context.autonomous_mode else "Non disponibili"}
             
             Formato del report (tutto in ITALIANO):
             1. Riepilogo Esecutivo
