@@ -4,7 +4,9 @@ Elabora e trasforma i dati validati
 """
 
 from agents.base_agent import BaseAgent
+from services.analysis_engine import AnalysisEngine
 from utils.context import AgentContext
+from utils.analysis_history_manager import AnalysisHistoryManager
 from utils.data_analysis import summarize_dataframe
 
 
@@ -25,12 +27,27 @@ class DataProcessorAgent(BaseAgent):
             
             df = context.raw_data.get("dataframe")
             deterministic_summary = summarize_dataframe(df)
+            analysis_engine = AnalysisEngine(history_manager=AnalysisHistoryManager())
+            analysis_payload = analysis_engine.run(
+                user_request=context.user_input,
+                df=df,
+                source_type=context.metadata.get("source_type", "unknown"),
+            )
+            context.analysis_plan = analysis_payload["analysis_plan"]
+            context.deterministic_results = analysis_payload["deterministic_results"]
+            context.execution_summary = analysis_payload["execution_summary"]
 
             # Prepara il prompt per OpenAI
             task_prompt = f"""
             Elabora questi dati validati (rispondi SEMPRE in italiano):
             Riepilogo calcolato dal dataframe reale:
             {str(deterministic_summary)[:2000]}
+
+            Piano analitico deterministico eseguito dal motore Python/Pandas:
+            {str(context.analysis_plan)[:1200]}
+
+            Risultati deterministici calcolati dal dataframe:
+            {str(context.deterministic_results)[:2000]}
             
             Applica in italiano:
             1. Aggregazioni necessarie
@@ -54,6 +71,9 @@ class DataProcessorAgent(BaseAgent):
             context.processed_data = {
                 "processing_report": response,
                 "deterministic_summary": deterministic_summary,
+                "analysis_plan": context.analysis_plan,
+                "deterministic_results": context.deterministic_results,
+                "execution_summary": context.execution_summary,
                 "shape": f"{deterministic_summary.get('row_count', 0)} righe, {deterministic_summary.get('column_count', 0)} colonne",
                 "status": "elaborato"
             }

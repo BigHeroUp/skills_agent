@@ -24,6 +24,11 @@ class AgentContext:
     
     # Dati processati
     processed_data: Dict[str, Any] = field(default_factory=dict)
+
+    # Piano e risultati deterministici della Milestone 2
+    analysis_plan: Dict[str, Any] = field(default_factory=dict)
+    deterministic_results: Dict[str, Any] = field(default_factory=dict)
+    execution_summary: Dict[str, Any] = field(default_factory=dict)
     
     # Analisi e insight
     insights: Dict[str, Any] = field(default_factory=dict)

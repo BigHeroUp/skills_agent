@@ -291,6 +291,58 @@ Questi risultati vengono salvati in `processed_data["deterministic_summary"]` e
 usati dall'`AnalystAgent` per produrre insight separati dal testo generato dal
 modello.
 
+## Milestone 2: Analysis Engine deterministico
+
+La Milestone 2 introduce un layer esplicito per separare interpretazione,
+calcolo reale e apprendimento locale:
+
+- l'LLM resta un interprete della richiesta e un generatore di spiegazioni;
+- `services/analysis_engine.py` esegue i calcoli reali con Python/Pandas;
+- `utils/analysis_history_manager.py` salva pattern analitici riutilizzabili in
+  SQLite.
+
+Il modello dati `AnalysisPlan` rappresenta un piano analitico con:
+
+- `analysis_type`;
+- `target_column`;
+- `group_by_column`;
+- `value_column`;
+- `time_column`;
+- `aggregation`;
+- `limit`;
+- `description`.
+
+L'`AnalysisEngine` supporta analisi deterministiche JSON-serializzabili:
+
+- conteggio occorrenze per colonna categoriale;
+- top N valori per colonna;
+- somma, media, minimo e massimo per colonne numeriche;
+- trend temporale se esiste una colonna data;
+- rilevazione valori nulli;
+- rilevazione righe duplicate.
+
+Il `DataProcessorAgent` integra il motore dopo la validazione dei dati e salva
+nel context:
+
+- `analysis_plan`;
+- `deterministic_results`;
+- `execution_summary`.
+
+Gli stessi dati sono anche esposti in `processed_data` per mantenere compatibili
+gli agenti successivi, il report e gli export esistenti.
+
+Lo storico locale dei pattern analitici e salvato in:
+
+```text
+data/analysis_history.db
+```
+
+Quando una nuova richiesta e simile a una richiesta passata con feedback
+positivo, il sistema puo riusare il piano analitico precedente e ricalcolare i
+risultati sul dataframe corrente. Questo evita che risultati numerici vengano
+inventati dal modello: il modello puo proporre o spiegare il piano, ma i valori
+finali sono prodotti dal motore deterministico.
+
 ## Logging
 
 L'applicazione scrive gli eventi operativi in:
