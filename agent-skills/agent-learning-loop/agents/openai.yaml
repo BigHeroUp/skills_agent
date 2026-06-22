@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Learning Loop"
+  short_description: "Apprende dagli esiti e migliora altri agenti."
+  default_prompt: "Raccogli feedback, trova pattern di errore e genera miglioramenti verificabili per gli altri agenti."

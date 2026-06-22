@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Governance"
+  short_description: "Definisce policy, gate e audit per agenti AI."
+  default_prompt: "Progetta governance per agenti con permessi, approvazioni, responsabilita e audit trail."

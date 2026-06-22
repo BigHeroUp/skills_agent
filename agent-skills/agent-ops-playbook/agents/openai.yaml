@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Ops Playbook"
+  short_description: "Gestisci rilascio, monitoraggio e incident response agenti."
+  default_prompt: "Prepara runbook operativo per deploy, monitor e rollback di un agente."

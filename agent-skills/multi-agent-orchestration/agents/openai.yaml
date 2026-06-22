@@ -1,0 +1,4 @@
+interface:
+  display_name: "Multi Agent Orchestration"
+  short_description: "Coordina ruoli, routing e handoff tra piu agenti."
+  default_prompt: "Definisci orchestratore, specialisti, regole di delega e policy di handoff."

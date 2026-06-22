@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent Factory Flow Studio</title>
+    <link rel="stylesheet" href="/static/styles.css?v=20260622b" />
+  </head>
+  <body>
+    <div id="resultModal" class="result-modal hidden" role="dialog" aria-modal="true" aria-labelledby="resultModalTitle">
+      <div class="result-modal-card">
+        <h2 id="resultModalTitle">Risultato pronto</h2>
+        <p id="resultModalText">La pipeline ha completato l'elaborazione.</p>
+        <div class="result-modal-actions">
+          <button id="openResultBtn" type="button">Apri risultato</button>
+          <button id="closeResultBtn" type="button" class="ghost-btn">Chiudi</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-shell">
+      <aside class="left-rail panel">
+        <div class="brand">
+          <p>Agent Factory</p>
+          <h1>Flow Studio</h1>
+        </div>
+
+        <div class="use-cases">
+          <button type="button" class="case active" data-case="it_ops" aria-pressed="true">
+            <b>IT Ops</b>
+            <span>Onboarding, ticketing, automazioni operative</span>
+          </button>
+          <button type="button" class="case" data-case="sec_ops" aria-pressed="false">
+            <b>Sec Ops</b>
+            <span>Triage incident, rischio, compliance</span>
+          </button>
+          <button type="button" class="case" data-case="rev_ops" aria-pressed="false">
+            <b>Rev Ops</b>
+            <span>Pipeline commerciale, forecast, performance</span>
+          </button>
+          <button type="button" class="case" data-case="strategy" aria-pressed="false">
+            <b>Strategy</b>
+            <span>Business plan, scenari economici, go-to-market</span>
+          </button>
+        </div>
+
+        <section class="use-case-panel" id="useCasePanel">
+          <h2 id="useCaseTitle">IT Ops</h2>
+          <p id="useCaseDescription">Preset per richieste operative: runbook, automazioni, SLA e riduzione tempi di delivery.</p>
+          <div class="use-case-grid">
+            <div>
+              <h3>Cosa fa</h3>
+              <ul id="useCaseActions"></ul>
+            </div>
+            <div>
+              <h3>Output atteso</h3>
+              <ul id="useCaseOutput"></ul>
+            </div>
+          </div>
+        </section>
+
+        <form id="jobForm" class="intake-form">
+          <label for="prompt">Prompt iniziale</label>
+          <textarea id="prompt" required placeholder="Descrivi obiettivo e risultato atteso"></textarea>
+
+          <label for="requirements">Business requirements</label>
+          <textarea id="requirements" placeholder="KPI, vincoli, deadline, policy"></textarea>
+
+          <label>Fonte dati</label>
+          <div class="source-selector" role="group" aria-label="Fonte dati">
+            <button type="button" class="source-option active" data-source="csv" aria-pressed="true">CSV</button>
+            <button type="button" class="source-option" data-source="excel" aria-pressed="false">Excel</button>
+            <button type="button" class="source-option" data-source="database" aria-pressed="false">Database</button>
+            <button type="button" class="source-option" data-source="document" aria-pressed="false">Altro</button>
+          </div>
+          <p id="sourceHelp" class="source-help">Carica uno o più file CSV da analizzare.</p>
+
+          <section id="dbConnectorPanel" class="db-connector hidden">
+            <label for="dbConnectionString">Stringa di connessione</label>
+            <input id="dbConnectionString" type="text" placeholder="sqlite:////Users/.../database.sqlite" autocomplete="off" />
+            <div class="db-actions">
+              <button id="testDbConnectionBtn" type="button" class="ghost-btn">Verifica connessione</button>
+              <span id="dbConnectionStatus" class="db-status">Non verificata</span>
+            </div>
+            <pre id="dbSchemaPreview" class="db-preview">Schema non caricato</pre>
+            <label for="dbQueryRequest">Query SQL o richiesta human language</label>
+            <textarea id="dbQueryRequest" placeholder="Tirami il numero totale dei device consegnati ai clienti"></textarea>
+            <button id="runDbQueryBtn" type="button" class="ghost-btn">Esegui su DB</button>
+            <pre id="dbQueryResult" class="db-preview">Nessun risultato</pre>
+          </section>
+
+          <label id="filesLabel" for="files">File CSV</label>
+          <input id="files" type="file" multiple accept=".csv" />
+
+          <button id="startBtn" type="submit">Esegui Flow</button>
+        </form>
+      </aside>
+
+      <main class="canvas-wrap panel">
+        <header class="canvas-top">
+          <div class="status-group">
+            <span id="jobStatus" class="chip">Idle</span>
+            <span id="jobId" class="chip muted">Nessun job</span>
+          </div>
+          <div class="metric-group">
+            <span>Attivi <b id="activeCount">0</b></span>
+            <span>Completati <b id="doneCount">0</b></span>
+            <span>Eventi <b id="eventCount">0</b></span>
+          </div>
+        </header>
+        <div class="result-hint">
+          <span id="resultBadge">Risultato finale: in attesa</span>
+          <button id="jumpToResult" type="button" class="ghost-btn">Vai al risultato</button>
+        </div>
+
+        <ol id="progressTrack" class="progress-track">
+          <li data-step="intake">Intake</li>
+          <li data-step="awaiting_clarification">Chiarimenti</li>
+          <li data-step="running">Execution</li>
+          <li data-step="completed">Delivery</li>
+        </ol>
+
+        <section class="flow-canvas" id="diaphragm">
+          <svg class="links" viewBox="0 0 120 70" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <marker id="arrow-default" markerWidth="10" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L10,4 L0,8 z" fill="#5b668f" />
+              </marker>
+              <marker id="arrow-active" markerWidth="12" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L12,5 L0,10 z" fill="#88e6ff" />
+              </marker>
+              <marker id="arrow-done" markerWidth="10" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L10,4 L0,8 z" fill="#67f1a1" />
+              </marker>
+            </defs>
+            <path data-link="discovery-agent" d="" />
+            <path data-link="clarification-agent" d="" />
+            <path data-link="analysis-agent" d="" />
+            <path data-link="solution-agent" d="" />
+            <path data-link="governance-agent" d="" />
+            <path data-link="learning-agent" d="" />
+            <path data-link="data-intake-agent" d="" />
+            <path data-link="ops-agent" d="" />
+          </svg>
+
+          <div class="node trigger queued" data-agent="discovery-agent">
+            <small>Trigger</small>
+            <strong>Customer Request</strong>
+          </div>
+
+          <div class="node core queued" data-agent="clarification-agent" id="coreNode">
+            <small>AI Agent</small>
+            <strong>Chief Orchestrator</strong>
+            <span>Tools + Memory + Policy</span>
+          </div>
+
+          <div class="node decision queued" data-agent="analysis-agent">
+            <small>Decision</small>
+            <strong id="decisionNodeLabel">Scope clear?</strong>
+          </div>
+
+          <div class="node action top queued" data-agent="solution-agent">
+            <small>true</small>
+            <strong id="topActionNodeLabel">Build Solution</strong>
+          </div>
+
+          <div class="node action bottom queued" data-agent="ops-agent">
+            <small>false</small>
+            <strong id="bottomActionNodeLabel">Request More Data</strong>
+          </div>
+
+          <div class="node resource r1 queued" data-agent="data-intake-agent">Data Intake</div>
+          <div class="node resource r2 queued" data-agent="governance-agent">Governance</div>
+          <div class="node resource r3 queued" data-agent="learning-agent">Learning Loop</div>
+        </section>
+      </main>
+
+      <aside class="right-rail panel">
+        <section id="clarificationBox" class="clarification hidden">
+          <h2>Clarification Loop</h2>
+          <p class="clarification-copy">Rispondi alle domande oppure aggiungi una nuova richiesta in linguaggio naturale, una query o altri file prima di avviare l'elaborazione.</p>
+          <div id="clarificationChat" class="clarification-chat"></div>
+          <form id="clarificationForm"></form>
+          <label for="freeClarification">Nuova richiesta / query / contesto</label>
+          <textarea id="freeClarification" placeholder="Esempio: usa il CSV caricato per segmentare i clienti per marginalità, oppure aggiungo un nuovo file con i costi."></textarea>
+          <label for="clarificationFiles">Altri file / database per questa richiesta</label>
+          <input id="clarificationFiles" type="file" multiple accept=".csv,.xlsx,.xls,.txt,.md,.db,.sqlite,.sqlite3" />
+          <div class="clarification-actions">
+            <button id="updateContextBtn" type="button" class="ghost-btn">Aggiorna contesto</button>
+            <button id="submitClarifications" type="button">Avvia elaborazione</button>
+          </div>
+        </section>
+
+        <section class="events-block">
+          <h2>Event Stream</h2>
+          <div id="events" class="events"></div>
+        </section>
+
+        <section class="result-block">
+          <h2 id="resultAnchor">Risultato Finale (leggi qui)</h2>
+          <pre id="solution">In attesa...</pre>
+          <h2>Learning Report</h2>
+          <pre id="learning">N/D</pre>
+        </section>
+      </aside>
+    </div>
+
+    <script src="/static/app.js?v=20260622d"></script>
+  </body>
+</html>

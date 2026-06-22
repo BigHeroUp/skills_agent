@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Discovery"
+  short_description: "Raccogli requisiti e confini per un nuovo agente."
+  default_prompt: "Definisci obiettivo, input, output, vincoli, strumenti e criteri di successo dell agente."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Tooling Contracts"
+  short_description: "Definisci interfacce tool, input schema e gestione errori."
+  default_prompt: "Specifica contratti tool con schema, idempotenza e retry policy."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Memory Strategy"
+  short_description: "Progetta memoria, retrieval e pruning per agenti."
+  default_prompt: "Definisci strategia memoria breve e lunga, retrieval, retention e privacy per un agente."

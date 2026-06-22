@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Evaluation Loop"
+  short_description: "Imposta test set, metriche e regressioni per agenti."
+  default_prompt: "Costruisci un ciclo di valutazione con test, scorecard e gating."

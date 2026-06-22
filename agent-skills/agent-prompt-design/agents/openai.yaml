@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Prompt Design"
+  short_description: "Progetta system prompt e regole operative per agenti."
+  default_prompt: "Crea un prompt operativo robusto con policy, fallback e output contract."
