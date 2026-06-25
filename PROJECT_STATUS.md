@@ -53,16 +53,23 @@ La cronologia gia integrata in `main` comprende:
    - raccomandazioni operative;
    - report finale professionale in Markdown;
    - fallback di `AnalystAgent` e `ReportGeneratorAgent` in assenza di OpenAI.
+7. Analysis Session Manager, presente su `main` nel commit `a3ab8fd`:
+   - sessioni in memoria con struttura versionata;
+   - iterazioni append-only;
+   - classificazione locale delle richieste;
+   - contesto per follow-up;
+   - export sintetico JSON-serializzabile;
+   - struttura predisposta per una futura persistenza SQLite.
 
-Nel worktree corrente e stata implementata la Milestone 4 - Analysis Session
-Manager, ancora da committare:
+Nel worktree corrente e stata implementata la Milestone 5 - Pattern Knowledge
+Engine, ancora da committare:
 
-- sessioni in memoria con struttura versionata;
-- iterazioni append-only;
-- classificazione locale delle richieste;
-- contesto per follow-up;
-- export sintetico JSON-serializzabile;
-- struttura predisposta per una futura persistenza SQLite.
+- catalogo locale di pattern analitici;
+- rilevazione deterministica da richiesta e metadata;
+- suggerimento di metriche, raggruppamenti, grafici e step;
+- arricchimento del piano analitico;
+- integrazione con sessioni e Senior Data Analyst Engine;
+- struttura pronta per futura persistenza SQLite.
 
 Nota sulla numerazione: le milestone storiche nel README usano i numeri 2, 2.5,
 3 e 4. La roadmap evolutiva richiesta piu avanti in questo documento riparte da
@@ -96,7 +103,9 @@ normalizzata in una futura revisione documentale.
 - `services/senior_data_analyst_engine.py`: relazione professionale locale
   derivata esclusivamente dai risultati deterministici, presente su `main`.
 - `services/analysis_session_manager.py`: sessioni e iterazioni analitiche in
-  memoria, implementato nel worktree corrente.
+  memoria, presente su `main`.
+- `services/pattern_knowledge_engine.py`: Knowledge Base locale dei pattern
+  analitici, implementata nel worktree corrente.
 
 #### Persistenza e utility
 
@@ -201,12 +210,14 @@ autonomo completo.
 - `ReportGeneratorAgent` produce il report finale anche senza
   `OPENAI_API_KEY`.
 - Analysis Session Manager completamente locale e senza chiamate OpenAI.
+- Pattern Knowledge Engine completamente locale e senza chiamate OpenAI.
 
 ### Qualita verificata
 
-- Suite pytest: **70 test superati**.
+- Suite pytest: **79 test superati**.
 - Test dedicati al Senior Data Analyst Engine: **7 superati**.
 - Test dedicati all'Analysis Session Manager: **8 superati**.
+- Test dedicati al Pattern Knowledge Engine: **9 superati**.
 - Copertura presente per Analysis Engine, history, feedback, semantic memory,
   autonomous analysis, follow-up, grafici richiesti, sicurezza Oracle e report
   locale.
@@ -370,24 +381,25 @@ persistenza ancora da completare.
 
 **Obiettivo**
 
-Unificare query, piani, metriche, schema, risultati, feedback e contesto di
-business in una knowledge base interrogabile.
+Riconoscere pattern ricorrenti, suggerire analisi e arricchire i piani con best
+practice riusabili. La base locale dei quattro pattern iniziali e implementata.
 
 **Motivazione**
 
-Le due history SQLite sono separate e memorizzano pattern limitati. Serve una
-memoria strutturata e versionata che sappia distinguere sorgente, dominio,
-schema e validita temporale.
+Le history SQLite memorizzano esecuzioni, ma non descrivono ancora conoscenza
+analitica riusabile. Il catalogo locale introduce questo livello; restano da
+implementare persistenza, versionamento e apprendimento dei pattern.
 
 **Moduli coinvolti**
 
-- `utils/query_history_manager.py`;
-- `utils/analysis_history_manager.py`;
-- `services/semantic_memory.py`;
-- nuovo `services/knowledge_base.py`;
-- migrazioni SQLite.
+- `services/pattern_knowledge_engine.py`;
+- `services/analysis_session_manager.py`;
+- `agents/data_processor.py`;
+- `services/senior_data_analyst_engine.py`;
+- futura integrazione con history e migrazioni SQLite.
 
-**Priorita:** Alta.
+**Priorita:** Alta. Catalogo e integrazioni base implementati; persistenza e
+pattern appresi ancora da completare.
 
 **Dipendenza:** Analysis Session Manager.
 
@@ -566,9 +578,9 @@ privacy e controllo.
 
 ## Debito tecnico
 
-- Il branch corrente e `main` e contiene le modifiche non committate della
-  Milestone 4. Per uno sviluppo strutturato sarebbe preferibile lavorare su un
-  feature branch.
+- Il branch corrente e `main`, allineato a `origin/main` prima delle modifiche
+  della Milestone 5, che sono nel worktree non committato. Sarebbe preferibile
+  lavorare su feature branch.
 - `DataProcessorAgent` chiama ancora OpenAI in modo bloccante dopo avere
   calcolato i risultati deterministici.
 - `DataExtractorAgent` e `DataValidatorAgent` non hanno fallback locali
@@ -585,6 +597,11 @@ privacy e controllo.
   sessione completa.
 - `AnalysisSessionManager` usa storage in memoria e non e ancora collegato alla
   dashboard, al coordinator o a SQLite.
+- `PatternKnowledgeEngine` usa un catalogo statico in memoria; non apprende
+  ancora nuovi pattern dai feedback e non persiste su SQLite.
+- Gli step suggeriti dalla Knowledge Base non vengono ancora orchestrati
+  automaticamente: arricchiscono piano e report, ma non sostituiscono i
+  risultati deterministici realmente eseguiti.
 - Lo stato Dash e globale/in-memory e non supporta correttamente multiutente,
   multiprocesso o deployment distribuito.
 - Le elaborazioni usano thread daemon senza job queue, cancellazione, timeout,
@@ -666,14 +683,13 @@ sono:
 ## Ultimo aggiornamento
 
 - **Data:** 25 giugno 2026
-- **Ora:** 23:41:45 CEST
+- **Ora:** 23:59:07 CEST
 - **Branch Git:** `main`
-- **HEAD:** `c23e060 feat: add Senior Data Analyst Engine and project handover documentation`
+- **HEAD:** `a3ab8fd feat: add iterative analysis session manager`
 - **Stato repository:** modificato, non staged e non committato; `main` e
   allineato a `origin/main` prima delle modifiche locali.
-- **Modifiche locali principali:** Analysis Session Manager, test dedicati e
-  aggiornamenti a README e memoria tecnica.
-- **Numero test:** 70 superati.
-- **Quality gate:** 70 test pytest superati; `python3 -m compileall .`
-  completato; `git diff --check` superato. L'alias `python` non e disponibile
-  nell'ambiente, quindi e stato usato l'interprete equivalente `python3`.
+- **Modifiche locali principali:** Pattern Knowledge Engine, integrazione con
+  sessioni, Data Processor e Senior Data Analyst Engine, test e documentazione.
+- **Numero test:** 79 superati.
+- **Quality gate:** 79 test pytest superati; `python3 -m compileall .`
+  completato; `git diff --check` superato.

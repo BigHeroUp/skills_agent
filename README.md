@@ -514,6 +514,39 @@ Il manager puo costruire il contesto per l'iterazione successiva ed esportare
 una sintesi JSON-serializzabile. Lo storage e attualmente in memoria Python,
 con una struttura versionata pronta per una futura implementazione SQLite.
 
+## Milestone 5: Pattern Knowledge Engine
+
+`services/pattern_knowledge_engine.py` introduce una Knowledge Base analitica
+locale e versionata. Il motore associa la richiesta utente a pattern ricorrenti
+e suggerisce metriche, raggruppamenti, grafici e step di approfondimento senza
+chiamare OpenAI.
+
+I pattern iniziali sono:
+
+- `time_performance_analysis`: media, mediana, percentili, trend, outlier,
+  soglie/SLA e degrado;
+- `categorical_segmentation`: distribuzioni, top valori, confronto e anomalie
+  tra segmenti;
+- `data_quality_audit`: null, duplicati, formati, incoerenze e colonne
+  critiche;
+- `operational_kpi_analysis`: KPI, distribuzioni, trend e raccomandazioni
+  operative.
+
+L'integrazione corrente:
+
+- arricchisce `analysis_plan` nel `DataProcessorAgent` dopo l'esecuzione
+  deterministica;
+- salva i pattern rilevati in ogni iterazione
+  dell'`AnalysisSessionManager`;
+- aggiunge note metodologiche e raccomandazioni basate sui pattern nel
+  `SeniorDataAnalystEngine`;
+- espone catalogo e payload in formato JSON-serializzabile, pronto per una
+  futura persistenza SQLite.
+
+Gli step suggeriti rappresentano best practice raccomandate. Non vengono
+presentati come risultati eseguiti finche il relativo motore deterministico non
+ha calcolato le metriche.
+
 ## Logging
 
 L'applicazione scrive gli eventi operativi in:

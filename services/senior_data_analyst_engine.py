@@ -29,7 +29,12 @@ class SeniorDataAnalystEngine:
             "operational_recommendations": [],
             "analysis_plan": data.get("analysis_plan") or {},
             "execution_summary": data.get("execution_summary") or {},
+            "detected_patterns": data.get("detected_patterns") or [],
+            "knowledge_analysis_steps": data.get("knowledge_analysis_steps") or [],
         }
+        analysis["methodological_notes"] = self._build_methodological_notes(
+            analysis["detected_patterns"]
+        )
         analysis["key_findings"] = self._build_key_findings(analysis)
         analysis["operational_recommendations"] = self._build_recommendations(analysis)
         analysis["executive_summary"] = self.generate_executive_summary(analysis)
@@ -111,6 +116,9 @@ class SeniorDataAnalystEngine:
             "",
             "## Raccomandazioni operative",
             self._numbered_list(analysis.get("operational_recommendations", [])),
+            "",
+            "## Best practice metodologiche",
+            self._bullet_list(analysis.get("methodological_notes", [])),
             "",
             "## Nota metodologica",
             (
@@ -494,6 +502,26 @@ class SeniorDataAnalystEngine:
                     f"Valutare la concentrazione su {segment.get('leading_segment')} "
                     f"nella dimensione {segment.get('column') or 'analizzata'} ({share:.2f}%)."
                 )
+        pattern_ids = {
+            pattern.get("pattern_id")
+            for pattern in analysis.get("detected_patterns", [])
+        }
+        if "time_performance_analysis" in pattern_ids:
+            recommendations.append(
+                "Integrare media, mediana e percentili P75/P90/P95/P99 prima di valutare SLA e degrado."
+            )
+        if "categorical_segmentation" in pattern_ids:
+            recommendations.append(
+                "Confrontare numerosita e quota percentuale dei segmenti, isolando gruppi con campioni insufficienti."
+            )
+        if "data_quality_audit" in pattern_ids:
+            recommendations.append(
+                "Rendere bloccanti i controlli sulle colonne critiche prima di consolidare KPI e report."
+            )
+        if "operational_kpi_analysis" in pattern_ids:
+            recommendations.append(
+                "Associare ogni KPI a definizione, unita di misura, target e responsabile operativo."
+            )
         if not recommendations:
             recommendations.append(
                 "Confermare i KPI con i responsabili di business e impostare un monitoraggio periodico."
@@ -502,6 +530,18 @@ class SeniorDataAnalystEngine:
             "Raccogliere feedback sull'utilità dell'analisi per migliorare il riuso dei pattern analitici."
         )
         return list(dict.fromkeys(recommendations))
+
+    def _build_methodological_notes(self, patterns: list[dict[str, Any]]) -> list[str]:
+        notes = []
+        for pattern in patterns:
+            for note in pattern.get("senior_analyst_notes", []):
+                if note not in notes:
+                    notes.append(note)
+        if not notes:
+            notes.append(
+                "Applicare solo metriche coerenti con schema, granularita e qualita dei dati disponibili."
+            )
+        return notes
 
     def _kpi(self, name: str, value: Any, category: str, context: str | None = None) -> dict:
         return {"name": name, "value": value, "category": category, "context": context}

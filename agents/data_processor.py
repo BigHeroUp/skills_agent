@@ -6,6 +6,7 @@ Elabora e trasforma i dati validati
 from agents.base_agent import BaseAgent
 from services.analysis_engine import AnalysisEngine
 from services.autonomous_analyst import AutonomousAnalyst
+from services.pattern_knowledge_engine import PatternKnowledgeEngine
 from utils.context import AgentContext
 from utils.analysis_history_manager import AnalysisHistoryManager
 from utils.data_analysis import summarize_dataframe
@@ -74,6 +75,19 @@ class DataProcessorAgent(BaseAgent):
             context.confidence_score = analysis_payload.get("confidence_score", 0.0)
             context.similarity_score = analysis_payload.get("similarity_score")
             context.similarity_method = analysis_payload.get("similarity_method")
+            knowledge_engine = PatternKnowledgeEngine()
+            enriched_plan = knowledge_engine.enrich_analysis_plan(
+                context.analysis_plan,
+                context.user_input,
+                deterministic_summary,
+            )
+            enrichment = enriched_plan.get("knowledge_enrichment", {})
+            context.analysis_plan = enriched_plan
+            context.detected_patterns = enrichment.get("patterns", [])
+            context.knowledge_analysis_steps = enrichment.get(
+                "suggested_analysis_steps",
+                [],
+            )
 
             # Prepara il prompt per OpenAI
             task_prompt = f"""
@@ -86,6 +100,10 @@ class DataProcessorAgent(BaseAgent):
 
             Risultati deterministici calcolati dal dataframe:
             {str(context.deterministic_results)[:2000]}
+
+            Knowledge Base analitica:
+            - Pattern rilevati: {str([item.get("pattern_id") for item in context.detected_patterns])}
+            - Step consigliati: {str(context.knowledge_analysis_steps)[:1600]}
 
             Memoria operativa:
             - Fonte piano: {"memoria storica" if context.plan_source == "history" else "nuovo piano"}
@@ -128,6 +146,8 @@ class DataProcessorAgent(BaseAgent):
                 "confidence_score": context.confidence_score,
                 "similarity_score": context.similarity_score,
                 "similarity_method": context.similarity_method,
+                "detected_patterns": context.detected_patterns,
+                "knowledge_analysis_steps": context.knowledge_analysis_steps,
                 "autonomous_analysis_plan": context.autonomous_analysis_plan,
                 "autonomous_analysis_results": context.autonomous_analysis_results,
                 "autonomous_executive_summary": context.autonomous_executive_summary,

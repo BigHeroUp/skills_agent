@@ -11,6 +11,8 @@ from collections import Counter
 from datetime import date, datetime
 from typing import Any, Callable
 
+from services.pattern_knowledge_engine import PatternKnowledgeEngine
+
 
 class AnalysisSessionManager:
     """Memorizza richieste e iterazioni analitiche nel processo Python.
@@ -26,11 +28,13 @@ class AnalysisSessionManager:
         self,
         id_factory: Callable[[], str] | None = None,
         clock: Callable[[], datetime] | None = None,
+        knowledge_engine: PatternKnowledgeEngine | None = None,
     ):
         self._sessions: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
         self._id_factory = id_factory or (lambda: str(uuid.uuid4()))
         self._clock = clock or datetime.now
+        self._knowledge_engine = knowledge_engine or PatternKnowledgeEngine()
 
     def start_session(
         self,
@@ -68,6 +72,12 @@ class AnalysisSessionManager:
         with self._lock:
             session = self._require_session(session_id)
             iteration_number = len(session["iterations"]) + 1
+            detected_patterns = payload.get("detected_patterns")
+            if not isinstance(detected_patterns, list):
+                detected_patterns = self._knowledge_engine.detect_patterns(
+                    user_prompt,
+                    session["dataframe_metadata"],
+                )
             iteration = {
                 "iteration_number": iteration_number,
                 "timestamp": self._timestamp(),
@@ -78,6 +88,7 @@ class AnalysisSessionManager:
                     payload.get("deterministic_results") or {}
                 ),
                 "insights": self._json_safe(payload.get("insights") or {}),
+                "detected_patterns": self._json_safe(detected_patterns),
                 "final_report_snapshot": str(
                     payload.get("final_report_snapshot")
                     or payload.get("final_report")
@@ -121,6 +132,9 @@ class AnalysisSessionManager:
                     latest["deterministic_results"] if latest else {}
                 ),
                 "latest_insights": latest["insights"] if latest else {},
+                "latest_detected_patterns": (
+                    latest["detected_patterns"] if latest else []
+                ),
                 "latest_final_report": (
                     latest["final_report_snapshot"] if latest else ""
                 ),
@@ -161,6 +175,10 @@ class AnalysisSessionManager:
                         "analysis_type": item["analysis_plan"].get("analysis_type"),
                         "has_results": bool(item["deterministic_results"]),
                         "has_insights": bool(item["insights"]),
+                        "detected_pattern_ids": [
+                            pattern.get("pattern_id")
+                            for pattern in item.get("detected_patterns", [])
+                        ],
                         "has_final_report": bool(item["final_report_snapshot"]),
                     }
                     for item in iterations
