@@ -41,20 +41,28 @@ La cronologia gia integrata in `main` comprende:
 3. Feedback Engine per pattern analitici riutilizzabili.
 4. Semantic Memory Engine con embeddings opzionali e fallback testuale.
 5. Autonomous Analyst deterministico multi-step.
+6. Senior Data Analyst Engine locale, integrato su `main` nel commit
+   `c23e060`:
+   - generazione locale di executive summary;
+   - key finding;
+   - KPI;
+   - trend;
+   - segmentazioni;
+   - anomalie ed estremi potenziali;
+   - note sulla qualita dei dati;
+   - raccomandazioni operative;
+   - report finale professionale in Markdown;
+   - fallback di `AnalystAgent` e `ReportGeneratorAgent` in assenza di OpenAI.
 
-Nel worktree corrente, ancora non committato, e stata inoltre implementata la
-base del Senior Data Analyst Engine locale:
+Nel worktree corrente e stata implementata la Milestone 4 - Analysis Session
+Manager, ancora da committare:
 
-- generazione locale di executive summary;
-- key finding;
-- KPI;
-- trend;
-- segmentazioni;
-- anomalie ed estremi potenziali;
-- note sulla qualita dei dati;
-- raccomandazioni operative;
-- report finale professionale in Markdown;
-- fallback di `AnalystAgent` e `ReportGeneratorAgent` in assenza di OpenAI.
+- sessioni in memoria con struttura versionata;
+- iterazioni append-only;
+- classificazione locale delle richieste;
+- contesto per follow-up;
+- export sintetico JSON-serializzabile;
+- struttura predisposta per una futura persistenza SQLite.
 
 Nota sulla numerazione: le milestone storiche nel README usano i numeri 2, 2.5,
 3 e 4. La roadmap evolutiva richiesta piu avanti in questo documento riparte da
@@ -86,8 +94,9 @@ normalizzata in una futura revisione documentale.
 - `services/autonomous_analyst.py`: planner ed executor multi-step
   deterministico.
 - `services/senior_data_analyst_engine.py`: relazione professionale locale
-  derivata esclusivamente dai risultati deterministici. Il file e attualmente
-  presente nel worktree ma non ancora committato.
+  derivata esclusivamente dai risultati deterministici, presente su `main`.
+- `services/analysis_session_manager.py`: sessioni e iterazioni analitiche in
+  memoria, implementato nel worktree corrente.
 
 #### Persistenza e utility
 
@@ -118,10 +127,10 @@ La pipeline principale contiene sette agenti:
 3. `DataExtractorAgent`: prepara il piano di estrazione.
 4. `DataValidatorAgent`: valida la disponibilita e la qualita dei dati.
 5. `DataProcessorAgent`: produce profiling, piani e risultati deterministici.
-6. `AnalystAgent`: trasforma i risultati in insight; nel worktree corrente usa
-   prima il Senior Data Analyst Engine locale.
-7. `ReportGeneratorAgent`: produce il report finale; nel worktree corrente il
-   report locale e sempre la fonte primaria.
+6. `AnalystAgent`: usa `SeniorDataAnalystEngine` come motore primario locale e
+   conserva l'eventuale output OpenAI come arricchimento opzionale.
+7. `ReportGeneratorAgent`: usa il report locale come fonte primaria e puo
+   aggiungere un arricchimento testuale OpenAI non bloccante.
 
 E inoltre presente `ConversationAgent`, usato dalla chat post-analisi per le
 richieste che non vengono risolte dai follow-up deterministici.
@@ -155,7 +164,7 @@ richieste che non vengono risolte dai follow-up deterministici.
   - grafici richiesti;
   - andamento chiusure;
   - tempo medio tra creazione e risoluzione.
-- `SeniorDataAnalystEngine`, nel worktree corrente:
+- `SeniorDataAnalystEngine`, presente su `main`:
   - executive summary;
   - KPI;
   - trend analysis;
@@ -186,14 +195,18 @@ autonomo completo.
 - Query e pattern history su SQLite locale.
 - Similarita testuale locale quando embeddings non sono disponibili.
 - Follow-up riconoscibili calcolati localmente.
-- Senior Data Analyst Engine e report finale locale nel worktree corrente.
-- `BaseAgent` puo essere istanziato senza `OPENAI_API_KEY` nel worktree
-  corrente.
+- Senior Data Analyst Engine e report finale completamente locali.
+- `BaseAgent` puo essere istanziato senza `OPENAI_API_KEY`.
+- `AnalystAgent` completa l'analisi locale senza OpenAI.
+- `ReportGeneratorAgent` produce il report finale anche senza
+  `OPENAI_API_KEY`.
+- Analysis Session Manager completamente locale e senza chiamate OpenAI.
 
 ### Qualita verificata
 
-- Suite pytest: **62 test superati**.
+- Suite pytest: **70 test superati**.
 - Test dedicati al Senior Data Analyst Engine: **7 superati**.
+- Test dedicati all'Analysis Session Manager: **8 superati**.
 - Copertura presente per Analysis Engine, history, feedback, semantic memory,
   autonomous analysis, follow-up, grafici richiesti, sicurezza Oracle e report
   locale.
@@ -288,8 +301,9 @@ lo stato per aggiornare timeline e risultati.
   - usa embeddings OpenAI quando configurati;
   - dispone gia di fallback locale testuale.
 - `AnalystAgent` e `ReportGeneratorAgent`:
-  - nel worktree corrente OpenAI e solo un arricchimento opzionale;
-  - il risultato locale viene prodotto anche senza API.
+  - usano il Senior Data Analyst Engine e il report locale come fonti primarie;
+  - OpenAI e solo un arricchimento testuale opzionale;
+  - il report finale viene prodotto anche senza `OPENAI_API_KEY`.
 
 ### Componenti completamente locali
 
@@ -305,7 +319,8 @@ lo stato per aggiornare timeline e risultati.
 - history SQLite;
 - feedback e confidence;
 - follow-up deterministici gia riconosciuti;
-- report finale locale nel worktree corrente.
+- report finale locale prodotto dal `SeniorDataAnalystEngine`;
+- sessioni analitiche in memoria tramite `AnalysisSessionManager`.
 
 ### Obiettivi di eliminazione futura
 
@@ -328,25 +343,26 @@ sviluppo. Non coincide con la numerazione storica dei commit gia integrati.
 
 **Obiettivo**
 
-Persistenza completa delle sessioni analitiche: input, sorgente, schema,
-richieste, chiarimenti, piani, risultati, grafici, report, follow-up e feedback.
+Gestione strutturata delle sessioni analitiche: input, sorgente, metadata del
+dataframe, richieste successive, piani, risultati, insight e snapshot dei
+report.
 
 **Motivazione**
 
-Lo stato e oggi prevalentemente in memoria. Una sessione persistente e
-necessaria per riprendere analisi, confrontare iterazioni e costruire
-apprendimento affidabile.
+Una sessione esplicita e necessaria per riprendere analisi, confrontare
+iterazioni e costruire apprendimento affidabile. La prima implementazione usa
+storage Python in memoria e prepara il contratto dati per SQLite.
 
 **Moduli coinvolti**
 
-- nuovo `services/analysis_session_manager.py`;
-- `utils/conversation_manager.py`;
-- `services/analysis_service.py`;
-- `utils/context.py`;
-- `ui/callbacks.py`;
-- storage SQLite o equivalente.
+- `services/analysis_session_manager.py`;
+- `tests/test_analysis_session_manager.py`;
+- futura integrazione con `utils/conversation_manager.py`;
+- futura integrazione con `services/analysis_service.py` e `ui/callbacks.py`;
+- futuro repository SQLite.
 
-**Priorita:** Critica.
+**Priorita:** Critica. Base in-memory implementata; integrazione UI e
+persistenza ancora da completare.
 
 **Dipendenza:** Base per Knowledge Base, Learning Engine e autonomia completa.
 
@@ -550,8 +566,9 @@ privacy e controllo.
 
 ## Debito tecnico
 
-- Il branch corrente e `main` e contiene modifiche non committate. Per uno
-  sviluppo strutturato sarebbe preferibile lavorare su un feature branch.
+- Il branch corrente e `main` e contiene le modifiche non committate della
+  Milestone 4. Per uno sviluppo strutturato sarebbe preferibile lavorare su un
+  feature branch.
 - `DataProcessorAgent` chiama ancora OpenAI in modo bloccante dopo avere
   calcolato i risultati deterministici.
 - `DataExtractorAgent` e `DataValidatorAgent` non hanno fallback locali
@@ -566,6 +583,8 @@ privacy e controllo.
   provider/model centralizzata.
 - Le history query e analysis sono database separati e non modellano una
   sessione completa.
+- `AnalysisSessionManager` usa storage in memoria e non e ancora collegato alla
+  dashboard, al coordinator o a SQLite.
 - Lo stato Dash e globale/in-memory e non supporta correttamente multiutente,
   multiprocesso o deployment distribuito.
 - Le elaborazioni usano thread daemon senza job queue, cancellazione, timeout,
@@ -647,13 +666,14 @@ sono:
 ## Ultimo aggiornamento
 
 - **Data:** 25 giugno 2026
-- **Ora:** 20:03:25 CEST
+- **Ora:** 23:41:45 CEST
 - **Branch Git:** `main`
-- **HEAD:** `269f313 feat: add autonomous multi-step analyst`
+- **HEAD:** `c23e060 feat: add Senior Data Analyst Engine and project handover documentation`
 - **Stato repository:** modificato, non staged e non committato; `main` e
   allineato a `origin/main` prima delle modifiche locali.
-- **Modifiche locali principali:** Senior Data Analyst Engine, fallback OpenAI
-  opzionale per Analyst e Report Generator, test e documentazione.
-- **Numero test:** 62 superati.
-- **Quality gate:** 62 test pytest superati; compilazione Python completata;
-  `git diff --check` superato.
+- **Modifiche locali principali:** Analysis Session Manager, test dedicati e
+  aggiornamenti a README e memoria tecnica.
+- **Numero test:** 70 superati.
+- **Quality gate:** 70 test pytest superati; `python3 -m compileall .`
+  completato; `git diff --check` superato. L'alias `python` non e disponibile
+  nell'ambiente, quindi e stato usato l'interprete equivalente `python3`.

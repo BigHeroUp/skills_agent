@@ -487,6 +487,33 @@ configurata, OpenAI puo aggiungere un arricchimento narrativo; se la chiave
 manca o la chiamata fallisce, insight e report finale vengono comunque
 prodotti senza modificare i risultati deterministici.
 
+## Milestone 4: Analysis Session Manager
+
+`services/analysis_session_manager.py` introduce una memoria locale delle
+sessioni analitiche senza chiamate OpenAI. Ogni sessione conserva:
+
+- richiesta iniziale;
+- tipo sorgente;
+- metadata del dataframe;
+- timestamp di creazione e aggiornamento;
+- iterazioni analitiche numerate.
+
+Ogni iterazione contiene prompt utente, tipo richiesta, piano analitico,
+risultati deterministici, insight e snapshot del report finale.
+
+La classificazione locale distingue:
+
+- `initial_analysis`;
+- `refinement`;
+- `segmentation_request`;
+- `time_window_request`;
+- `threshold_comparison`;
+- `anomaly_deep_dive`.
+
+Il manager puo costruire il contesto per l'iterazione successiva ed esportare
+una sintesi JSON-serializzabile. Lo storage e attualmente in memoria Python,
+con una struttura versionata pronta per una futura implementazione SQLite.
+
 ## Logging
 
 L'applicazione scrive gli eventi operativi in:
