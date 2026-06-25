@@ -1,7 +1,8 @@
-# My Skill Agent - Multi-Agent Hub & Spoke
+# My Skill Agent - Senior AI Data Analyst
 
-Dashboard locale di analisi dati assistita da LLM, costruita con una pipeline di
-agenti specializzati che lavorano in sequenza su un contesto condiviso.
+Sistema agentico locale per analisi dati deterministiche, sessioni iterative,
+conoscenza analitica riusabile e report professionali. OpenAI e un supporto
+opzionale per interpretazione e stile, non la fonte dei risultati numerici.
 
 Memoria tecnica, stato corrente e roadmap:
 [PROJECT_STATUS.md](PROJECT_STATUS.md).
@@ -9,20 +10,22 @@ Memoria tecnica, stato corrente e roadmap:
 ## Architettura
 
 ```text
-Input utente
+Input: richiesta + CSV / Excel / Oracle
     |
     v
-[Hub - Coordinator]
-    |-> DataSourceManager  carica dati da CSV, Excel o Oracle
-    |-> QuerySuggestion    suggerisce query o colonne da descrizione naturale
-    |-> DataExtractor      prepara il piano di estrazione
-    |-> DataValidator      valida i dati
-    |-> DataProcessor      elabora il contenuto
-    |-> Analyst            genera insight
-    |-> ReportGenerator    crea il report finale
+[Analysis Session Manager]
     |
     v
-Output finale
+[Pattern Knowledge Engine]
+    |
+    v
+[Analysis Engine / Autonomous Analyst]
+    |
+    v
+[Senior Data Analyst Engine]
+    |
+    v
+Report locale + grafici + PDF + follow-up
 ```
 
 La dashboard viene eseguita in locale con Dash su:
@@ -38,10 +41,15 @@ http://localhost:8050/
 - Connessione read-only a database Oracle.
 - Descrizione dell'analisi in linguaggio naturale.
 - Suggerimento automatico di query o colonne tramite `QuerySuggestionAgent`.
+- Sessioni iterative con classificazione locale delle richieste.
+- Riconoscimento di pattern analitici e suggerimento automatico delle analisi.
+- Calcoli deterministici Python/Pandas.
+- Insight e report locali da `SeniorDataAnalystEngine`.
 - Grafici Plotly generati dal dataframe reale.
-- Report testuale in italiano generato tramite OpenAI.
+- Report professionale in italiano prodotto anche senza OpenAI.
+- Arricchimento linguistico OpenAI opzionale.
 - Logging applicativo con rotazione in `logs/app.log`.
-- Storico locale delle query apprese in SQLite.
+- Storico locale di query e pattern in SQLite.
 
 ## Struttura del progetto
 
@@ -55,6 +63,7 @@ my_skill_agent/
 |-- CAPABILITIES.md
 |-- APPLICATION_CONTEXT.md
 |-- IMPLEMENTATION_SUMMARY.md
+|-- PROJECT_STATUS.md
 |-- agents/
 |   |-- base_agent.py
 |   |-- data_source_manager.py
@@ -68,6 +77,12 @@ my_skill_agent/
 |   `-- data_connectors.py
 |-- services/
 |   |-- analysis_service.py
+|   |-- analysis_engine.py
+|   |-- analysis_session_manager.py
+|   |-- autonomous_analyst.py
+|   |-- pattern_knowledge_engine.py
+|   |-- semantic_memory.py
+|   |-- senior_data_analyst_engine.py
 |   `-- oracle_service.py
 |-- ui/
 |   |-- callbacks.py
@@ -126,7 +141,8 @@ pip install -r requirements.txt
 copy .env.template .env
 ```
 
-4. Inserisci nel file `.env` una chiave OpenAI valida.
+4. Facoltativo: inserisci nel file `.env` una chiave OpenAI valida per le
+   funzioni linguistiche che non dispongono ancora di fallback completo.
 
 ```text
 OPENAI_API_KEY=sk-...
@@ -487,7 +503,7 @@ configurata, OpenAI puo aggiungere un arricchimento narrativo; se la chiave
 manca o la chiamata fallisce, insight e report finale vengono comunque
 prodotti senza modificare i risultati deterministici.
 
-## Milestone 4: Analysis Session Manager
+## Milestone 4: Analysis Session Manager - Completata
 
 `services/analysis_session_manager.py` introduce una memoria locale delle
 sessioni analitiche senza chiamate OpenAI. Ogni sessione conserva:
@@ -514,7 +530,7 @@ Il manager puo costruire il contesto per l'iterazione successiva ed esportare
 una sintesi JSON-serializzabile. Lo storage e attualmente in memoria Python,
 con una struttura versionata pronta per una futura implementazione SQLite.
 
-## Milestone 5: Pattern Knowledge Engine
+## Milestone 5: Pattern Knowledge Engine - Completata
 
 `services/pattern_knowledge_engine.py` introduce una Knowledge Base analitica
 locale e versionata. Il motore associa la richiesta utente a pattern ricorrenti

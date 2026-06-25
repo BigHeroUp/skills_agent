@@ -2,19 +2,22 @@
 
 ## Visione del progetto
 
-`skills_agent` non e un semplice tool di analisi dati. La visione finale e
-costruire un sistema agentico autonomo che trasformi una richiesta di business
-in un processo analitico verificabile, conversazionale e progressivamente
-migliore.
+`skills_agent` non e un semplice tool di analisi dati e non vuole diventare un
+chatbot generalista. La visione e costruire un **Senior AI Data Analyst**:
+un sistema agentico autonomo che trasformi richieste di business e dati reali
+in analisi verificabili, dialoghi utili e decisioni motivate.
 
 Il sistema deve essere capace di:
 
 - acquisire dati da CSV, Excel e Oracle;
 - comprendere richieste espresse in linguaggio naturale;
 - porre domande di chiarimento quando obiettivi, vincoli o dati sono ambigui;
+- ragionare sul problema prima di scegliere le analisi;
+- selezionare autonomamente metriche, segmentazioni e controlli;
 - costruire ed eseguire analisi statistiche reali sui dati disponibili;
 - distinguere sempre interpretazione linguistica e calcolo numerico;
 - dialogare con l'utente attraverso iterazioni e analisi successive;
+- imparare dalle analisi svolte e dal feedback;
 - produrre insight, KPI, trend, anomalie e report professionali di livello
   Senior Data Analyst;
 - riusare pattern analitici validati e apprendere dai feedback;
@@ -29,6 +32,23 @@ Il principio architetturale centrale e:
 > testo, ma non deve inventare risultati. KPI, statistiche e conclusioni
 > fattuali devono derivare da calcoli deterministici o da modelli statistici
 > espliciti e verificabili.
+
+## Visione finale
+
+Il prodotto finale deve comportarsi come un Senior AI Data Analyst, non come
+un chatbot che risponde genericamente. Deve:
+
+- ragionare su obiettivo, perimetro, qualita e granularita dei dati;
+- scegliere autonomamente quali analisi eseguire e in quale ordine;
+- spiegare ipotesi, metodi, evidenze e limiti;
+- confrontarsi con l'utente per chiarire dubbi e raffinare la richiesta;
+- imparare da feedback, correzioni, esiti e pattern efficaci;
+- produrre report consulenziali di altissimo livello, con KPI, trend, anomalie,
+  raccomandazioni e next best action;
+- mantenere risultati numerici riproducibili e auditabili;
+- diventare progressivamente indipendente da modelli esterni;
+- poter lavorare completamente offline quando tutte le milestone saranno
+  completate.
 
 ## Stato attuale
 
@@ -53,28 +73,32 @@ La cronologia gia integrata in `main` comprende:
    - raccomandazioni operative;
    - report finale professionale in Markdown;
    - fallback di `AnalystAgent` e `ReportGeneratorAgent` in assenza di OpenAI.
-7. Analysis Session Manager, presente su `main` nel commit `a3ab8fd`:
+7. **Milestone 4 - Analysis Session Manager**, presente su `main` nel commit
+   `a3ab8fd`:
+   - classe `AnalysisSessionManager`;
    - sessioni in memoria con struttura versionata;
-   - iterazioni append-only;
+   - sessioni iterative append-only;
    - classificazione locale delle richieste;
    - contesto per follow-up;
-   - export sintetico JSON-serializzabile;
+   - export session summary JSON-serializzabile;
    - struttura predisposta per una futura persistenza SQLite.
+   - 8 test dedicati.
+8. **Milestone 5 - Pattern Knowledge Engine**, completata nel commit locale
+   `4f3ad13`:
+   - classe `PatternKnowledgeEngine`;
+   - quattro pattern analitici iniziali;
+   - riconoscimento locale dei pattern da richiesta e metadata;
+   - suggerimento automatico di metriche, raggruppamenti, grafici e analisi;
+   - arricchimento del piano nel `DataProcessorAgent`;
+   - integrazione con `AnalysisSessionManager`;
+   - integrazione con `SeniorDataAnalystEngine`;
+   - `AgentContext` aggiornato con pattern e step suggeriti;
+   - struttura pronta per futura persistenza SQLite;
+   - 9 test dedicati.
 
-Nel worktree corrente e stata implementata la Milestone 5 - Pattern Knowledge
-Engine, ancora da committare:
-
-- catalogo locale di pattern analitici;
-- rilevazione deterministica da richiesta e metadata;
-- suggerimento di metriche, raggruppamenti, grafici e step;
-- arricchimento del piano analitico;
-- integrazione con sessioni e Senior Data Analyst Engine;
-- struttura pronta per futura persistenza SQLite.
-
-Nota sulla numerazione: le milestone storiche nel README usano i numeri 2, 2.5,
-3 e 4. La roadmap evolutiva richiesta piu avanti in questo documento riparte da
-“Milestone 4 - Analysis Session Manager”. La numerazione deve essere
-normalizzata in una futura revisione documentale.
+Il commit della Milestone 5 e locale e non ancora pubblicato:
+`main` e avanti di un commit rispetto a `origin/main` perche le credenziali
+GitHub HTTPS non sono disponibili nella sessione corrente.
 
 ### Moduli implementati
 
@@ -105,7 +129,7 @@ normalizzata in una futura revisione documentale.
 - `services/analysis_session_manager.py`: sessioni e iterazioni analitiche in
   memoria, presente su `main`.
 - `services/pattern_knowledge_engine.py`: Knowledge Base locale dei pattern
-  analitici, implementata nel worktree corrente.
+  analitici, presente nel commit locale `4f3ad13`.
 
 #### Persistenza e utility
 
@@ -226,20 +250,21 @@ autonomo completo.
 ## Architettura corrente
 
 ```text
-Input utente
+Input
   - richiesta in linguaggio naturale
-  - CSV / Excel
-  - Oracle read-only
+  - CSV / Excel / Oracle read-only
         |
         v
-Pipeline agentica
-  DataSourceManager
-        -> QuerySuggestion
-        -> DataExtractor
-        -> DataValidator
-        -> DataProcessor
-        -> Analyst
-        -> ReportGenerator
+Analysis Session Manager
+  - sessione e iterazioni
+  - classificazione locale richiesta
+  - contesto per follow-up
+        |
+        v
+Pattern Knowledge Engine
+  - pattern analitici
+  - best practice
+  - step raccomandati
         |
         v
 Analysis Engine
@@ -260,7 +285,7 @@ Senior Data Analyst Engine
   - raccomandazioni
         |
         v
-Report finale
+Report
   - Markdown locale
   - grafici Plotly
   - PDF
@@ -279,6 +304,7 @@ Chat follow-up e feedback
 - risultati di validazione;
 - `processed_data`;
 - piano e risultati deterministici;
+- pattern analitici rilevati e step suggeriti;
 - metadati di memoria e confidence;
 - risultati autonomous;
 - insight;
@@ -288,6 +314,18 @@ Chat follow-up e feedback
 La dashboard mantiene inoltre uno stato runtime in memoria nel processo Python.
 Le elaborazioni vengono avviate in un thread e la UI interroga periodicamente
 lo stato per aggiornare timeline e risultati.
+
+## Stato dell'autonomia
+
+| Ambito | Stato | Note |
+| --- | --- | --- |
+| Analysis Engine | Completamente locale | Calcoli Python/Pandas verificabili. |
+| Analysis Session Manager | Completamente locale | Sessioni iterative in memoria, nessuna chiamata esterna. |
+| Pattern Knowledge Engine | Completamente locale | Riconoscimento pattern e suggerimenti deterministici. |
+| Senior Data Analyst Engine | Completamente locale | Insight, KPI, note metodologiche e raccomandazioni locali. |
+| Report locale | Completamente locale | Il report finale puo essere prodotto senza `OPENAI_API_KEY`. |
+| Interpretazione linguistica | OpenAI opzionale/parzialmente necessaria | Alcuni agenti precedenti usano ancora OpenAI quando non esiste un fallback locale. |
+| Miglioramento stilistico | OpenAI opzionale | Analyst e Report Generator usano OpenAI solo come arricchimento non bloccante. |
 
 ## Dipendenza attuale da OpenAI
 
@@ -324,6 +362,8 @@ lo stato per aggiornare timeline e risultati.
 - profiling Pandas;
 - `AnalysisEngine`;
 - `AutonomousAnalyst`;
+- `AnalysisSessionManager`;
+- `PatternKnowledgeEngine`;
 - `SeniorDataAnalystEngine`;
 - grafici Plotly;
 - PDF;
@@ -347,230 +387,165 @@ lo stato per aggiornare timeline e risultati.
 
 ## Roadmap
 
-La roadmap seguente usa la numerazione richiesta per il prossimo ciclo di
-sviluppo. Non coincide con la numerazione storica dei commit gia integrati.
+### ✅ Milestone 4 - Analysis Session Manager
 
-### Milestone 4 - Analysis Session Manager
+**Stato:** Completata.
 
-**Obiettivo**
+**Obiettivo raggiunto:** introdurre sessioni iterative locali, classificazione
+delle richieste, contesto per follow-up ed export sintetico.
 
-Gestione strutturata delle sessioni analitiche: input, sorgente, metadata del
-dataframe, richieste successive, piani, risultati, insight e snapshot dei
-report.
+**Moduli:** `services/analysis_session_manager.py`,
+`tests/test_analysis_session_manager.py`.
 
-**Motivazione**
+**Passo futuro non bloccante:** persistenza SQLite e integrazione completa con
+dashboard e conversation manager.
 
-Una sessione esplicita e necessaria per riprendere analisi, confrontare
-iterazioni e costruire apprendimento affidabile. La prima implementazione usa
-storage Python in memoria e prepara il contratto dati per SQLite.
+### ✅ Milestone 5 - Pattern Knowledge Engine
 
-**Moduli coinvolti**
+**Stato:** Completata.
 
-- `services/analysis_session_manager.py`;
-- `tests/test_analysis_session_manager.py`;
-- futura integrazione con `utils/conversation_manager.py`;
-- futura integrazione con `services/analysis_service.py` e `ui/callbacks.py`;
-- futuro repository SQLite.
+**Obiettivo raggiunto:** riconoscere pattern analitici, suggerire
+automaticamente analisi e arricchire piano e report con best practice.
 
-**Priorita:** Critica. Base in-memory implementata; integrazione UI e
-persistenza ancora da completare.
+**Moduli:** `services/pattern_knowledge_engine.py`,
+`agents/data_processor.py`, `services/analysis_session_manager.py`,
+`services/senior_data_analyst_engine.py`, `utils/context.py`.
 
-**Dipendenza:** Base per Knowledge Base, Learning Engine e autonomia completa.
-
-### Milestone 5 - Knowledge Base dei pattern analitici
-
-**Obiettivo**
-
-Riconoscere pattern ricorrenti, suggerire analisi e arricchire i piani con best
-practice riusabili. La base locale dei quattro pattern iniziali e implementata.
-
-**Motivazione**
-
-Le history SQLite memorizzano esecuzioni, ma non descrivono ancora conoscenza
-analitica riusabile. Il catalogo locale introduce questo livello; restano da
-implementare persistenza, versionamento e apprendimento dei pattern.
-
-**Moduli coinvolti**
-
-- `services/pattern_knowledge_engine.py`;
-- `services/analysis_session_manager.py`;
-- `agents/data_processor.py`;
-- `services/senior_data_analyst_engine.py`;
-- futura integrazione con history e migrazioni SQLite.
-
-**Priorita:** Alta. Catalogo e integrazioni base implementati; persistenza e
-pattern appresi ancora da completare.
-
-**Dipendenza:** Analysis Session Manager.
+**Passo futuro non bloccante:** persistenza SQLite e creazione dinamica di
+pattern tramite Learning Engine.
 
 ### Milestone 6 - Learning Engine
 
-**Obiettivo**
+**Obiettivo:** permettere al sistema di imparare realmente dalle analisi
+effettuate e dal feedback utente.
 
-Trasformare feedback, esiti, correzioni e riutilizzi in aggiornamenti operativi
-di ranking, confidence, scelta del piano e next best action.
+Il motore dovra:
 
-**Motivazione**
+- aggiornare i confidence score;
+- promuovere pattern efficaci;
+- declassare pattern inutili;
+- imparare nuovi pattern;
+- costruire esperienza analitica riusabile;
+- mantenere audit trail delle decisioni di apprendimento.
 
-Il sistema oggi memorizza e riusa, ma non apprende strategie complesse ne
-misura in modo completo la qualita dell'output.
+**Moduli previsti:** `services/learning_engine.py`,
+`services/pattern_knowledge_engine.py`, history SQLite, session manager,
+feedback dashboard e `utils/learning_monitor.py`.
 
-**Moduli coinvolti**
-
-- nuovo `services/learning_engine.py`;
-- Knowledge Base;
-- `utils/learning_monitor.py`;
-- callback feedback;
-- metriche di successo e audit.
-
-**Priorita:** Alta.
+**Priorita:** Critica.
 
 **Dipendenza:** Milestone 4 e 5.
 
-### Milestone 7 - Rule Engine
+### Milestone 7 - Statistical Engine avanzato
 
-**Obiettivo**
+**Obiettivo:** ampliare le analisi locali con metodi statistici robusti.
 
-Implementare regole dichiarative per chiarimenti, selezione analisi,
-validazione, scelta colonne, sicurezza, routing degli agenti e raccomandazioni.
+Nuove analisi:
 
-**Motivazione**
+- percentili;
+- deviazione standard;
+- IQR;
+- z-score;
+- outlier;
+- regressione;
+- rolling average;
+- trend decomposition;
+- correlazioni avanzate.
 
-Riduce prompt e chiamate LLM, rende il comportamento spiegabile e permette di
-configurare logiche specifiche per dominio.
-
-**Moduli coinvolti**
-
-- nuovo `services/rule_engine.py`;
-- configurazioni YAML/JSON;
-- `DataValidatorAgent`;
-- `DataProcessorAgent`;
-- `ConversationAgent`;
-- `Coordinator`.
+**Moduli previsti:** `services/statistical_engine.py`, Analysis Engine,
+Autonomous Analyst, Pattern Knowledge Engine e Senior Data Analyst Engine.
 
 **Priorita:** Alta.
 
-**Dipendenza:** Knowledge Base consigliata, ma implementabile in parallelo.
+**Dipendenza:** Analysis Engine e Pattern Knowledge Engine.
 
-### Milestone 8 - Statistic Engine avanzato
+### Milestone 8 - Anomaly Detection Engine
 
-**Obiettivo**
+**Obiettivo:** riconoscimento automatico e spiegabile di:
 
-Ampliare le analisi locali con distribuzioni, quantili, varianza, intervalli di
-confidenza, test di ipotesi, correlazioni robuste, regressioni descrittive,
-coorti e confronti tra gruppi.
+- degrado prestazionale;
+- spike;
+- cambi improvvisi;
+- stagionalita;
+- drift.
 
-**Motivazione**
-
-Il motore attuale copre analisi descrittive di base. Un Senior Data Analyst deve
-poter motivare differenze e significativita con metodi statistici espliciti.
-
-**Moduli coinvolti**
-
-- nuovo `services/statistic_engine.py`;
-- `services/analysis_engine.py`;
-- `services/autonomous_analyst.py`;
-- `services/senior_data_analyst_engine.py`;
-- dipendenze statistiche selezionate.
+**Moduli previsti:** `services/anomaly_detection_engine.py`, Statistical
+Engine, Knowledge Base, report e grafici.
 
 **Priorita:** Alta.
 
-**Dipendenza:** Rule Engine per la selezione affidabile dei test.
+**Dipendenza:** Milestone 7.
 
-### Milestone 9 - Anomaly Detection Engine
+### Milestone 9 - Predictive Analytics Engine
 
-**Obiettivo**
+**Obiettivo:** introdurre:
 
-Rilevare anomalie su valori, serie temporali, categorie, frequenze e qualita
-dati con metodi robusti e configurabili.
+- forecasting;
+- previsione KPI;
+- simulazioni;
+- scenari.
 
-**Motivazione**
+Ogni previsione dovra includere metodo, perimetro, metriche di errore,
+intervallo di confidenza e limiti d'uso.
 
-La rilevazione corrente usa segnali descrittivi aggregati. Servono algoritmi
-dedicati, soglie motivate, severita e spiegazioni verificabili.
-
-**Moduli coinvolti**
-
-- nuovo `services/anomaly_detection_engine.py`;
-- Statistic Engine;
-- `SeniorDataAnalystEngine`;
-- grafici e report;
-- Knowledge Base per soglie di business.
-
-**Priorita:** Alta.
-
-**Dipendenza:** Milestone 8.
-
-### Milestone 10 - Predictive Analytics
-
-**Obiettivo**
-
-Introdurre forecast, classificazione, regressione e scoring con pipeline
-riproducibili, validazione temporale e metriche esplicite.
-
-**Motivazione**
-
-Permette di passare dalla descrizione del passato alla previsione e al supporto
-decisionale, senza presentare stime come certezze.
-
-**Moduli coinvolti**
-
-- nuovo `services/predictive_analytics.py`;
-- model registry locale;
-- feature engineering;
-- sessioni e knowledge base;
-- report con metriche e limiti del modello.
+**Moduli previsti:** `services/predictive_analytics_engine.py`, model registry,
+feature engineering, session manager e report.
 
 **Priorita:** Media.
 
-**Dipendenza:** Statistic Engine, Anomaly Engine e sessioni persistenti.
+**Dipendenza:** Milestone 7 e 8.
 
-### Milestone 11 - Auto Prompt Optimizer
+### Milestone 10 - Natural Language Planner
 
-**Obiettivo**
+**Obiettivo:** trasformare automaticamente una richiesta utente in un piano
+analitico completo.
 
-Versionare e ottimizzare automaticamente prompt e skill sulla base di test,
-feedback ed esiti, senza modifiche incontrollate in produzione.
+Il planner dovra identificare obiettivo, metriche, filtri, periodo,
+segmentazioni, soglie, controlli di qualita, step, dipendenze e output attesi.
 
-**Motivazione**
+**Moduli previsti:** `services/natural_language_planner.py`, Pattern Knowledge
+Engine, Session Manager, schema discovery e motore locale di intent.
 
-Finche alcuni provider LLM restano disponibili, i prompt devono diventare
-asset misurabili, testabili e reversibili invece di stringhe statiche.
+**Priorita:** Critica per l'autonomia.
 
-**Moduli coinvolti**
+**Dipendenza:** Milestone 5, 6 e 7.
 
-- nuovo `services/prompt_optimizer.py`;
-- `skills/*/SKILL.md`;
-- Learning Engine;
-- benchmark e dataset di valutazione;
-- registry/versioning dei prompt.
+### Milestone 11 - Knowledge Consolidation Engine
 
-**Priorita:** Media.
+**Obiettivo:** fondere pattern simili e costruire una conoscenza strutturata,
+versionata e non ridondante.
 
-**Dipendenza:** Learning Engine e Knowledge Base.
+Il motore dovra:
 
-### Milestone 12 - Autonomia completa senza OpenAI
+- riconoscere pattern equivalenti;
+- unire evidenze e best practice;
+- separare conoscenza generale e specifica del dominio;
+- gestire versioni, conflitti e obsolescenza;
+- produrre una Knowledge Base persistente.
 
-**Obiettivo**
+**Moduli previsti:** `services/knowledge_consolidation_engine.py`, Learning
+Engine, Pattern Knowledge Engine e storage SQLite.
 
-Garantire l'intero flusso, dall'interpretazione iniziale al report e ai
-follow-up, senza dipendenze obbligatorie da OpenAI.
+**Priorita:** Alta.
 
-**Motivazione**
+**Dipendenza:** Milestone 6.
 
-Riduce costi, latenza, vincoli di rete e rischi di disponibilita; migliora
-privacy e controllo.
+### Milestone 12 - Autonomia completa
 
-**Moduli coinvolti**
+**Obiettivo:** rendere OpenAI opzionale e permettere al sistema di lavorare
+completamente offline.
 
-- tutti gli agenti;
-- motore locale di intent e slot extraction;
-- text-to-SQL locale e schema graph;
+Sono necessari:
+
+- interpretazione locale della richiesta;
+- planner locale;
 - embedding locali;
-- Rule Engine;
-- Statistic e Anomaly Engine;
-- Senior Data Analyst Engine;
-- provider abstraction.
+- text-to-SQL locale e read-only;
+- validazione e data quality locali;
+- follow-up locali generalizzati;
+- motori statistici, anomaly e predictive;
+- report locale completo;
+- provider abstraction per eventuali arricchimenti esterni.
 
 **Priorita:** Strategica.
 
@@ -578,9 +553,9 @@ privacy e controllo.
 
 ## Debito tecnico
 
-- Il branch corrente e `main`, allineato a `origin/main` prima delle modifiche
-  della Milestone 5, che sono nel worktree non committato. Sarebbe preferibile
-  lavorare su feature branch.
+- Il branch corrente e `main` ed e avanti di un commit rispetto a
+  `origin/main`: `4f3ad13` contiene la Milestone 5. Le modifiche documentali di
+  questo handover sono nel worktree non committato.
 - `DataProcessorAgent` chiama ancora OpenAI in modo bloccante dopo avere
   calcolato i risultati deterministici.
 - `DataExtractorAgent` e `DataValidatorAgent` non hanno fallback locali
@@ -682,14 +657,18 @@ sono:
 
 ## Ultimo aggiornamento
 
-- **Data:** 25 giugno 2026
-- **Ora:** 23:59:07 CEST
+- **Data:** 26 giugno 2026
+- **Ora:** 00:07:04 CEST
 - **Branch Git:** `main`
-- **HEAD:** `a3ab8fd feat: add iterative analysis session manager`
-- **Stato repository:** modificato, non staged e non committato; `main` e
-  allineato a `origin/main` prima delle modifiche locali.
-- **Modifiche locali principali:** Pattern Knowledge Engine, integrazione con
-  sessioni, Data Processor e Senior Data Analyst Engine, test e documentazione.
+- **HEAD locale:** `4f3ad13 feat: add pattern knowledge engine`
+- **HEAD remoto `origin/main`:** `a3ab8fd feat: add iterative analysis session manager`
+- **Stato repository:** `main` e avanti di un commit rispetto a
+  `origin/main`; `PROJECT_STATUS.md` e `README.md` contengono modifiche
+  documentali non staged e non committate.
+- **Azione Git pendente:** configurare credenziali GitHub, committare
+  l'handover documentale e pubblicare `main`.
+- **Modifiche locali principali:** aggiornamento completo di stato,
+  architettura, autonomia, roadmap e visione finale.
 - **Numero test:** 79 superati.
 - **Quality gate:** 79 test pytest superati; `python3 -m compileall .`
   completato; `git diff --check` superato.
