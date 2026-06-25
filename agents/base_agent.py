@@ -24,12 +24,17 @@ class BaseAgent(ABC):
         # Carica API key
         load_dotenv()
         api_key = os.getenv("OPENAI_API_KEY")
+        self.client = OpenAI(api_key=api_key) if api_key else None
         if not api_key:
-            self.logger.error("Configurazione OpenAI assente")
-            raise ValueError("❌ OPENAI_API_KEY non trovata in .env")
-        
-        self.client = OpenAI(api_key=api_key)
+            self.logger.warning(
+                "Configurazione OpenAI assente: l'agente usera i fallback locali disponibili"
+            )
         self.model = "gpt-3.5-turbo"
+
+    @property
+    def openai_available(self) -> bool:
+        """Indica se il client OpenAI opzionale e configurato."""
+        return self.client is not None
     
     def load_skill_prompt(self) -> str:
         """Carica il prompt dello skill dal file SKILL.md"""
@@ -54,6 +59,8 @@ TASK CORRENTE:
     def call_openai(self, messages: list, temperature: float = 0.7) -> str:
         """Chiama l'API OpenAI e ritorna la risposta"""
         try:
+            if not self.client:
+                raise RuntimeError("OPENAI_API_KEY non configurata")
             self.logger.info("Richiesta OpenAI avviata. model=%s", self.model)
             # Aggiungi sistema message per forzare italiano
             system_message = {

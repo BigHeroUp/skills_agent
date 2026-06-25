@@ -4,6 +4,7 @@ Crea il report finale in vari formati
 """
 
 from agents.base_agent import BaseAgent
+from services.senior_data_analyst_engine import SeniorDataAnalystEngine
 from utils.context import AgentContext
 
 
@@ -12,54 +13,46 @@ class ReportGeneratorAgent(BaseAgent):
     
     def __init__(self):
         super().__init__(name="ReportGenerator", skill_name="email_writer")
+        self.local_engine = SeniorDataAnalystEngine()
     
     def process(self, context: AgentContext) -> AgentContext:
         """Genera il report finale"""
         self.log("Generazione report in corso...")
         
         try:
-            # Prepara il prompt per OpenAI
+            local_analysis = context.insights.get("local_analysis")
+            if not isinstance(local_analysis, dict):
+                local_analysis = self.local_engine.analyze(
+                    context.processed_data,
+                    user_request=context.user_input,
+                )
+            local_report = local_analysis.get("final_report") or self.local_engine.generate_final_report(
+                local_analysis
+            )
+
+            openai_enrichment = None
             task_prompt = f"""
-            Crea un report professionale COMPLETAMENTE IN ITALIANO con:
-            
-            Insight: {str(context.insights)[:1600]}
-            Dati Processati: {str(context.processed_data)[:1600]}
-            Analisi Autonoma: {str(context.autonomous_analysis_results)[:1600] if context.autonomous_mode else "Non eseguita"}
-            Executive Summary Autonoma: {context.autonomous_executive_summary[:1200] if context.autonomous_mode else "Non disponibile"}
-            Raccomandazioni Autonome: {str(context.autonomous_recommendations)[:1200] if context.autonomous_mode else "Non disponibili"}
-            
-            Formato del report (tutto in ITALIANO):
-            1. Riepilogo Esecutivo
-            2. Scoperte Principali
-            3. Analisi Dettagliata
-            4. Raccomandazioni
-            5. Prossimi Passi
-            
-            Tono: Professionale, chiaro, conciso - SEMPRE IN ITALIANO
+            Migliora esclusivamente chiarezza e stile del seguente report locale.
+            Non aggiungere numeri, correlazioni, cause o conclusioni non presenti.
+
+            {local_report[:10000]}
             """
-            prompt = self.build_prompt_with_skill(task_prompt)
-            
-            messages = [{"role": "user", "content": prompt}]
-            response = self.call_openai(messages, temperature=0.5)
-            
-            # Compila il report finale
-            final_report = f"""
-╔════════════════════════════════════════╗
-║       ANALISI DATI - REPORT FINALE     ║
-╚════════════════════════════════════════╝
+            if self.openai_available:
+                try:
+                    prompt = self.build_prompt_with_skill(task_prompt)
+                    openai_enrichment = self.call_openai(
+                        [{"role": "user", "content": prompt}],
+                        temperature=0.5,
+                    )
+                except Exception as exc:
+                    self.logger.warning("Report OpenAI non disponibile: %s", exc)
 
-📊 REPORT GENERATO
-{'='*40}
-
-{response}
-
-{'='*40}
-📌 Metadati
-- Errori incontrati: {len(context.errors)}
-- Status finale: {'✅ SUCCESSO' if not context.errors else '⚠️ COMPLETATO CON AVVISI'}
-"""
-            
-            context.final_report = final_report
+            if openai_enrichment:
+                context.final_report = (
+                    f"{local_report}\n\n## Arricchimento narrativo opzionale\n{openai_enrichment}"
+                )
+            else:
+                context.final_report = local_report
             
             self.log("✅ Report generato con successo")
             

@@ -4,6 +4,7 @@ Analizza i dati e genera insight
 """
 
 from agents.base_agent import BaseAgent
+from services.senior_data_analyst_engine import SeniorDataAnalystEngine
 from utils.context import AgentContext
 from utils.data_analysis import build_deterministic_insights
 
@@ -13,6 +14,7 @@ class AnalystAgent(BaseAgent):
     
     def __init__(self):
         super().__init__(name="Analyst", skill_name="analysis")
+        self.local_engine = SeniorDataAnalystEngine()
     
     def process(self, context: AgentContext) -> AgentContext:
         """Analizza i dati processati"""
@@ -25,39 +27,44 @@ class AnalystAgent(BaseAgent):
             
             deterministic_summary = context.processed_data.get("deterministic_summary", {})
             deterministic_insights = build_deterministic_insights(deterministic_summary)
+            local_analysis = self.local_engine.analyze(
+                context.processed_data,
+                user_request=context.user_input,
+            )
 
-            # Prepara il prompt per OpenAI
+            openai_enrichment = None
             task_prompt = f"""
-            Analizza questi dati processati (rispondi SEMPRE in italiano):
-            Risultati calcolati dal dataframe reale:
-            {str(deterministic_insights)[:2000]}
+            Arricchisci stilisticamente questa analisi locale senza modificare,
+            stimare o inventare alcun valore (rispondi SEMPRE in italiano):
+            {str(local_analysis)[:6000]}
             
-            Genera insight in italiano su:
-            1. Trend principali
-            2. Anomalie significative
-            3. Correlazioni interessanti
-            4. Raccomandazioni d'azione
-            5. KPI importanti
-            
-            Ritorna in italiano:
-            {{
-                "scoperte_chiave": [...],
-                "trend": [...],
-                "anomalie": [...],
-                "raccomandazioni": [...],
-                "livello_confidenza": 0-100
-            }}
+            Produci solo una nota narrativa opzionale. I risultati numerici e le
+            conclusioni fattuali devono restare quelli del motore locale.
             """
-            prompt = self.build_prompt_with_skill(task_prompt)
-            
-            messages = [{"role": "user", "content": prompt}]
-            response = self.call_openai(messages)
+            if self.openai_available:
+                try:
+                    prompt = self.build_prompt_with_skill(task_prompt)
+                    openai_enrichment = self.call_openai([{"role": "user", "content": prompt}])
+                except Exception as exc:
+                    self.logger.warning("Arricchimento OpenAI non disponibile: %s", exc)
             
             context.insights = {
-                "analysis_report": response,
+                "local_analysis": local_analysis,
+                "executive_summary": local_analysis["executive_summary"],
+                "key_findings": local_analysis["key_findings"],
+                "kpi_summary": local_analysis["kpi_summary"],
+                "trend_analysis": local_analysis["trend_analysis"],
+                "anomaly_analysis": local_analysis["anomaly_analysis"],
+                "segmentation_analysis": local_analysis["segmentation_analysis"],
+                "data_quality_notes": local_analysis["data_quality_notes"],
+                "operational_recommendations": local_analysis["operational_recommendations"],
+                "local_final_report": local_analysis["final_report"],
+                "analysis_report": openai_enrichment or local_analysis["final_report"],
+                "openai_enrichment": openai_enrichment,
                 "deterministic_insights": deterministic_insights,
                 "key_metrics": deterministic_insights.get("key_metrics", {}),
-                "status": "analizzato"
+                "status": "analizzato",
+                "analysis_mode": "local_with_openai_enrichment" if openai_enrichment else "local_only",
             }
             
             self.log("✅ Analisi completata")

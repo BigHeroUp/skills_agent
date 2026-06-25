@@ -3,6 +3,9 @@
 Dashboard locale di analisi dati assistita da LLM, costruita con una pipeline di
 agenti specializzati che lavorano in sequenza su un contesto condiviso.
 
+Memoria tecnica, stato corrente e roadmap:
+[PROJECT_STATUS.md](PROJECT_STATUS.md).
+
 ## Architettura
 
 ```text
@@ -144,8 +147,8 @@ python main.py
 | 3 | `DataExtractorAgent` | Prepara il piano di estrazione | `extraction_plan` |
 | 4 | `DataValidatorAgent` | Valida i dati caricati | `validation_results`, `is_valid` |
 | 5 | `DataProcessorAgent` | Elabora i dati validati | `processed_data`, `deterministic_summary` |
-| 6 | `AnalystAgent` | Genera insight | `insights`, `deterministic_insights` |
-| 7 | `ReportGeneratorAgent` | Produce il report finale | `final_report` |
+| 6 | `AnalystAgent` | Genera insight locali e arricchimento LLM opzionale | `insights`, `local_analysis` |
+| 7 | `ReportGeneratorAgent` | Produce sempre il report locale finale | `final_report` |
 
 Gli agenti leggono e aggiornano la stessa istanza di `AgentContext`.
 
@@ -457,6 +460,33 @@ vengono salvati nel context e in `processed_data`:
 - `autonomous_recommendations`;
 - `autonomous_mode`.
 
+## Senior Data Analyst Engine locale
+
+`services/senior_data_analyst_engine.py` riduce la dipendenza da OpenAI
+trasformando i risultati deterministici gia calcolati in una relazione
+professionale. Il motore non accede al dataframe e non chiama servizi esterni:
+usa esclusivamente `deterministic_summary`, `deterministic_results`,
+`execution_summary`, `analysis_plan` e gli eventuali risultati multi-step
+dell'`AutonomousAnalyst`.
+
+L'output JSON-serializzabile include:
+
+- riepilogo esecutivo;
+- evidenze principali;
+- KPI numerici;
+- trend temporali;
+- anomalie ed estremi potenziali;
+- segmentazioni;
+- note sulla qualita dei dati;
+- raccomandazioni operative;
+- report finale in Markdown.
+
+`AnalystAgent` esegue sempre prima il motore locale. `ReportGeneratorAgent`
+considera il report locale come fonte primaria. Se `OPENAI_API_KEY` e
+configurata, OpenAI puo aggiungere un arricchimento narrativo; se la chiave
+manca o la chiamata fallisce, insight e report finale vengono comunque
+prodotti senza modificare i risultati deterministici.
+
 ## Logging
 
 L'applicazione scrive gli eventi operativi in:
@@ -476,8 +506,9 @@ Get-Content .\logs\app.log -Encoding UTF8 -Wait
 
 ## Limiti noti
 
-- Parte dell'analisi testuale e ancora prodotta dall'LLM, ma ora e affiancata da
-  statistiche deterministiche calcolate dal dataframe reale.
+- Gli agenti precedenti all'analisi possono ancora usare OpenAI per
+  interpretazione e preparazione; insight e report finale hanno invece un
+  percorso locale completo.
 - Lo stato runtime della dashboard e centralizzato in memoria di processo e non
   e pensato per deployment multiutente o multi-worker.
 
