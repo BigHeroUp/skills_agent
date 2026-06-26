@@ -45,6 +45,8 @@ class DashboardRuntimeState:
     pdf_generator: PDFGenerator = field(default_factory=PDFGenerator)
     current_charts: list = field(default_factory=list)
     followup_charts: list = field(default_factory=list)
+    results_rendered: bool = False
+    cached_results_view: dict = field(default_factory=dict)
 
     def reset_for_analysis(self):
         """Resetta solo lo stato volatile di una nuova elaborazione."""
@@ -52,6 +54,8 @@ class DashboardRuntimeState:
         self.processing_status = {"status": "starting", "current_agent": "", "progress": 0}
         self.current_charts = []
         self.followup_charts = []
+        self.results_rendered = False
+        self.cached_results_view = {}
 
 
 def parse_uploaded_dataframe(contents: str, filename: str, source_type: str):
