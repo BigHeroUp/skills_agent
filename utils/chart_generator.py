@@ -8,6 +8,7 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
+import re
 from typing import List, Dict, Any
 from utils.logging_config import get_logger
 
@@ -17,6 +18,36 @@ logger = get_logger("charts")
 
 class ChartGenerator:
     """Genera grafici automatici dai dati"""
+
+    TECHNICAL_IDENTIFIER_TERMS = {
+        "id",
+        "pyid",
+        "pzinskey",
+        "uuid",
+        "guid",
+        "key",
+        "idcontratto",
+        "idcontrattotlm",
+        "contractid",
+        "smartmoveid",
+    }
+    METRIC_TERMS = {
+        "amount",
+        "importo",
+        "tempo",
+        "duration",
+        "durata",
+        "processing",
+        "volume",
+        "count",
+        "error",
+        "rate",
+        "sla",
+        "score",
+        "revenue",
+        "cost",
+    }
+    DATE_TERMS = {"date", "data", "time", "timestamp", "created", "updated", "giorno", "mese"}
 
     @staticmethod
     def generate_requested_charts(df: pd.DataFrame, user_request: str) -> List[go.Figure]:
@@ -50,12 +81,43 @@ class ChartGenerator:
         """
         Genera automaticamente grafici appropriati in base ai dati
         """
+        return ChartGenerator.generate_dashboard_charts(df, insights)["charts"]
+
+    @staticmethod
+    def generate_dashboard_charts(df: pd.DataFrame, insights: Dict[str, Any] | None = None) -> Dict[str, Any]:
+        """Genera grafici utili e metadata sugli elementi esclusi."""
         charts = []
+        skipped_charts = []
+        business_notes = []
         
         try:
-            # Identifica colonne numeriche e categoriche
-            numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-            categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
+            if not isinstance(df, pd.DataFrame) or df.empty:
+                return {"charts": [], "skipped_charts": [], "business_insights": []}
+
+            profiles = {
+                column: ChartGenerator._profile_column(df, column)
+                for column in df.columns
+            }
+            for profile in profiles.values():
+                if not profile["chart_allowed"]:
+                    ChartGenerator._log_skipped_chart(profile)
+                    skipped_charts.append(profile)
+                    note = ChartGenerator._skip_business_note(profile)
+                    if note:
+                        business_notes.append(note)
+
+            numeric_cols = [
+                column for column, profile in profiles.items()
+                if profile["chart_allowed"] and profile["semantic_type"] == "METRIC"
+            ]
+            categorical_cols = [
+                column for column, profile in profiles.items()
+                if profile["chart_allowed"] and profile["semantic_type"] in {"CATEGORY", "BOOLEAN"}
+            ]
+            date_cols = [
+                column for column, profile in profiles.items()
+                if profile["chart_allowed"] and profile["semantic_type"] == "DATE"
+            ]
             
             # 1. Distribuzione delle colonne numeriche
             if numeric_cols:
@@ -92,7 +154,7 @@ class ChartGenerator:
                 )
                 charts.append(fig)
             
-            # 3. Top valori per colonna categorica
+            # 3. Distribuzione informativa per colonna categorica
             if categorical_cols:
                 col = categorical_cols[0]
                 top_values = df[col].value_counts().head(10)
@@ -100,7 +162,7 @@ class ChartGenerator:
                     x=top_values.values,
                     y=top_values.index,
                     orientation='h',
-                    title=f"📈 Top 10 {col}",
+                    title=f"📈 Distribuzione {col}",
                     labels={'x': 'Conteggio', 'y': col},
                     color=top_values.values,
                     color_continuous_scale='Viridis'
@@ -113,7 +175,6 @@ class ChartGenerator:
                 charts.append(fig)
             
             # 4. Serie temporale se presente colonna data
-            date_cols = [col for col in df.columns if 'date' in col.lower() or 'time' in col.lower()]
             if date_cols and numeric_cols:
                 date_col = date_cols[0]
                 numeric_col = numeric_cols[0]
@@ -150,7 +211,7 @@ class ChartGenerator:
                 )
                 charts.append(fig)
             
-            # 6. Statistiche riassuntive
+            # 6. KPI riassuntivi solo per metriche informative
             if numeric_cols:
                 stats_data = df[numeric_cols].describe().T
                 fig = go.Figure(data=[go.Table(
@@ -172,7 +233,7 @@ class ChartGenerator:
                     )
                 )])
                 fig.update_layout(
-                    title="📋 Statistiche Dati",
+                    title="📋 KPI metriche informative",
                     template='plotly_dark',
                     height=300
                 )
@@ -182,7 +243,128 @@ class ChartGenerator:
             logger.error("Generazione grafici fallita: %s", type(e).__name__)
             print(f"⚠️ Errore generazione grafici: {e}")
         
-        return charts
+        return {
+            "charts": charts,
+            "skipped_charts": skipped_charts,
+            "business_insights": business_notes,
+        }
+
+    @staticmethod
+    def _profile_column(df: pd.DataFrame, column) -> Dict[str, Any]:
+        series = df[column]
+        non_null = series.dropna()
+        distinct_count = int(non_null.nunique(dropna=True))
+        row_count = max(1, int(len(df)))
+        dominant_ratio = 0.0
+        dominant_value = None
+        if not non_null.empty:
+            counts = non_null.astype(str).value_counts(dropna=False)
+            dominant_value = counts.index[0]
+            dominant_ratio = float(counts.iloc[0]) / row_count
+
+        semantic_type = ChartGenerator._semantic_type(column, series, distinct_count, row_count)
+        reason = ""
+        chart_allowed = True
+
+        if semantic_type == "IDENTIFIER":
+            chart_allowed = False
+            reason = "identifier"
+        elif semantic_type == "CODE" and (distinct_count > 30 or distinct_count / row_count > 0.5):
+            chart_allowed = False
+            reason = "technical_code_high_cardinality"
+        elif distinct_count <= 1:
+            chart_allowed = False
+            reason = "constant"
+        elif dominant_ratio > 0.95:
+            chart_allowed = False
+            reason = "quasi_constant"
+        elif semantic_type == "BOOLEAN" and dominant_ratio > 0.95:
+            chart_allowed = False
+            reason = "boolean_quasi_constant"
+        elif semantic_type == "CATEGORY" and (distinct_count < 2 or distinct_count > min(50, max(10, int(row_count * 0.5)))):
+            chart_allowed = False
+            reason = "category_not_informative"
+        elif semantic_type in {"TEXT", "UNKNOWN"}:
+            chart_allowed = False
+            reason = "unsupported_semantic_type"
+
+        return {
+            "column": str(column),
+            "semantic_type": semantic_type,
+            "chart_allowed": chart_allowed,
+            "reason": reason,
+            "distinct_count": distinct_count,
+            "dominant_ratio": round(dominant_ratio, 4),
+            "dominant_value": str(dominant_value) if dominant_value is not None else None,
+            "missing_count": int(series.isna().sum()),
+            "duplicate_count": int(non_null.duplicated().sum()) if not non_null.empty else 0,
+        }
+
+    @staticmethod
+    def _semantic_type(column, series: pd.Series, distinct_count: int, row_count: int) -> str:
+        normalized = ChartGenerator._normalize_column(column)
+        if normalized in ChartGenerator.TECHNICAL_IDENTIFIER_TERMS or any(
+            term in normalized for term in ChartGenerator.TECHNICAL_IDENTIFIER_TERMS
+        ):
+            return "IDENTIFIER"
+        if any(term in normalized for term in ChartGenerator.METRIC_TERMS):
+            return "METRIC"
+        if any(term in normalized for term in ChartGenerator.DATE_TERMS):
+            parsed = pd.to_datetime(series, errors="coerce")
+            if parsed.notna().sum() >= max(2, int(row_count * 0.3)):
+                return "DATE"
+        if pd.api.types.is_bool_dtype(series):
+            return "BOOLEAN"
+        values = {str(value).strip().lower() for value in series.dropna().unique()[:5]}
+        if values and values.issubset({"true", "false", "0", "1", "yes", "no", "si", "sì"}):
+            return "BOOLEAN"
+        if pd.api.types.is_numeric_dtype(series):
+            unique_ratio = distinct_count / max(1, row_count)
+            if unique_ratio > 0.9 and row_count >= 10:
+                return "IDENTIFIER"
+            return "METRIC"
+        if any(term in normalized for term in {"code", "codice", "cod", "key"}):
+            return "CODE"
+        if 2 <= distinct_count <= min(50, max(10, int(row_count * 0.5))):
+            return "CATEGORY"
+        if distinct_count > min(50, max(10, int(row_count * 0.5))):
+            return "CODE"
+        return "UNKNOWN"
+
+    @staticmethod
+    def _normalize_column(column) -> str:
+        return re.sub(r"[^a-z0-9]+", "", str(column).lower())
+
+    @staticmethod
+    def _log_skipped_chart(profile: Dict[str, Any]):
+        logger.info(
+            "Chart skipped column=%s semantic_type=%s reason=%s distinct_count=%s dominant_ratio=%s",
+            profile["column"],
+            profile["semantic_type"],
+            profile["reason"],
+            profile["distinct_count"],
+            profile["dominant_ratio"],
+        )
+
+    @staticmethod
+    def _skip_business_note(profile: Dict[str, Any]) -> str:
+        column = profile["column"]
+        semantic_type = profile["semantic_type"]
+        reason = profile["reason"]
+        if reason in {"constant", "quasi_constant", "boolean_quasi_constant"}:
+            return (
+                f"{column} è quasi costante: valore prevalente {profile['dominant_value']} "
+                f"nel {profile['dominant_ratio'] * 100:.1f}% dei record. "
+                "Non è stata generata una distribuzione grafica perché poco informativa."
+            )
+        if semantic_type == "IDENTIFIER":
+            return (
+                f"{column} è stato riconosciuto come identificativo: escluse statistiche numeriche, "
+                "top 10, istogrammi e boxplot."
+            )
+        if reason == "technical_code_high_cardinality":
+            return f"{column} è un codice tecnico ad alta cardinalità: escluso dai grafici automatici."
+        return ""
 
     @staticmethod
     def _status_occurrence_chart(df: pd.DataFrame, status_col: str) -> go.Figure:

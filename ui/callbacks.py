@@ -5,7 +5,7 @@ import threading
 import uuid
 
 import pandas as pd
-from dash import Input, Output, State, ctx, dcc, html
+from dash import Input, Output, State, ctx, dcc, html, no_update
 
 from agents.conversation_agent import ConversationAgent
 from services.analysis_service import (
@@ -14,11 +14,17 @@ from services.analysis_service import (
     try_generate_followup_chart,
     try_run_followup_analysis,
 )
+from services.business_insight_generator import BusinessInsightGenerator
 from services.oracle_service import verify_oracle_connection
 from utils.chart_generator import ChartGenerator
 from utils.conversation_manager import ConversationManager
 from utils.analysis_history_manager import AnalysisHistoryManager
 from utils.query_history_manager import QueryHistoryManager
+
+
+def should_disable_polling(status: str) -> bool:
+    """Il polling serve solo durante l'elaborazione."""
+    return status not in {'processing', 'starting'}
 
 
 def register_callbacks(app, state, logger):
@@ -176,6 +182,9 @@ def register_callbacks(app, state, logger):
             "current_agent": "DataSourceManager",
             "progress": 0,
         }
+        state.results_rendered = False
+        state.cached_results_view = {}
+        state.current_charts = []
         state.query_feedback_status = {"query_id": None, "submitted": False, "message": ""}
         state.followup_charts = []
         logger.info("Analisi richiesta dalla dashboard. source_type=%s", source_type)
@@ -213,6 +222,16 @@ def register_callbacks(app, state, logger):
         thread.start()
         
         return {"display": "block"}, state.processing_status.copy()
+
+    @app.callback(
+        Output('interval-component', 'disabled'),
+        Input('processing-store', 'data'),
+        Input('interval-component', 'n_intervals')
+    )
+    def control_polling(processing_data, n):
+        """Abilita il polling solo mentre una pipeline è in corso."""
+        status = state.processing_status.get('status', 'idle')
+        return should_disable_polling(status)
     
     
     # Callback per update timeline
@@ -236,7 +255,7 @@ def register_callbacks(app, state, logger):
         current_agent = state.processing_status.get('current_agent', '')
         
         if status == 'idle':
-            return [], {"display": "none"}
+            return no_update, {"display": "none"}
         
         timeline = []
         for i, agent in enumerate(agents):
@@ -282,7 +301,9 @@ def register_callbacks(app, state, logger):
     )
     def display_results(n):
         if state.processing_status.get('status') != 'completed' or state.current_context is None:
-            return "", {"display": "none"}, [], {"display": "none"}
+            return no_update, no_update, no_update, no_update
+        if state.results_rendered and state.cached_results_view:
+            return no_update, no_update, no_update, no_update
         
         try:
             # Mostra il report
@@ -294,8 +315,21 @@ def register_callbacks(app, state, logger):
             if isinstance(result_df, pd.DataFrame) and not result_df.empty:
                 chart_generator = ChartGenerator()
                 requested_charts = chart_generator.generate_requested_charts(result_df, state.current_context.user_input)
-                automatic_charts = chart_generator.auto_generate_charts(result_df, state.current_context.insights)
+                chart_payload = chart_generator.generate_dashboard_charts(result_df, state.current_context.insights)
+                automatic_charts = chart_payload["charts"]
+                skipped_insights = BusinessInsightGenerator().generate_chart_exclusion_insights(
+                    chart_payload.get("skipped_charts", [])
+                )
+                useful_note = BusinessInsightGenerator().useful_columns_insight(chart_payload)
+                if useful_note:
+                    skipped_insights.insert(0, useful_note)
+                if skipped_insights:
+                    report_text = (
+                        f"{report_text}\n\n## Dashboard Insights\n"
+                        + "\n".join(f"- {item}" for item in skipped_insights)
+                    )
                 charts = requested_charts + automatic_charts
+                state.current_charts = charts
                 
                 for chart in charts:
                     charts_html.append(
@@ -310,7 +344,20 @@ def register_callbacks(app, state, logger):
                     ], className="chart-card")
                 )
             
-            return report_text, {"display": "block"}, charts_html, {"display": "block"}
+            result = {
+                "report_text": report_text,
+                "report_style": {"display": "block"},
+                "charts_html": charts_html,
+                "results_style": {"display": "block" if charts_html else "none"},
+            }
+            state.cached_results_view = result
+            state.results_rendered = True
+            return (
+                result["report_text"],
+                result["report_style"],
+                result["charts_html"],
+                result["results_style"],
+            )
         
         except Exception as e:
             logger.error("Visualizzazione risultati fallita: %s", type(e).__name__)
@@ -452,7 +499,10 @@ def register_callbacks(app, state, logger):
             if isinstance(result_df, pd.DataFrame) and not result_df.empty:
                 chart_generator = ChartGenerator()
                 requested_charts = chart_generator.generate_requested_charts(result_df, state.current_context.user_input)
-                automatic_charts = chart_generator.auto_generate_charts(result_df, state.current_context.insights)
+                automatic_charts = chart_generator.generate_dashboard_charts(
+                    result_df,
+                    state.current_context.insights,
+                )["charts"]
                 charts_for_pdf = requested_charts + automatic_charts
             
             # Genera il PDF

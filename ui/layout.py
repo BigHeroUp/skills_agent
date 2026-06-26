@@ -379,7 +379,7 @@ def create_layout(processing_status):
         dcc.Store(id='context-store', data=None),
         dcc.Store(id='charts-store', data=None),
         dcc.Store(id='oracle-connection-store', data={"verified": False}),
-        dcc.Interval(id='interval-component', interval=500, n_intervals=0),
+        dcc.Interval(id='interval-component', interval=500, n_intervals=0, disabled=True),
         
         html.Div([
             # Header
@@ -491,19 +491,11 @@ def create_layout(processing_status):
                 ], className="card")
             ], id='timeline-container', style={"display": "none"}),
             
-            # Risultati e grafici
+            # Report finale e insight prima dei grafici
             html.Div([
                 html.Div([
-                    html.H3("📈 Grafici Analisi"),
-                    html.Div(id='charts-container', className="charts-grid")
-                ], className="card")
-            ], id='results-container', style={"display": "none"}),
-            
-            # Report finale
-            html.Div([
-                html.Div([
-                    html.H3("📋 Report Finale"),
-                    html.Div(id='final-report', style={"whiteSpace": "pre-wrap", "lineHeight": "1.6", "maxHeight": "400px", "overflowY": "auto"}),
+                    html.H3("📋 Executive Summary, KPI e Business Findings"),
+                    html.Div(id='final-report', style={"whiteSpace": "pre-wrap", "lineHeight": "1.6"}),
                     html.Button(
                         "📥 Scarica Report PDF",
                         id='download-pdf-button',
@@ -538,6 +530,14 @@ def create_layout(processing_status):
                     ], id='query-feedback-container', style={"display": "none"})
                 ], className="card")
             ], id='report-container', style={"display": "none"}),
+
+            # Grafici utili dopo gli insight
+            html.Div([
+                html.Div([
+                    html.H3("📈 Grafici utili"),
+                    html.Div(id='charts-container', className="charts-grid")
+                ], className="card")
+            ], id='results-container', style={"display": "none"}),
             
             # Sezione Chat Follow-up
             html.Div([
