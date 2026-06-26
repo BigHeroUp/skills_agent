@@ -6,9 +6,14 @@ import json
 import math
 from typing import Any
 
+from services.explainability_engine import ExplainabilityEngine
+
 
 class SeniorDataAnalystEngine:
     """Trasforma risultati deterministici in una relazione da data analyst."""
+
+    def __init__(self, explainability_engine: ExplainabilityEngine | None = None):
+        self.explainability_engine = explainability_engine or ExplainabilityEngine()
 
     def analyze(self, processed_data: dict, user_request: str = "") -> dict:
         """Genera insight locali senza chiamate a servizi esterni."""
@@ -49,6 +54,11 @@ class SeniorDataAnalystEngine:
         analysis["key_findings"] = self._build_key_findings(analysis)
         analysis["operational_recommendations"] = self._build_recommendations(analysis)
         analysis["executive_summary"] = self.generate_executive_summary(analysis)
+        analysis["explainability"] = self.explainability_engine.explain_analysis(
+            data,
+            analysis,
+            user_request=user_request,
+        )
         analysis["final_report"] = self.generate_final_report(analysis)
         return self._json_safe(analysis)
 
@@ -143,6 +153,9 @@ class SeniorDataAnalystEngine:
             "",
             "## Raccomandazioni operative",
             self._numbered_list(analysis.get("operational_recommendations", [])),
+            "",
+            "## Why this conclusion?",
+            self._format_explainability(analysis.get("explainability", {})),
             "",
             "## Best practice metodologiche",
             self._bullet_list(analysis.get("methodological_notes", [])),
@@ -716,6 +729,11 @@ class SeniorDataAnalystEngine:
         if rules:
             lines.append("- Regole applicate: " + "; ".join(rules))
         return "\n".join(lines)
+
+    def _format_explainability(self, explanation: dict[str, Any]) -> str:
+        if not isinstance(explanation, dict) or not explanation:
+            return "- Spiegazione locale non disponibile."
+        return self.explainability_engine.format_for_report(explanation)
 
     def _format_advanced_statistics(self, results: dict[str, Any]) -> str:
         if not isinstance(results, dict) or not results:

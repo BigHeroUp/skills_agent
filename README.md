@@ -1,166 +1,163 @@
-# My Skill Agent - Senior AI Data Analyst
+# Skills Agent
 
-Sistema agentico locale per analisi dati deterministiche, sessioni iterative,
-conoscenza analitica riusabile e report professionali. OpenAI e un supporto
-opzionale per interpretazione e stile, non la fonte dei risultati numerici.
+## AI Senior Data Analyst Platform
 
-Memoria tecnica, stato corrente e roadmap:
-[PROJECT_STATUS.md](PROJECT_STATUS.md).
+Skills Agent è una piattaforma open source progettata per trasformare un normale dataset in un'analisi professionale, riproducendo il processo decisionale di un Senior Data Analyst.
 
-## Architettura
+L'obiettivo del progetto non è creare un semplice chatbot che commenta i dati, ma un sistema capace di comprendere il contesto, pianificare autonomamente le analisi, applicare tecniche statistiche avanzate, individuare anomalie e produrre report strutturati e spiegabili.
 
-```text
-Input: richiesta + CSV / Excel / Oracle
-    |
-    v
-[Analysis Session Manager]
-    |
-    v
-[Pattern Knowledge Engine]
-    |
-    v
-[Learning Engine]
-    |
-    v
-[Analytical Reasoning Layer]
-    |
-    v
-[Advanced Statistical Engine]
-    |
-    v
-[Anomaly Detection Engine]
-    |
-    v
-[Analysis Engine / Autonomous Analyst]
-    |
-    v
-[Senior Data Analyst Engine]
-    |
-    v
-Report locale + grafici + PDF + follow-up
+L'architettura è stata progettata per essere modulare, estendibile e progressivamente indipendente da servizi di AI esterni.
+
+---
+
+# Vision
+
+L'obiettivo è costruire una piattaforma che ragioni come un analista esperto.
+
+Il sistema deve essere in grado di:
+
+* comprendere la richiesta dell'utente;
+* interpretare automaticamente la struttura del dataset;
+* scegliere la strategia analitica più appropriata;
+* eseguire analisi statistiche avanzate;
+* individuare pattern e anomalie;
+* apprendere dai risultati precedenti;
+* produrre report professionali completamente spiegabili.
+
+Nel lungo periodo il motore dovrà poter operare anche senza dipendere da modelli linguistici esterni, mantenendo un elevato livello di autonomia decisionale.
+
+---
+
+# Current Architecture
+
+Il progetto adotta un'architettura modulare nella quale ogni componente svolge un ruolo specifico all'interno del processo analitico.
+
+```
+Coordinator
+        │
+        ▼
+Data Processor
+        │
+        ▼
+Analytical Reasoning Layer
+        │
+        ▼
+Advanced Statistical Engine
+        │
+        ▼
+Anomaly Detection Engine
+        │
+        ▼
+Learning Engine
+        │
+        ▼
+Pattern Knowledge Engine
+        │
+        ▼
+Senior Data Analyst Engine
+        │
+        ▼
+Explainability Engine
+        │
+        ▼
+Professional Report
+        │
+        ▼
+Domain Intelligence Packs
 ```
 
-La dashboard viene eseguita in locale con Dash su:
+Ogni modulo è indipendente e può evolvere senza compromettere il funzionamento dell'intero sistema.
 
-```text
-http://localhost:8050/
-```
+---
 
-## Funzionalita
+# Main Features
 
-- Upload e analisi di file CSV.
-- Upload e analisi di file Excel.
-- Connessione read-only a database Oracle.
-- Descrizione dell'analisi in linguaggio naturale.
-- Suggerimento automatico di query o colonne tramite `QuerySuggestionAgent`.
-- Sessioni iterative con classificazione locale delle richieste.
-- Riconoscimento di pattern analitici e suggerimento automatico delle analisi.
-- Domain Intelligence Packs locali per arricchire pattern, KPI, domande e
-  report senza modificare il core engine.
-- Learning Engine locale per confidence, promozione e declassamento pattern.
-- Analytical Reasoning Layer locale per ordinare analisi, esclusioni e chiarimenti.
-- Advanced Statistical Engine locale per percentili, dispersione, outlier,
-  trend, soglie, correlazioni e completezza.
-- Anomaly Detection Engine locale per outlier, spike, degrado, drift e SLA.
-- Calcoli deterministici Python/Pandas.
-- Insight e report locali da `SeniorDataAnalystEngine`.
-- Grafici Plotly generati dal dataframe reale.
-- Report professionale in italiano prodotto anche senza OpenAI.
-- Arricchimento linguistico OpenAI opzionale.
-- Logging applicativo con rotazione in `logs/app.log`.
-- Storico locale di query e pattern in SQLite.
+Attualmente la piattaforma include:
 
-## Struttura del progetto
+* Autonomous Analytical Reasoning
+* Advanced Statistical Analysis
+* Percentile Analysis
+* Trend Analysis
+* Correlation Analysis
+* Outlier Detection
+* Anomaly Detection
+* Threshold & Rule Evaluation
+* Pattern Recognition
+* Learning Engine
+* Explainability Engine
+* Explainable Reports
+* Domain Intelligence Packs
+* Local-first Architecture
+* Optional OpenAI Integration
 
-```text
-my_skill_agent/
-|-- main.py
-|-- app_dash.py
-|-- coordinator.py
-|-- requirements.txt
-|-- WORKING_CONTEXT.md
-|-- CAPABILITIES.md
-|-- APPLICATION_CONTEXT.md
-|-- IMPLEMENTATION_SUMMARY.md
-|-- PROJECT_STATUS.md
-|-- domain_packs/
-|   |-- README.md
-|   `-- telepedaggio/
-|       |-- domain_pack.yaml
-|       |-- patterns.json
-|       |-- kpi_definitions.json
-|       |-- strategy_rules.json
-|       |-- questions.json
-|       |-- terminology.json
-|       `-- report_template.md
-|-- agents/
-|   |-- base_agent.py
-|   |-- data_source_manager.py
-|   |-- query_suggestion_agent.py
-|   |-- data_extractor.py
-|   |-- data_validator.py
-|   |-- data_processor.py
-|   |-- analyst.py
-|   `-- report_generator.py
-|-- connectors/
-|   `-- data_connectors.py
-|-- services/
-|   |-- analysis_service.py
-|   |-- analysis_engine.py
-|   |-- advanced_statistical_engine.py
-|   |-- anomaly_detection_engine.py
-|   |-- analysis_session_manager.py
-|   |-- autonomous_analyst.py
-|   |-- analytical_reasoning_layer.py
-|   |-- domain_pack_loader.py
-|   |-- learning_engine.py
-|   |-- pattern_knowledge_engine.py
-|   |-- semantic_memory.py
-|   |-- senior_data_analyst_engine.py
-|   `-- oracle_service.py
-|-- ui/
-|   |-- callbacks.py
-|   `-- layout.py
-|-- utils/
-|   |-- context.py
-|   |-- data_analysis.py
-|   |-- oracle_query_validator.py
-|   |-- chart_generator.py
-|   |-- logging_config.py
-|   |-- pdf_generator.py
-|   `-- query_history_manager.py
-|-- skills/
-|   |-- oracle_sql/SKILL.md
-|   |-- email_writer/SKILL.md
-|   |-- query_suggestion/SKILL.md
-|   `-- conversation/SKILL.md
-`-- tests/
-```
+---
 
-La dashboard Dash e organizzata in tre layer:
+# Domain Intelligence Packs
 
-- `app_dash.py` inizializza l'app, collega layout e callback, e mantiene solo
-  wrapper di compatibilita per i test esistenti.
-- `ui/layout.py` contiene CSS/template Dash e albero dei componenti UI.
-- `ui/callbacks.py` registra le callback Dash e delega la logica applicativa ai
-  service.
-- `services/analysis_service.py` centralizza stato runtime, parsing upload
-  CSV/Excel, invocazione pipeline multi-agent e analisi follow-up deterministiche.
-- `services/analytical_reasoning_layer.py` costruisce la strategia analitica
-  locale ordinata, con razionale, analisi escluse e domande di chiarimento.
-- `services/advanced_statistical_engine.py` calcola statistiche avanzate locali
-  JSON-serializzabili con pandas/numpy.
-- `services/anomaly_detection_engine.py` rileva anomalie spiegabili, severity,
-  confidence, drift, degrado e violazioni SLA senza OpenAI.
-- `services/domain_pack_loader.py` scopre e carica conoscenza di dominio locale
-  da `domain_packs/`, senza chiamate OpenAI e senza dipendenze pesanti.
-- `services/oracle_service.py` incapsula il test di connessione Oracle senza
-  esporre la password allo store browser.
+Una delle caratteristiche principali del progetto è la separazione tra il motore analitico e la conoscenza di dominio.
 
-Nota: i test attuali sono script nella root del progetto:
+Il Core Engine rimane completamente generico.
 
-- `test_new_modules.py`
-- `test_integration.py`
+La conoscenza specialistica viene invece caricata tramite **Domain Intelligence Packs**, moduli indipendenti che permettono al sistema di adattare automaticamente il proprio comportamento a differenti contesti applicativi.
+
+Ogni Domain Intelligence Pack può definire:
+
+* indicatori di performance;
+* pattern ricorrenti;
+* regole decisionali;
+* strategie analitiche;
+* terminologia di dominio;
+* domande di approfondimento;
+* template di report;
+* raccomandazioni operative.
+
+Questa architettura consente di estendere la piattaforma a nuovi ambiti senza modificare il motore centrale.
+
+---
+
+# Roadmap
+
+## Core Platform
+
+* ✅ Learning Engine
+* ✅ Analytical Reasoning Layer
+* ✅ Advanced Statistical Engine
+* ✅ Anomaly Detection Engine
+* ✅ Domain Intelligence Packs Architecture
+* ✅ Explainability Engine
+
+## In Progress
+
+* Predictive Analytics Engine
+* Root Cause Analysis
+* Automated Visualization Engine
+* Multi-domain Intelligence Packs
+* Local Knowledge Base
+* Autonomous Insight Generation
+
+---
+
+# Design Principles
+
+Skills Agent si basa su alcuni principi fondamentali:
+
+* **Modular Architecture** — ogni componente è indipendente e facilmente estendibile.
+* **Explainability** — ogni conclusione deve poter essere motivata e verificata.
+* **Deterministic Analysis** — il sistema privilegia algoritmi riproducibili e verificabili.
+* **Learning by Experience** — la piattaforma migliora progressivamente grazie alle analisi eseguite.
+* **Domain Independence** — il motore rimane generico, mentre la conoscenza specialistica è esternalizzata in moduli dedicati.
+
+---
+
+# Philosophy
+
+> **The engine stays generic.**
+
+> **Knowledge becomes modular.**
+
+> **Intelligence becomes reusable.**
+
+Skills Agent nasce con l'idea di separare il motore analitico dalla conoscenza specialistica, consentendo di costruire una piattaforma capace di evolvere nel tempo attraverso moduli di dominio riutilizzabili, mantenendo il Core Engine stabile, indipendente e facilmente estendibile.
 
 ## Setup
 
@@ -637,6 +634,28 @@ metadata del dataframe, salva `domain_pack_context` nel context e nei
   "Dominio riconosciuto".
 
 Il sistema non blocca la pipeline se nessun pack viene trovato.
+
+## Milestone 10: Explainability Engine
+
+`services/explainability_engine.py` introduce un motore locale per spiegare ogni
+conclusione prodotta dal sistema. Il motore non chiama OpenAI e non ricalcola i
+dati: usa gli output gia prodotti da reasoning, pattern, learning, statistiche,
+anomaly detection e Senior Data Analyst Engine.
+
+Ogni spiegazione e JSON-serializzabile e contiene:
+
+- reasoning path;
+- strategia analitica;
+- engine utilizzati;
+- pattern applicati;
+- statistiche usate;
+- anomalie rilevate;
+- confidence score e fattori di confidence;
+- evidenze, conclusioni e raccomandazioni.
+
+Il `SeniorDataAnalystEngine` salva `explainability` nell'output locale e include
+nel report la sezione "Why this conclusion?", con decision flow, evidence,
+confidence, algoritmi, pattern e razionale delle raccomandazioni.
 
 ## Senior Data Analyst Engine locale
 
