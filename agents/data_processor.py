@@ -6,6 +6,7 @@ Elabora e trasforma i dati validati
 from agents.base_agent import BaseAgent
 from services.analysis_engine import AnalysisEngine
 from services.autonomous_analyst import AutonomousAnalyst
+from services.learning_engine import LearningEngine
 from services.pattern_knowledge_engine import PatternKnowledgeEngine
 from utils.context import AgentContext
 from utils.analysis_history_manager import AnalysisHistoryManager
@@ -88,6 +89,22 @@ class DataProcessorAgent(BaseAgent):
                 "suggested_analysis_steps",
                 [],
             )
+            learning_engine = LearningEngine()
+            context.learning_events = []
+            for pattern in context.detected_patterns:
+                pattern_id = pattern.get("pattern_id")
+                if not pattern_id:
+                    continue
+                learning_result = learning_engine.record_usage(
+                    pattern_id,
+                    {
+                        "source": "data_processor",
+                        "user_request": context.user_input,
+                        "plan_source": context.plan_source,
+                    },
+                )
+                context.learning_events.append(learning_result["event"])
+            context.learning_state = learning_engine.export_learning_state()
 
             # Prepara il prompt per OpenAI
             task_prompt = f"""
@@ -148,6 +165,8 @@ class DataProcessorAgent(BaseAgent):
                 "similarity_method": context.similarity_method,
                 "detected_patterns": context.detected_patterns,
                 "knowledge_analysis_steps": context.knowledge_analysis_steps,
+                "learning_state": context.learning_state,
+                "learning_events": context.learning_events,
                 "autonomous_analysis_plan": context.autonomous_analysis_plan,
                 "autonomous_analysis_results": context.autonomous_analysis_results,
                 "autonomous_executive_summary": context.autonomous_executive_summary,

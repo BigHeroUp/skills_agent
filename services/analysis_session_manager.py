@@ -11,6 +11,7 @@ from collections import Counter
 from datetime import date, datetime
 from typing import Any, Callable
 
+from services.learning_engine import LearningEngine
 from services.pattern_knowledge_engine import PatternKnowledgeEngine
 
 
@@ -29,11 +30,13 @@ class AnalysisSessionManager:
         id_factory: Callable[[], str] | None = None,
         clock: Callable[[], datetime] | None = None,
         knowledge_engine: PatternKnowledgeEngine | None = None,
+        learning_engine: LearningEngine | None = None,
     ):
         self._sessions: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
         self._id_factory = id_factory or (lambda: str(uuid.uuid4()))
         self._clock = clock or datetime.now
+        self._learning_engine = learning_engine or LearningEngine(clock=self._clock)
         self._knowledge_engine = knowledge_engine or PatternKnowledgeEngine()
 
     def start_session(
@@ -78,6 +81,26 @@ class AnalysisSessionManager:
                     user_prompt,
                     session["dataframe_metadata"],
                 )
+            learning_events = payload.get("learning_events")
+            if not isinstance(learning_events, list):
+                learning_events = []
+                for pattern in detected_patterns:
+                    pattern_id = pattern.get("pattern_id") if isinstance(pattern, dict) else None
+                    if not pattern_id:
+                        continue
+                    learning_result = self._learning_engine.record_usage(
+                        pattern_id,
+                        {
+                            "session_id": session_id,
+                            "iteration_number": iteration_number,
+                            "user_prompt": user_prompt,
+                            "request_type": self._classify_request(user_prompt),
+                        },
+                    )
+                    learning_events.append(learning_result["event"])
+            learning_state = payload.get("learning_state")
+            if not isinstance(learning_state, dict):
+                learning_state = self._learning_engine.export_learning_state()
             iteration = {
                 "iteration_number": iteration_number,
                 "timestamp": self._timestamp(),
@@ -89,6 +112,8 @@ class AnalysisSessionManager:
                 ),
                 "insights": self._json_safe(payload.get("insights") or {}),
                 "detected_patterns": self._json_safe(detected_patterns),
+                "learning_events": self._json_safe(learning_events),
+                "learning_state": self._json_safe(learning_state),
                 "final_report_snapshot": str(
                     payload.get("final_report_snapshot")
                     or payload.get("final_report")
@@ -135,6 +160,8 @@ class AnalysisSessionManager:
                 "latest_detected_patterns": (
                     latest["detected_patterns"] if latest else []
                 ),
+                "latest_learning_events": latest.get("learning_events", []) if latest else [],
+                "latest_learning_state": latest.get("learning_state", {}) if latest else {},
                 "latest_final_report": (
                     latest["final_report_snapshot"] if latest else ""
                 ),
@@ -179,10 +206,14 @@ class AnalysisSessionManager:
                             pattern.get("pattern_id")
                             for pattern in item.get("detected_patterns", [])
                         ],
+                        "learning_event_count": len(item.get("learning_events", [])),
                         "has_final_report": bool(item["final_report_snapshot"]),
                     }
                     for item in iterations
                 ],
+                "learning_state": (
+                    iterations[-1].get("learning_state", {}) if iterations else {}
+                ),
                 "latest_final_report": (
                     iterations[-1]["final_report_snapshot"] if iterations else ""
                 ),

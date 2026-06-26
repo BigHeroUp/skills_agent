@@ -19,6 +19,9 @@ Input: richiesta + CSV / Excel / Oracle
 [Pattern Knowledge Engine]
     |
     v
+[Learning Engine]
+    |
+    v
 [Analysis Engine / Autonomous Analyst]
     |
     v
@@ -43,6 +46,7 @@ http://localhost:8050/
 - Suggerimento automatico di query o colonne tramite `QuerySuggestionAgent`.
 - Sessioni iterative con classificazione locale delle richieste.
 - Riconoscimento di pattern analitici e suggerimento automatico delle analisi.
+- Learning Engine locale per confidence, promozione e declassamento pattern.
 - Calcoli deterministici Python/Pandas.
 - Insight e report locali da `SeniorDataAnalystEngine`.
 - Grafici Plotly generati dal dataframe reale.
@@ -80,6 +84,7 @@ my_skill_agent/
 |   |-- analysis_engine.py
 |   |-- analysis_session_manager.py
 |   |-- autonomous_analyst.py
+|   |-- learning_engine.py
 |   |-- pattern_knowledge_engine.py
 |   |-- semantic_memory.py
 |   |-- senior_data_analyst_engine.py
@@ -562,6 +567,34 @@ L'integrazione corrente:
 Gli step suggeriti rappresentano best practice raccomandate. Non vengono
 presentati come risultati eseguiti finche il relativo motore deterministico non
 ha calcolato le metriche.
+
+## Milestone 6: Learning Engine - Completata
+
+`services/learning_engine.py` introduce un ciclo locale di apprendimento sui
+pattern analitici senza chiamate OpenAI. Il motore registra eventi di utilizzo e
+feedback, aggiorna `confidence_score`, promuove pattern efficaci, declassa
+pattern poco utili e produce raccomandazioni operative per migliorare la
+Knowledge Base.
+
+Il motore espone payload JSON-serializzabili e pronti per una futura persistenza
+SQLite:
+
+- `record_usage()`: registra l'uso di un pattern;
+- `record_feedback()`: applica feedback utile, non utile o neutro;
+- `update_confidence()`: ricalcola affidabilita e stato del pattern;
+- `recommend_patterns()`: ordina i pattern disponibili per confidence appresa;
+- `export_learning_state()`: esporta statistiche, eventi e audit trail.
+
+Integrazione corrente:
+
+- `PatternKnowledgeEngine` puo ricevere `learning_state` e usarlo per ordinare i
+  pattern rilevati;
+- `AnalysisSessionManager` salva `learning_events` e snapshot di
+  `learning_state` per ogni iterazione;
+- `SeniorDataAnalystEngine` include nel report note su pattern promossi o
+  declassati;
+- `AgentContext` e `processed_data` espongono `learning_state` e
+  `learning_events`.
 
 ## Logging
 

@@ -31,9 +31,15 @@ class SeniorDataAnalystEngine:
             "execution_summary": data.get("execution_summary") or {},
             "detected_patterns": data.get("detected_patterns") or [],
             "knowledge_analysis_steps": data.get("knowledge_analysis_steps") or [],
+            "learning_state": data.get("learning_state") or {},
+            "learning_events": data.get("learning_events") or [],
         }
         analysis["methodological_notes"] = self._build_methodological_notes(
             analysis["detected_patterns"]
+        )
+        analysis["learning_reliability_notes"] = self._build_learning_reliability_notes(
+            analysis["learning_state"],
+            analysis["detected_patterns"],
         )
         analysis["key_findings"] = self._build_key_findings(analysis)
         analysis["operational_recommendations"] = self._build_recommendations(analysis)
@@ -119,6 +125,9 @@ class SeniorDataAnalystEngine:
             "",
             "## Best practice metodologiche",
             self._bullet_list(analysis.get("methodological_notes", [])),
+            "",
+            "## Affidabilita dei pattern",
+            self._bullet_list(analysis.get("learning_reliability_notes", [])),
             "",
             "## Nota metodologica",
             (
@@ -540,6 +549,54 @@ class SeniorDataAnalystEngine:
         if not notes:
             notes.append(
                 "Applicare solo metriche coerenti con schema, granularita e qualita dei dati disponibili."
+            )
+        return notes
+
+    def _build_learning_reliability_notes(
+        self,
+        learning_state: dict[str, Any],
+        patterns: list[dict[str, Any]],
+    ) -> list[str]:
+        notes = []
+        state_patterns = {}
+        if isinstance(learning_state, dict):
+            for item in learning_state.get("patterns", []) or []:
+                if isinstance(item, dict) and item.get("pattern_id"):
+                    state_patterns[item["pattern_id"]] = item
+
+        for pattern in patterns or []:
+            pattern_id = pattern.get("pattern_id")
+            learning = pattern.get("learning") or state_patterns.get(pattern_id) or {}
+            status = learning.get("status")
+            confidence = learning.get(
+                "confidence_score",
+                pattern.get("confidence_score"),
+            )
+            if status == "promoted":
+                notes.append(
+                    f"Pattern {pattern_id} ad alta affidabilita locale "
+                    f"(confidence {self._fmt(confidence)}): prioritario nel riuso."
+                )
+            elif status == "demoted":
+                notes.append(
+                    f"Pattern {pattern_id} a bassa affidabilita locale "
+                    f"(confidence {self._fmt(confidence)}): da usare con cautela."
+                )
+
+        if isinstance(learning_state, dict):
+            for pattern_id in learning_state.get("promoted_pattern_ids", []) or []:
+                if not any(pattern_id in note for note in notes):
+                    notes.append(
+                        f"Pattern {pattern_id} promosso dal Learning Engine per feedback positivo ricorrente."
+                    )
+            for pattern_id in learning_state.get("demoted_pattern_ids", []) or []:
+                if not any(pattern_id in note for note in notes):
+                    notes.append(
+                        f"Pattern {pattern_id} declassato dal Learning Engine per feedback negativo o confidence bassa."
+                    )
+        if not notes:
+            notes.append(
+                "Non sono ancora disponibili evidenze di apprendimento sufficienti sui pattern rilevati."
             )
         return notes
 
