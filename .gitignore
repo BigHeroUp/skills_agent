@@ -5,6 +5,7 @@ __pycache__/
 venv/
 *.egg-info/
 .DS_Store
+.idea/
 logs/
 data/query_history.db
 data/reports/
