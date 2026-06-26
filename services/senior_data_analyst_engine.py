@@ -37,6 +37,7 @@ class SeniorDataAnalystEngine:
             "analytical_reasoning_trace": data.get("analytical_reasoning_trace") or {},
             "advanced_statistical_results": data.get("advanced_statistical_results") or {},
             "anomaly_detection_results": data.get("anomaly_detection_results") or {},
+            "root_cause_results": data.get("root_cause_results") or {},
             "domain_pack_context": data.get("domain_pack_context") or {},
         }
         analysis["methodological_notes"] = self._build_methodological_notes(
@@ -125,6 +126,9 @@ class SeniorDataAnalystEngine:
             self._format_detected_anomalies(
                 analysis.get("anomaly_detection_results", {})
             ),
+            "",
+            "## Possibili cause radice",
+            self._format_root_causes(analysis.get("root_cause_results", {})),
             "",
             "## Segmentazione",
             self._format_structured_items(
@@ -552,6 +556,13 @@ class SeniorDataAnalystEngine:
             recommendations.append(
                 "Associare ogni KPI a definizione, unita di misura, target e responsabile operativo."
             )
+        for cause in (analysis.get("root_cause_results") or {}).get("possible_causes", [])[:3]:
+            if not isinstance(cause, dict):
+                continue
+            for action in (cause.get("recommended_actions") or [])[:2]:
+                recommendations.append(
+                    f"Verifica root cause {cause.get('cause_id', 'n/a')}: {action}"
+                )
         if not recommendations:
             recommendations.append(
                 "Confermare i KPI con i responsabili di business e impostare un monitoraggio periodico."
@@ -801,6 +812,33 @@ class SeniorDataAnalystEngine:
                 f"deviazione {self._fmt(item.get('deviation'))}. "
                 f"Evidenza: {evidence_text or item.get('method')}. "
                 f"Raccomandazione: {item.get('recommendation')}"
+            )
+        return "\n".join(lines)
+
+    def _format_root_causes(self, results: dict[str, Any]) -> str:
+        if not isinstance(results, dict) or not results:
+            return "- Root cause analysis locale non disponibile."
+        if results.get("status") in {"skipped", "insufficient_evidence"}:
+            reason = results.get("reason") or "evidenze insufficienti"
+            return f"- Root cause analysis non conclusiva: {reason}."
+        causes = results.get("possible_causes") or []
+        if not causes:
+            return "- Nessuna causa radice supportata da evidenze disponibili."
+        lines = []
+        for cause in causes[:5]:
+            if not isinstance(cause, dict):
+                continue
+            metrics = ", ".join(cause.get("affected_metrics") or []) or "metriche non specificate"
+            evidence_count = len(cause.get("supporting_evidence") or [])
+            alternatives = "; ".join((cause.get("alternative_explanations") or [])[:2])
+            actions = "; ".join((cause.get("recommended_actions") or [])[:2])
+            lines.append(
+                f"- **{cause.get('severity', 'low').upper()}** "
+                f"{cause.get('title', 'Causa possibile')} "
+                f"(confidence {self._fmt(cause.get('confidence_score', 0))}) "
+                f"su {metrics}. Evidenze: {evidence_count}. "
+                f"Alternative: {alternatives or 'non disponibili'}. "
+                f"Azioni: {actions or 'validare con owner del processo'}."
             )
         return "\n".join(lines)
 

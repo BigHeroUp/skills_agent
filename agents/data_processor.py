@@ -12,6 +12,7 @@ from services.autonomous_analyst import AutonomousAnalyst
 from services.domain_pack_loader import DomainPackLoader
 from services.learning_engine import LearningEngine
 from services.pattern_knowledge_engine import PatternKnowledgeEngine
+from services.root_cause_analysis_engine import RootCauseAnalysisEngine
 from utils.context import AgentContext
 from utils.analysis_history_manager import AnalysisHistoryManager
 from utils.data_analysis import summarize_dataframe
@@ -158,6 +159,28 @@ class DataProcessorAgent(BaseAgent):
                     "anomaly_count": 0,
                     "anomalies": [],
                 }
+            root_cause_engine = RootCauseAnalysisEngine()
+            if self._should_run_root_cause_analysis(context):
+                context.root_cause_results = root_cause_engine.analyze({
+                    "user_request": context.user_input,
+                    "deterministic_summary": deterministic_summary,
+                    "analysis_plan": context.analysis_plan,
+                    "deterministic_results": context.deterministic_results,
+                    "detected_patterns": context.detected_patterns,
+                    "knowledge_analysis_steps": context.knowledge_analysis_steps,
+                    "learning_state": context.learning_state,
+                    "analytical_strategy": context.analytical_strategy,
+                    "advanced_statistical_results": context.advanced_statistical_results,
+                    "anomaly_detection_results": context.anomaly_detection_results,
+                    "domain_pack_context": context.domain_pack_context,
+                })
+            else:
+                context.root_cause_results = {
+                    "status": "skipped",
+                    "reason": "Nessuna anomalia o richiesta di causa radice rilevata.",
+                    "root_cause_count": 0,
+                    "possible_causes": [],
+                }
 
             # Prepara il prompt per OpenAI
             task_prompt = f"""
@@ -189,6 +212,9 @@ class DataProcessorAgent(BaseAgent):
 
             Anomaly detection locale:
             {str(context.anomaly_detection_results)[:2000]}
+
+            Root cause analysis locale:
+            {str(context.root_cause_results)[:2000]}
 
             Domain pack riconosciuto:
             {str(context.domain_pack_context)[:1600]}
@@ -236,6 +262,7 @@ class DataProcessorAgent(BaseAgent):
                 "analytical_reasoning_trace": context.analytical_reasoning_trace,
                 "advanced_statistical_results": context.advanced_statistical_results,
                 "anomaly_detection_results": context.anomaly_detection_results,
+                "root_cause_results": context.root_cause_results,
                 "domain_pack_context": context.domain_pack_context,
                 "autonomous_analysis_plan": context.autonomous_analysis_plan,
                 "autonomous_analysis_results": context.autonomous_analysis_results,
@@ -358,6 +385,39 @@ class DataProcessorAgent(BaseAgent):
         }
         return any(
             step.get("analysis_type") in anomaly_steps
+            for step in context.analytical_strategy.get("recommended_sequence", [])
+            if isinstance(step, dict)
+        )
+
+    def _should_run_root_cause_analysis(self, context: AgentContext) -> bool:
+        request = str(context.user_input or "").lower()
+        root_cause_terms = {
+            "root cause",
+            "causa",
+            "cause",
+            "perché",
+            "perche",
+            "motivo",
+            "degradation",
+            "degrado",
+            "anomaly",
+            "anomalia",
+            "anomalie",
+            "explain",
+            "spiega",
+            "spiegazione",
+        }
+        if any(term in request for term in root_cause_terms):
+            return True
+        anomaly_results = context.anomaly_detection_results or {}
+        try:
+            anomaly_count = int(anomaly_results.get("anomaly_count", 0) or 0)
+        except (TypeError, ValueError):
+            anomaly_count = 0
+        if anomaly_count > 0:
+            return True
+        return any(
+            step.get("analysis_type") == "root_cause_analysis"
             for step in context.analytical_strategy.get("recommended_sequence", [])
             if isinstance(step, dict)
         )

@@ -100,6 +100,20 @@ Automatically detects:
 
 ---
 
+## 🔎 Root Cause Analysis
+
+Groups anomalies, patterns, trends and statistical evidence to propose explainable possible root causes without relying on external AI services.
+
+The engine distinguishes:
+
+- Evidence
+- Hypotheses
+- Alternative explanations
+- Recommended actions
+- Confidence and severity
+
+---
+
 ## 📚 Learning Engine
 
 Every analysis contributes to improving future analytical decisions.
@@ -170,6 +184,9 @@ The project follows a modular **Hub & Spoke Architecture**.
   Anomaly Detection Engine
           │
           ▼
+ Root Cause Analysis Engine
+          │
+          ▼
  Senior Data Analyst Engine
           │
           ▼
@@ -227,6 +244,12 @@ Anomaly Detection
 
         ▼
 
+Root Cause Analysis
+
+        │
+
+        ▼
+
 Learning
 
         │
@@ -278,6 +301,7 @@ Only a new Domain Intelligence Pack.
 - Advanced Statistical Engine
 - Anomaly Detection Engine
 - Domain Intelligence Packs Architecture
+- Root Cause Analysis Engine
 
 ---
 
@@ -285,7 +309,6 @@ Only a new Domain Intelligence Pack.
 
 - Explainability Engine
 - Predictive Analytics
-- Root Cause Analysis
 - Automated Visualization Engine
 - Local Knowledge Base
 - Multi-domain Intelligence Packs
