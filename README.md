@@ -22,6 +22,9 @@ Input: richiesta + CSV / Excel / Oracle
 [Learning Engine]
     |
     v
+[Analytical Reasoning Layer]
+    |
+    v
 [Analysis Engine / Autonomous Analyst]
     |
     v
@@ -47,6 +50,7 @@ http://localhost:8050/
 - Sessioni iterative con classificazione locale delle richieste.
 - Riconoscimento di pattern analitici e suggerimento automatico delle analisi.
 - Learning Engine locale per confidence, promozione e declassamento pattern.
+- Analytical Reasoning Layer locale per ordinare analisi, esclusioni e chiarimenti.
 - Calcoli deterministici Python/Pandas.
 - Insight e report locali da `SeniorDataAnalystEngine`.
 - Grafici Plotly generati dal dataframe reale.
@@ -84,6 +88,7 @@ my_skill_agent/
 |   |-- analysis_engine.py
 |   |-- analysis_session_manager.py
 |   |-- autonomous_analyst.py
+|   |-- analytical_reasoning_layer.py
 |   |-- learning_engine.py
 |   |-- pattern_knowledge_engine.py
 |   |-- semantic_memory.py
@@ -117,6 +122,8 @@ La dashboard Dash e organizzata in tre layer:
   service.
 - `services/analysis_service.py` centralizza stato runtime, parsing upload
   CSV/Excel, invocazione pipeline multi-agent e analisi follow-up deterministiche.
+- `services/analytical_reasoning_layer.py` costruisce la strategia analitica
+  locale ordinata, con razionale, analisi escluse e domande di chiarimento.
 - `services/oracle_service.py` incapsula il test di connessione Oracle senza
   esporre la password allo store browser.
 
@@ -480,6 +487,37 @@ vengono salvati nel context e in `processed_data`:
 - `autonomous_executive_summary`;
 - `autonomous_recommendations`;
 - `autonomous_mode`.
+
+## Milestone intermedia: Analytical Reasoning Layer
+
+`services/analytical_reasoning_layer.py` introduce un livello locale di
+ragionamento analitico senza chiamate OpenAI. Il motore legge richiesta utente,
+metadata del dataframe, pattern rilevati dal `PatternKnowledgeEngine` e
+`learning_state`, poi produce una strategia JSON-serializzabile con:
+
+- `recommended_sequence`, cioe analisi ordinate con priorita, colonne richieste,
+  dipendenze, output atteso, razionale e confidence;
+- `excluded_analyses`, con motivo esplicito quando i dati non consentono trend,
+  statistiche numeriche o segmentazioni;
+- `clarification_questions`, per richieste ambigue o soglie/SLA non definite;
+- `reasoning_trace`, audit trail delle decisioni e dei fattori di ranking;
+- `data_requirements` e `stopping_conditions`.
+
+Regole principali:
+
+- non vengono inventate colonne non presenti nei metadata;
+- senza colonne data/ora non vengono suggeriti trend temporali;
+- senza colonne numeriche non vengono suggerite statistiche numeriche,
+  percentili, outlier o confronti soglia;
+- richieste su tempi, performance o SLA danno priorita a percentili, trend,
+  outlier e soglie quando i dati lo consentono;
+- richieste su distribuzioni o categorie danno priorita a segmentazioni e top
+  valori.
+
+L'integrazione corrente salva `analytical_strategy` e
+`analytical_reasoning_trace` in `AgentContext`, `processed_data` e nelle
+iterazioni dell'`AnalysisSessionManager`. Il `SeniorDataAnalystEngine` include
+nel report la sezione "Strategia analitica adottata".
 
 ## Senior Data Analyst Engine locale
 

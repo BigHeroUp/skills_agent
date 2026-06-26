@@ -109,6 +109,16 @@ La cronologia gia integrata in `main` comprende:
    - note di affidabilita nel `SeniorDataAnalystEngine`;
    - `AgentContext` aggiornato con `learning_state` e `learning_events`;
    - 10 test dedicati.
+10. **Milestone intermedia - Analytical Reasoning Layer**, completata in questa
+    iterazione:
+   - classe `AnalyticalReasoningLayer`;
+   - strategia analitica locale JSON-serializzabile;
+   - ranking delle analisi tramite intent, pattern e `learning_state`;
+   - esclusione esplicita di analisi incompatibili con lo schema;
+   - domande di chiarimento per richieste ambigue, metriche e soglie SLA;
+   - integrazione con `DataProcessorAgent`, `AnalysisSessionManager`,
+     `SeniorDataAnalystEngine` e `AgentContext`;
+   - 9 test dedicati.
 
 Il commit della Milestone 5 e locale e non ancora pubblicato:
 `main` e avanti di un commit rispetto a `origin/main` perche le credenziali
@@ -147,6 +157,8 @@ GitHub HTTPS non sono disponibili nella sessione corrente.
 - `services/learning_engine.py`: apprendimento locale da utilizzi, feedback,
   confidence e audit trail, presente su
   `feature/milestone-6-learning-engine`.
+- `services/analytical_reasoning_layer.py`: strategy builder locale per
+  decidere ordine, esclusioni, chiarimenti e reasoning trace delle analisi.
 
 #### Persistenza e utility
 
@@ -256,6 +268,7 @@ passo successivo.
 - Analysis Session Manager completamente locale e senza chiamate OpenAI.
 - Pattern Knowledge Engine completamente locale e senza chiamate OpenAI.
 - Learning Engine completamente locale e senza chiamate OpenAI.
+- Analytical Reasoning Layer completamente locale e senza chiamate OpenAI.
 
 ### Qualita verificata
 
@@ -264,6 +277,7 @@ passo successivo.
 - Test dedicati all'Analysis Session Manager: **8 superati**.
 - Test dedicati al Pattern Knowledge Engine: **9 superati**.
 - Test dedicati al Learning Engine: **10 superati**.
+- Test dedicati all'Analytical Reasoning Layer: **9 superati**.
 - Copertura presente per Analysis Engine, history, feedback, semantic memory,
   autonomous analysis, follow-up, grafici richiesti, sicurezza Oracle e report
   locale.
@@ -294,6 +308,13 @@ Learning Engine
   - confidence score
   - promozione e declassamento pattern
   - raccomandazioni di miglioramento
+        |
+        v
+Analytical Reasoning Layer
+  - strategia ordinata
+  - razionale delle analisi
+  - esclusioni motivate
+  - domande di chiarimento
         |
         v
 Analysis Engine
@@ -335,6 +356,7 @@ Chat follow-up e feedback
 - piano e risultati deterministici;
 - pattern analitici rilevati e step suggeriti;
 - learning state ed eventi di apprendimento;
+- strategia analitica adottata e reasoning trace;
 - metadati di memoria e confidence;
 - risultati autonomous;
 - insight;
@@ -353,6 +375,7 @@ lo stato per aggiornare timeline e risultati.
 | Analysis Session Manager | Completamente locale | Sessioni iterative in memoria, nessuna chiamata esterna. |
 | Pattern Knowledge Engine | Completamente locale | Riconoscimento pattern e suggerimenti deterministici. |
 | Learning Engine | Completamente locale | Confidence, promozione, declassamento e audit trail in memoria. |
+| Analytical Reasoning Layer | Completamente locale | Strategia analitica, esclusioni e chiarimenti senza OpenAI. |
 | Senior Data Analyst Engine | Completamente locale | Insight, KPI, note metodologiche e raccomandazioni locali. |
 | Report locale | Completamente locale | Il report finale puo essere prodotto senza `OPENAI_API_KEY`. |
 | Interpretazione linguistica | OpenAI opzionale/parzialmente necessaria | Alcuni agenti precedenti usano ancora OpenAI quando non esiste un fallback locale. |
@@ -396,6 +419,7 @@ lo stato per aggiornare timeline e risultati.
 - `AnalysisSessionManager`;
 - `PatternKnowledgeEngine`;
 - `LearningEngine`;
+- `AnalyticalReasoningLayer`;
 - `SeniorDataAnalystEngine`;
 - grafici Plotly;
 - PDF;
@@ -469,6 +493,35 @@ Il motore:
 completo con feedback dashboard e creazione dinamica di nuovi pattern.
 
 **Dipendenza:** Milestone 4 e 5.
+
+### ✅ Milestone intermedia - Analytical Reasoning Layer
+
+**Stato:** Completata.
+
+**Obiettivo raggiunto:** introdurre un layer locale che decide quali analisi
+eseguire, in quale ordine, quali evitare e quando chiedere chiarimenti.
+
+Il motore:
+
+- legge richiesta utente, metadata dataframe, pattern rilevati e stato di
+  apprendimento;
+- costruisce `recommended_sequence` con priorita, rationale, colonne richieste,
+  dipendenze, output atteso e confidence;
+- produce `excluded_analyses` quando mancano colonne data, numeriche o
+  categoriali;
+- produce `clarification_questions` per richieste ambigue, metriche multiple o
+  soglie SLA non dichiarate;
+- esporta `reasoning_trace` JSON-serializzabile.
+
+**Moduli:** `services/analytical_reasoning_layer.py`,
+`agents/data_processor.py`, `services/analysis_session_manager.py`,
+`services/senior_data_analyst_engine.py`, `utils/context.py`.
+
+**Passo futuro non bloccante:** collegare la strategy all'orchestrazione
+multi-step effettiva, trasformando gli step raccomandati in esecuzioni Pandas
+quando il motore statistico supporta tutte le analisi richieste.
+
+**Dipendenza:** Milestone 5 e 6.
 
 ### Milestone 7 - Statistical Engine avanzato
 

@@ -5,6 +5,7 @@ Elabora e trasforma i dati validati
 
 from agents.base_agent import BaseAgent
 from services.analysis_engine import AnalysisEngine
+from services.analytical_reasoning_layer import AnalyticalReasoningLayer
 from services.autonomous_analyst import AutonomousAnalyst
 from services.learning_engine import LearningEngine
 from services.pattern_knowledge_engine import PatternKnowledgeEngine
@@ -105,6 +106,16 @@ class DataProcessorAgent(BaseAgent):
                 )
                 context.learning_events.append(learning_result["event"])
             context.learning_state = learning_engine.export_learning_state()
+            reasoning_layer = AnalyticalReasoningLayer()
+            context.analytical_strategy = reasoning_layer.build_strategy(
+                user_request=context.user_input,
+                dataframe_metadata=deterministic_summary,
+                detected_patterns=context.detected_patterns,
+                learning_state=context.learning_state,
+            )
+            context.analytical_reasoning_trace = reasoning_layer.export_reasoning_trace(
+                context.analytical_strategy
+            )
 
             # Prepara il prompt per OpenAI
             task_prompt = f"""
@@ -127,6 +138,9 @@ class DataProcessorAgent(BaseAgent):
             - Confidence score: {context.confidence_score}
             - Similarity score: {context.similarity_score}
             - Similarity method: {context.similarity_method}
+
+            Strategia analitica locale:
+            {str(context.analytical_strategy)[:2000]}
 
             Analisi autonoma:
             - Modalita autonoma: {context.autonomous_mode}
@@ -167,6 +181,8 @@ class DataProcessorAgent(BaseAgent):
                 "knowledge_analysis_steps": context.knowledge_analysis_steps,
                 "learning_state": context.learning_state,
                 "learning_events": context.learning_events,
+                "analytical_strategy": context.analytical_strategy,
+                "analytical_reasoning_trace": context.analytical_reasoning_trace,
                 "autonomous_analysis_plan": context.autonomous_analysis_plan,
                 "autonomous_analysis_results": context.autonomous_analysis_results,
                 "autonomous_executive_summary": context.autonomous_executive_summary,

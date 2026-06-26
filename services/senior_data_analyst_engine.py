@@ -33,6 +33,8 @@ class SeniorDataAnalystEngine:
             "knowledge_analysis_steps": data.get("knowledge_analysis_steps") or [],
             "learning_state": data.get("learning_state") or {},
             "learning_events": data.get("learning_events") or [],
+            "analytical_strategy": data.get("analytical_strategy") or {},
+            "analytical_reasoning_trace": data.get("analytical_reasoning_trace") or {},
         }
         analysis["methodological_notes"] = self._build_methodological_notes(
             analysis["detected_patterns"]
@@ -93,6 +95,9 @@ class SeniorDataAnalystEngine:
             "",
             "## Riepilogo esecutivo",
             analysis.get("executive_summary", "Sintesi non disponibile."),
+            "",
+            "## Strategia analitica adottata",
+            self._format_analytical_strategy(analysis.get("analytical_strategy", {})),
             "",
             "## Evidenze principali",
             self._bullet_list(analysis.get("key_findings", [])),
@@ -636,6 +641,36 @@ class SeniorDataAnalystEngine:
         if not items:
             return f"- {empty}"
         return "\n".join(f"- {item.get('summary', str(item))}" for item in items)
+
+    def _format_analytical_strategy(self, strategy: dict[str, Any]) -> str:
+        if not isinstance(strategy, dict) or not strategy:
+            return "- Strategia analitica locale non disponibile."
+        lines = [
+            f"- Strategy ID: {strategy.get('strategy_id', 'n/a')}",
+            f"- Confidence: {self._fmt(strategy.get('confidence_score', 0))}",
+        ]
+        for step in (strategy.get("recommended_sequence") or [])[:6]:
+            columns = ", ".join(step.get("required_columns") or []) or "nessuna colonna specifica"
+            lines.append(
+                f"- Step {step.get('priority')}: {step.get('analysis_type')} "
+                f"su {columns}. {step.get('rationale', '')}"
+            )
+        questions = strategy.get("clarification_questions") or []
+        if questions:
+            lines.append(
+                "- Chiarimenti aperti: "
+                + "; ".join(item.get("question", "") for item in questions[:3])
+            )
+        excluded = strategy.get("excluded_analyses") or []
+        if excluded:
+            lines.append(
+                "- Analisi escluse: "
+                + "; ".join(
+                    f"{item.get('analysis_type')} ({item.get('reason')})"
+                    for item in excluded[:3]
+                )
+            )
+        return "\n".join(lines)
 
     def _fmt(self, value: Any) -> str:
         if isinstance(value, float):
