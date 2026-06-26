@@ -42,6 +42,7 @@ class AgentContext:
     analytical_reasoning_trace: Dict[str, Any] = field(default_factory=dict)
     advanced_statistical_results: Dict[str, Any] = field(default_factory=dict)
     anomaly_detection_results: Dict[str, Any] = field(default_factory=dict)
+    root_cause_results: Dict[str, Any] = field(default_factory=dict)
     domain_pack_context: Dict[str, Any] = field(default_factory=dict)
 
     # Analisi autonoma multi-step della Milestone 4

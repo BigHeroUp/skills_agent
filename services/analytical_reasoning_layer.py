@@ -68,6 +68,21 @@ class AnalyticalReasoningLayer:
         "violazione",
         "violazioni",
     }
+    ROOT_CAUSE_TERMS = {
+        "root cause",
+        "causa",
+        "cause",
+        "perche",
+        "perché",
+        "motivo",
+        "motivazione",
+        "spiega",
+        "spiegazione",
+        "explain",
+        "why",
+        "ragione",
+        "ragioni",
+    }
 
     def build_strategy(
         self,
@@ -382,6 +397,17 @@ class AnalyticalReasoningLayer:
                     0.5,
                     depends_on=["outlier_analysis", "threshold_comparison"],
                 )
+            if intent["root_cause"] or intent["anomaly"]:
+                add(
+                    "root_cause_analysis",
+                    "La richiesta chiede cause, motivi o spiegazioni di anomalie: serve raggruppare evidenze prima di proporre ipotesi.",
+                    [metric],
+                    "ipotesi di cause radice con evidenze, alternative e azioni raccomandate",
+                    "time_performance_analysis" if intent["performance"] else "operational_kpi_analysis",
+                    18 if intent["root_cause"] else 52,
+                    0.54,
+                    depends_on=["anomaly_detection", "advanced_dispersion_analysis"],
+                )
             if intent["performance"]:
                 add(
                     "threshold_comparison",
@@ -558,6 +584,7 @@ class AnalyticalReasoningLayer:
             "categorical": categorical,
             "ambiguous": ambiguous,
             "anomaly": self._contains_any(request, self.ANOMALY_TERMS),
+            "root_cause": self._contains_any(request, self.ROOT_CAUSE_TERMS),
             "quality": self._contains_any(request, {"qualita", "quality", "missing", "null", "duplicati"}),
         }
 
@@ -598,6 +625,8 @@ class AnalyticalReasoningLayer:
             or analysis_type in {"categorical_segmentation", "top_values"}
         ):
             return 0.22
+        if intent.get("root_cause") and analysis_type == "root_cause_analysis":
+            return 0.24
         if intent.get("quality") and analysis_type == "data_quality_audit":
             return 0.18
         return 0.04

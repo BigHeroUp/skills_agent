@@ -154,6 +154,21 @@ La cronologia gia integrata in `main` comprende:
      `SeniorDataAnalystEngine`, `DataProcessorAgent` e `AgentContext`;
    - sezione report "Dominio riconosciuto";
    - 8 test dedicati.
+14. **Milestone 11 - Root Cause Analysis Engine**, completata in questa
+    iterazione:
+   - classe `RootCauseAnalysisEngine`;
+   - raggruppamento locale di anomalie per colonna, periodo, tipo, severita e
+     segnali di trend/degrado;
+   - inferenza di possibili cause radice solo da evidenze presenti nel payload;
+   - separazione esplicita tra evidence, hypothesis e recommendation;
+   - severity e `confidence_score` per ogni causa proposta;
+   - output JSON-serializzabile e stato `insufficient_evidence` quando le prove
+     non bastano;
+   - integrazione con `DataProcessorAgent`, `AnalyticalReasoningLayer`,
+     `AnalysisSessionManager`, `SeniorDataAnalystEngine`, `ExplainabilityEngine`
+     e `AgentContext`;
+   - sezione report "Possibili cause radice";
+   - 9 test dedicati.
 
 ### Moduli implementati
 
@@ -196,6 +211,10 @@ La cronologia gia integrata in `main` comprende:
   degrado, drift, SLA, severity e raccomandazioni spiegabili.
 - `services/domain_pack_loader.py`: loader locale per domain pack, discovery,
   validazione, suggerimento pack ed export JSON-safe.
+- `services/root_cause_analysis_engine.py`: motore locale per raggruppare
+  anomalie, pattern e statistiche in possibili cause radice spiegabili.
+- `services/explainability_engine.py`: motore locale per spiegazioni
+  strutturate, evidence e reasoning path JSON-safe.
 
 #### Persistenza e utility
 
@@ -309,10 +328,12 @@ passo successivo.
 - Advanced Statistical Engine completamente locale e senza chiamate OpenAI.
 - Anomaly Detection Engine completamente locale e senza chiamate OpenAI.
 - Domain Pack Loader completamente locale e senza chiamate OpenAI.
+- Root Cause Analysis Engine completamente locale e senza chiamate OpenAI.
+- Explainability Engine completamente locale e senza chiamate OpenAI.
 
 ### Qualita verificata
 
-- Suite pytest: **128 test superati**.
+- Suite pytest: **137 test superati**.
 - Test dedicati al Senior Data Analyst Engine: **7 superati**.
 - Test dedicati all'Analysis Session Manager: **8 superati**.
 - Test dedicati al Pattern Knowledge Engine: **9 superati**.
@@ -321,6 +342,7 @@ passo successivo.
 - Test dedicati all'Advanced Statistical Engine: **11 superati**.
 - Test dedicati all'Anomaly Detection Engine: **11 superati**.
 - Test dedicati al Domain Pack Loader: **8 superati**.
+- Test dedicati al Root Cause Analysis Engine: **9 superati**.
 - Copertura presente per Analysis Engine, history, feedback, semantic memory,
   autonomous analysis, follow-up, grafici richiesti, sicurezza Oracle e report
   locale.
@@ -380,6 +402,12 @@ Anomaly Detection Engine
   - severity e confidence
         |
         v
+Root Cause Analysis Engine
+  - gruppi di anomalie correlate
+  - cause possibili supportate da evidenze
+  - alternative e raccomandazioni
+        |
+        v
 Analysis Engine
   - profiling Pandas
   - AnalysisPlan singolo
@@ -422,6 +450,7 @@ Chat follow-up e feedback
 - strategia analitica adottata e reasoning trace;
 - risultati statistici avanzati;
 - risultati anomaly detection;
+- risultati root cause analysis;
 - domain pack context;
 - metadati di memoria e confidence;
 - risultati autonomous;
@@ -445,6 +474,8 @@ lo stato per aggiornare timeline e risultati.
 | Advanced Statistical Engine | Completamente locale | Percentili, dispersione, outlier, trend, soglie, correlazioni e completezza. |
 | Anomaly Detection Engine | Completamente locale | Outlier, spike, degrado, drift, SLA, severity e raccomandazioni. |
 | Domain Pack Loader | Completamente locale | Conoscenza di dominio caricabile senza modificare il core engine. |
+| Root Cause Analysis Engine | Completamente locale | Cause radice possibili derivate solo da evidenze disponibili. |
+| Explainability Engine | Completamente locale | Reasoning path, evidence, confidence e algoritmi usati in JSON-safe. |
 | Senior Data Analyst Engine | Completamente locale | Insight, KPI, note metodologiche e raccomandazioni locali. |
 | Report locale | Completamente locale | Il report finale puo essere prodotto senza `OPENAI_API_KEY`. |
 | Interpretazione linguistica | OpenAI opzionale/parzialmente necessaria | Alcuni agenti precedenti usano ancora OpenAI quando non esiste un fallback locale. |
@@ -492,6 +523,8 @@ lo stato per aggiornare timeline e risultati.
 - `AdvancedStatisticalEngine`;
 - `AnomalyDetectionEngine`;
 - `DomainPackLoader`;
+- `RootCauseAnalysisEngine`;
+- `ExplainabilityEngine`;
 - `SeniorDataAnalystEngine`;
 - grafici Plotly;
 - PDF;
@@ -682,7 +715,39 @@ pack e ulteriori domini verticali.
 
 **Dipendenza:** Milestone 5, 7 e 8.
 
-### Milestone 10 - Predictive Analytics Engine
+### ✅ Milestone 11 - Root Cause Analysis Engine
+
+**Stato:** Completata.
+
+**Obiettivo raggiunto:** proporre possibili cause radice spiegabili a partire
+da anomalie, pattern, statistiche, strategia analitica e contesto di dominio
+gia presenti nel payload, senza chiamate OpenAI.
+
+Il motore:
+
+- legge `anomaly_detection_results`, `advanced_statistical_results`,
+  `analytical_strategy`, pattern rilevati e `domain_pack_context`;
+- raggruppa anomalie per stessa colonna, periodo, tipo, severita e segnali di
+  trend/degrado;
+- produce cause possibili con severity, confidence score, metriche impattate,
+  anomalie correlate, evidenze, spiegazioni alternative, azioni consigliate e
+  reasoning trace;
+- restituisce `insufficient_evidence` quando non ci sono prove sufficienti;
+- usa il domain pack solo come guida terminologica e strategica, mai come
+  prova causale.
+
+**Moduli:** `services/root_cause_analysis_engine.py`,
+`agents/data_processor.py`, `services/analytical_reasoning_layer.py`,
+`services/analysis_session_manager.py`,
+`services/senior_data_analyst_engine.py`,
+`services/explainability_engine.py`, `utils/context.py`.
+
+**Passo futuro non bloccante:** collegare le cause radice a visualizzazioni,
+drill-down per segmento e validazione human-in-the-loop.
+
+**Dipendenza:** Milestone 7, 8 e 9.
+
+### Milestone 12 - Predictive Analytics Engine
 
 **Obiettivo:** introdurre:
 
@@ -701,7 +766,7 @@ feature engineering, session manager e report.
 
 **Dipendenza:** Milestone 7, 8 e 9.
 
-### Milestone 11 - Natural Language Planner
+### Milestone 13 - Natural Language Planner
 
 **Obiettivo:** trasformare automaticamente una richiesta utente in un piano
 analitico completo.
@@ -716,7 +781,7 @@ Engine, Session Manager, schema discovery e motore locale di intent.
 
 **Dipendenza:** Milestone 5, 6, 7 e 9.
 
-### Milestone 12 - Knowledge Consolidation Engine
+### Milestone 14 - Knowledge Consolidation Engine
 
 **Obiettivo:** fondere pattern simili e costruire una conoscenza strutturata,
 versionata e non ridondante.
@@ -736,7 +801,7 @@ Engine, Pattern Knowledge Engine e storage SQLite.
 
 **Dipendenza:** Milestone 6.
 
-### Milestone 12 - Autonomia completa
+### Milestone 15 - Autonomia completa
 
 **Obiettivo:** rendere OpenAI opzionale e permettere al sistema di lavorare
 completamente offline.
@@ -759,8 +824,8 @@ Sono necessari:
 
 ## Debito tecnico
 
-- Il branch corrente e `feature/milestone-6-learning-engine`, derivato da
-  `origin/main`, con modifiche locali non committate per la Milestone 6.
+- Il branch corrente e `feature/milestone-11-root-cause-analysis`, derivato da
+  `origin/main`, con modifiche locali non committate per la Milestone 11.
 - `DataProcessorAgent` chiama ancora OpenAI in modo bloccante dopo avere
   calcolato i risultati deterministici.
 - `DataExtractorAgent` e `DataValidatorAgent` non hanno fallback locali
@@ -866,16 +931,16 @@ sono:
 ## Ultimo aggiornamento
 
 - **Data:** 26 giugno 2026
-- **Branch Git:** `feature/domain-intelligence-packs`
-- **HEAD locale:** `3e7d44c feat: implement anomaly detection engine`
-- **HEAD remoto `origin/main`:** `3e7d44c feat: implement anomaly detection engine`
-- **Stato repository:** modifiche locali non committate per la Milestone 9.
+- **Branch Git:** `feature/milestone-11-root-cause-analysis`
+- **HEAD locale:** `cf13255 Revise README for Skills Agent overview and details`
+- **HEAD remoto `origin/main`:** `cf13255 Revise README for Skills Agent overview and details`
+- **Stato repository:** modifiche locali non committate per la Milestone 11.
 - **Azione Git pendente:** review delle modifiche, commit e pubblicazione della
   branch.
-- **Modifiche locali principali:** `DomainPackLoader`, pack `telepedaggio`,
-  integrazione con Data Processor, Pattern Knowledge Engine, Analytical
-  Reasoning Layer, Senior Data Analyst Engine, context, README e stato progetto.
-- **Numero test:** 128 superati.
+- **Modifiche locali principali:** `RootCauseAnalysisEngine`, integrazione con
+  Data Processor, Analytical Reasoning Layer, Analysis Session Manager, Senior
+  Data Analyst Engine, Explainability Engine, context, README e stato progetto.
+- **Numero test:** 137 superati.
 - **Quality gate:** `python3 -m pytest` superato; `python3 -m compileall agents connectors services ui utils main.py app_dash.py coordinator.py`
   da rieseguire dopo ogni modifica; `git diff --check` da rieseguire dopo ogni
   modifica.

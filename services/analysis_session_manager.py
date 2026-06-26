@@ -135,6 +135,9 @@ class AnalysisSessionManager:
                 "anomaly_detection_results": self._json_safe(
                     payload.get("anomaly_detection_results") or {}
                 ),
+                "root_cause_results": self._json_safe(
+                    payload.get("root_cause_results") or {}
+                ),
                 "final_report_snapshot": str(
                     payload.get("final_report_snapshot")
                     or payload.get("final_report")
@@ -191,6 +194,9 @@ class AnalysisSessionManager:
                 ),
                 "latest_anomaly_detection_results": (
                     latest.get("anomaly_detection_results", {}) if latest else {}
+                ),
+                "latest_root_cause_results": (
+                    latest.get("root_cause_results", {}) if latest else {}
                 ),
                 "latest_final_report": (
                     latest["final_report_snapshot"] if latest else ""
@@ -250,6 +256,10 @@ class AnalysisSessionManager:
                             "anomaly_detection_results",
                             {},
                         ).get("anomaly_count", 0),
+                        "root_cause_count": item.get(
+                            "root_cause_results",
+                            {},
+                        ).get("root_cause_count", 0),
                         "has_final_report": bool(item["final_report_snapshot"]),
                     }
                     for item in iterations
@@ -267,6 +277,11 @@ class AnalysisSessionManager:
                 ),
                 "latest_anomaly_detection_results": (
                     iterations[-1].get("anomaly_detection_results", {})
+                    if iterations
+                    else {}
+                ),
+                "latest_root_cause_results": (
+                    iterations[-1].get("root_cause_results", {})
                     if iterations
                     else {}
                 ),
