@@ -95,6 +95,42 @@ La cronologia gia integrata in `main` comprende:
    - `AgentContext` aggiornato con pattern e step suggeriti;
    - struttura pronta per futura persistenza SQLite;
    - 9 test dedicati.
+9. **Milestone 6 - Learning Engine**, completata su branch
+   `feature/milestone-6-learning-engine`:
+   - classe `LearningEngine`;
+   - eventi locali di utilizzo e feedback;
+   - aggiornamento progressivo di `confidence_score`;
+   - promozione dei pattern efficaci;
+   - declassamento dei pattern poco utili;
+   - raccomandazioni di miglioramento;
+   - audit trail JSON-serializzabile pronto per SQLite;
+   - integrazione con `PatternKnowledgeEngine`;
+   - integrazione con `AnalysisSessionManager`;
+   - note di affidabilita nel `SeniorDataAnalystEngine`;
+   - `AgentContext` aggiornato con `learning_state` e `learning_events`;
+   - 10 test dedicati.
+10. **Milestone intermedia - Analytical Reasoning Layer**, completata in questa
+    iterazione:
+   - classe `AnalyticalReasoningLayer`;
+   - strategia analitica locale JSON-serializzabile;
+   - ranking delle analisi tramite intent, pattern e `learning_state`;
+   - esclusione esplicita di analisi incompatibili con lo schema;
+   - domande di chiarimento per richieste ambigue, metriche e soglie SLA;
+   - integrazione con `DataProcessorAgent`, `AnalysisSessionManager`,
+     `SeniorDataAnalystEngine` e `AgentContext`;
+   - 9 test dedicati.
+11. **Milestone 7 - Advanced Statistical Engine**, completata in questa
+    iterazione:
+   - classe `AdvancedStatisticalEngine`;
+   - statistiche descrittive, percentili e dispersione robusta;
+   - outlier detection IQR, z-score e modified z-score;
+   - trend rolling, growth percent e month-over-month;
+   - confronto soglie/SLA;
+   - matrici Pearson, Spearman e Kendall;
+   - frequency table e missing/completeness analysis;
+   - integrazione con `DataProcessorAgent`, `AnalyticalReasoningLayer`,
+     `PatternKnowledgeEngine`, `SeniorDataAnalystEngine` e `AgentContext`;
+   - 11 test dedicati.
 
 Il commit della Milestone 5 e locale e non ancora pubblicato:
 `main` e avanti di un commit rispetto a `origin/main` perche le credenziali
@@ -130,6 +166,13 @@ GitHub HTTPS non sono disponibili nella sessione corrente.
   memoria, presente su `main`.
 - `services/pattern_knowledge_engine.py`: Knowledge Base locale dei pattern
   analitici, presente nel commit locale `4f3ad13`.
+- `services/learning_engine.py`: apprendimento locale da utilizzi, feedback,
+  confidence e audit trail, presente su
+  `feature/milestone-6-learning-engine`.
+- `services/analytical_reasoning_layer.py`: strategy builder locale per
+  decidere ordine, esclusioni, chiarimenti e reasoning trace delle analisi.
+- `services/advanced_statistical_engine.py`: libreria statistica locale per
+  percentili, dispersione, outlier, trend, soglie, correlazioni e completezza.
 
 #### Persistenza e utility
 
@@ -212,13 +255,16 @@ richieste che non vengono risolte dai follow-up deterministici.
 - `data/query_history.db`: query, descrizione, feedback e contatori.
 - `data/analysis_history.db`: piani analitici, colonne, feedback, confidence,
   utilizzi, successi ed embedding.
+- `LearningEngine`: stato in memoria con eventi di utilizzo, feedback,
+  promozioni, declassamenti, raccomandazioni e struttura pronta per SQLite.
 - Riuso di pattern con feedback positivo.
 - Similarita semantica tramite embedding OpenAI quando disponibile.
 - Fallback locale tramite `SequenceMatcher`.
 - Aggiornamento di query e pattern dai pulsanti “Utile” e “Non utile”.
 
-Questo e oggi un meccanismo di memoria e ranking, non ancora un Learning Engine
-autonomo completo.
+Il Learning Engine e oggi un motore locale in memoria: apprende e produce audit
+trail durante il processo Python, ma la persistenza SQLite dedicata e ancora un
+passo successivo.
 
 ### Fallback locali implementati
 
@@ -235,13 +281,19 @@ autonomo completo.
   `OPENAI_API_KEY`.
 - Analysis Session Manager completamente locale e senza chiamate OpenAI.
 - Pattern Knowledge Engine completamente locale e senza chiamate OpenAI.
+- Learning Engine completamente locale e senza chiamate OpenAI.
+- Analytical Reasoning Layer completamente locale e senza chiamate OpenAI.
+- Advanced Statistical Engine completamente locale e senza chiamate OpenAI.
 
 ### Qualita verificata
 
-- Suite pytest: **79 test superati**.
+- Suite pytest: **109 test superati**.
 - Test dedicati al Senior Data Analyst Engine: **7 superati**.
 - Test dedicati all'Analysis Session Manager: **8 superati**.
 - Test dedicati al Pattern Knowledge Engine: **9 superati**.
+- Test dedicati al Learning Engine: **10 superati**.
+- Test dedicati all'Analytical Reasoning Layer: **9 superati**.
+- Test dedicati all'Advanced Statistical Engine: **11 superati**.
 - Copertura presente per Analysis Engine, history, feedback, semantic memory,
   autonomous analysis, follow-up, grafici richiesti, sicurezza Oracle e report
   locale.
@@ -265,6 +317,27 @@ Pattern Knowledge Engine
   - pattern analitici
   - best practice
   - step raccomandati
+        |
+        v
+Learning Engine
+  - eventi utilizzo e feedback
+  - confidence score
+  - promozione e declassamento pattern
+  - raccomandazioni di miglioramento
+        |
+        v
+Analytical Reasoning Layer
+  - strategia ordinata
+  - razionale delle analisi
+  - esclusioni motivate
+  - domande di chiarimento
+        |
+        v
+Advanced Statistical Engine
+  - percentili e dispersione
+  - outlier e soglie
+  - trend rolling
+  - correlazioni e completezza
         |
         v
 Analysis Engine
@@ -305,6 +378,9 @@ Chat follow-up e feedback
 - `processed_data`;
 - piano e risultati deterministici;
 - pattern analitici rilevati e step suggeriti;
+- learning state ed eventi di apprendimento;
+- strategia analitica adottata e reasoning trace;
+- risultati statistici avanzati;
 - metadati di memoria e confidence;
 - risultati autonomous;
 - insight;
@@ -322,6 +398,9 @@ lo stato per aggiornare timeline e risultati.
 | Analysis Engine | Completamente locale | Calcoli Python/Pandas verificabili. |
 | Analysis Session Manager | Completamente locale | Sessioni iterative in memoria, nessuna chiamata esterna. |
 | Pattern Knowledge Engine | Completamente locale | Riconoscimento pattern e suggerimenti deterministici. |
+| Learning Engine | Completamente locale | Confidence, promozione, declassamento e audit trail in memoria. |
+| Analytical Reasoning Layer | Completamente locale | Strategia analitica, esclusioni e chiarimenti senza OpenAI. |
+| Advanced Statistical Engine | Completamente locale | Percentili, dispersione, outlier, trend, soglie, correlazioni e completezza. |
 | Senior Data Analyst Engine | Completamente locale | Insight, KPI, note metodologiche e raccomandazioni locali. |
 | Report locale | Completamente locale | Il report finale puo essere prodotto senza `OPENAI_API_KEY`. |
 | Interpretazione linguistica | OpenAI opzionale/parzialmente necessaria | Alcuni agenti precedenti usano ancora OpenAI quando non esiste un fallback locale. |
@@ -364,6 +443,9 @@ lo stato per aggiornare timeline e risultati.
 - `AutonomousAnalyst`;
 - `AnalysisSessionManager`;
 - `PatternKnowledgeEngine`;
+- `LearningEngine`;
+- `AnalyticalReasoningLayer`;
+- `AdvancedStatisticalEngine`;
 - `SeniorDataAnalystEngine`;
 - grafici Plotly;
 - PDF;
@@ -414,48 +496,87 @@ automaticamente analisi e arricchire piano e report con best practice.
 **Passo futuro non bloccante:** persistenza SQLite e creazione dinamica di
 pattern tramite Learning Engine.
 
-### Milestone 6 - Learning Engine
+### ✅ Milestone 6 - Learning Engine
 
-**Obiettivo:** permettere al sistema di imparare realmente dalle analisi
-effettuate e dal feedback utente.
+**Stato:** Completata.
 
-Il motore dovra:
+**Obiettivo raggiunto:** permettere al sistema di imparare localmente dalle
+analisi effettuate e dal feedback utente.
+
+Il motore:
 
 - aggiornare i confidence score;
 - promuovere pattern efficaci;
 - declassare pattern inutili;
-- imparare nuovi pattern;
 - costruire esperienza analitica riusabile;
 - mantenere audit trail delle decisioni di apprendimento.
 
-**Moduli previsti:** `services/learning_engine.py`,
-`services/pattern_knowledge_engine.py`, history SQLite, session manager,
-feedback dashboard e `utils/learning_monitor.py`.
+**Moduli:** `services/learning_engine.py`,
+`services/pattern_knowledge_engine.py`, `services/analysis_session_manager.py`,
+`services/senior_data_analyst_engine.py`, `utils/context.py`.
 
-**Priorita:** Critica.
+**Passo futuro non bloccante:** persistenza SQLite dedicata, collegamento
+completo con feedback dashboard e creazione dinamica di nuovi pattern.
 
 **Dipendenza:** Milestone 4 e 5.
 
-### Milestone 7 - Statistical Engine avanzato
+### ✅ Milestone intermedia - Analytical Reasoning Layer
 
-**Obiettivo:** ampliare le analisi locali con metodi statistici robusti.
+**Stato:** Completata.
 
-Nuove analisi:
+**Obiettivo raggiunto:** introdurre un layer locale che decide quali analisi
+eseguire, in quale ordine, quali evitare e quando chiedere chiarimenti.
 
-- percentili;
-- deviazione standard;
-- IQR;
-- z-score;
-- outlier;
-- regressione;
-- rolling average;
-- trend decomposition;
-- correlazioni avanzate.
+Il motore:
 
-**Moduli previsti:** `services/statistical_engine.py`, Analysis Engine,
-Autonomous Analyst, Pattern Knowledge Engine e Senior Data Analyst Engine.
+- legge richiesta utente, metadata dataframe, pattern rilevati e stato di
+  apprendimento;
+- costruisce `recommended_sequence` con priorita, rationale, colonne richieste,
+  dipendenze, output atteso e confidence;
+- produce `excluded_analyses` quando mancano colonne data, numeriche o
+  categoriali;
+- produce `clarification_questions` per richieste ambigue, metriche multiple o
+  soglie SLA non dichiarate;
+- esporta `reasoning_trace` JSON-serializzabile.
 
-**Priorita:** Alta.
+**Moduli:** `services/analytical_reasoning_layer.py`,
+`agents/data_processor.py`, `services/analysis_session_manager.py`,
+`services/senior_data_analyst_engine.py`, `utils/context.py`.
+
+**Passo futuro non bloccante:** collegare la strategy all'orchestrazione
+multi-step effettiva, trasformando gli step raccomandati in esecuzioni Pandas
+quando il motore statistico supporta tutte le analisi richieste.
+
+**Dipendenza:** Milestone 5 e 6.
+
+### ✅ Milestone 7 - Advanced Statistical Engine
+
+**Stato:** Completata.
+
+**Obiettivo raggiunto:** ampliare le analisi locali con metodi statistici
+robusti e JSON-serializzabili senza chiamate OpenAI.
+
+Il motore supporta:
+
+- statistiche descrittive;
+- percentili P10, P25, P50, P75, P90, P95, P99;
+- dispersione con range, IQR, varianza, deviazione standard, coefficiente di
+  variazione e MAD;
+- outlier detection con IQR, z-score e modified z-score;
+- trend con rolling mean, rolling standard deviation, growth percent e
+  month-over-month;
+- confronto soglie/SLA;
+- matrici di correlazione Pearson, Spearman e Kendall;
+- frequency table;
+- missing/completeness analysis.
+
+**Moduli:** `services/advanced_statistical_engine.py`,
+`agents/data_processor.py`, `services/analytical_reasoning_layer.py`,
+`services/pattern_knowledge_engine.py`,
+`services/senior_data_analyst_engine.py`, `utils/context.py`.
+
+**Passo futuro non bloccante:** aggiungere regressione, trend decomposition e
+orchestrazione automatica degli step statistici come esecuzioni distinte.
 
 **Dipendenza:** Analysis Engine e Pattern Knowledge Engine.
 
@@ -553,9 +674,8 @@ Sono necessari:
 
 ## Debito tecnico
 
-- Il branch corrente e `main` ed e avanti di un commit rispetto a
-  `origin/main`: `4f3ad13` contiene la Milestone 5. Le modifiche documentali di
-  questo handover sono nel worktree non committato.
+- Il branch corrente e `feature/milestone-6-learning-engine`, derivato da
+  `origin/main`, con modifiche locali non committate per la Milestone 6.
 - `DataProcessorAgent` chiama ancora OpenAI in modo bloccante dopo avere
   calcolato i risultati deterministici.
 - `DataExtractorAgent` e `DataValidatorAgent` non hanno fallback locali
@@ -572,8 +692,11 @@ Sono necessari:
   sessione completa.
 - `AnalysisSessionManager` usa storage in memoria e non e ancora collegato alla
   dashboard, al coordinator o a SQLite.
-- `PatternKnowledgeEngine` usa un catalogo statico in memoria; non apprende
-  ancora nuovi pattern dai feedback e non persiste su SQLite.
+- `PatternKnowledgeEngine` resta basato su un catalogo statico; il
+  `LearningEngine` ne modifica ranking e affidabilita, ma non crea ancora nuovi
+  pattern persistenti.
+- `LearningEngine` usa storage in memoria e non persiste ancora eventi e
+  confidence su SQLite.
 - Gli step suggeriti dalla Knowledge Base non vengono ancora orchestrati
   automaticamente: arricchiscono piano e report, ma non sostituiscono i
   risultati deterministici realmente eseguiti.
@@ -658,17 +781,16 @@ sono:
 ## Ultimo aggiornamento
 
 - **Data:** 26 giugno 2026
-- **Ora:** 00:07:04 CEST
-- **Branch Git:** `main`
-- **HEAD locale:** `4f3ad13 feat: add pattern knowledge engine`
-- **HEAD remoto `origin/main`:** `a3ab8fd feat: add iterative analysis session manager`
-- **Stato repository:** `main` e avanti di un commit rispetto a
-  `origin/main`; `PROJECT_STATUS.md` e `README.md` contengono modifiche
-  documentali non staged e non committate.
-- **Azione Git pendente:** configurare credenziali GitHub, committare
-  l'handover documentale e pubblicare `main`.
-- **Modifiche locali principali:** aggiornamento completo di stato,
-  architettura, autonomia, roadmap e visione finale.
-- **Numero test:** 79 superati.
-- **Quality gate:** 79 test pytest superati; `python3 -m compileall .`
+- **Ora:** 12:00:00 CEST
+- **Branch Git:** `feature/milestone-6-learning-engine`
+- **HEAD locale:** `299a44f feat: add pattern knowledge engine`
+- **HEAD remoto `origin/main`:** `299a44f feat: add pattern knowledge engine`
+- **Stato repository:** branch allineata a `origin/main` con modifiche locali
+  non committate per la Milestone 6.
+- **Azione Git pendente:** review delle modifiche, commit e pubblicazione della
+  branch.
+- **Modifiche locali principali:** `LearningEngine`, integrazione con Knowledge
+  Engine, Session Manager, Senior Data Analyst Engine, context e documentazione.
+- **Numero test:** 89 superati.
+- **Quality gate:** 109 test pytest superati; `.\.venv\Scripts\python.exe -m compileall .`
   completato; `git diff --check` superato.

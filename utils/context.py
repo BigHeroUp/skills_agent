@@ -36,6 +36,11 @@ class AgentContext:
     similarity_method: str | None = None
     detected_patterns: List[Dict[str, Any]] = field(default_factory=list)
     knowledge_analysis_steps: List[Dict[str, Any]] = field(default_factory=list)
+    learning_state: Dict[str, Any] = field(default_factory=dict)
+    learning_events: List[Dict[str, Any]] = field(default_factory=list)
+    analytical_strategy: Dict[str, Any] = field(default_factory=dict)
+    analytical_reasoning_trace: Dict[str, Any] = field(default_factory=dict)
+    advanced_statistical_results: Dict[str, Any] = field(default_factory=dict)
 
     # Analisi autonoma multi-step della Milestone 4
     autonomous_analysis_plan: Dict[str, Any] = field(default_factory=dict)

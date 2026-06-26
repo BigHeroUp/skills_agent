@@ -19,6 +19,15 @@ Input: richiesta + CSV / Excel / Oracle
 [Pattern Knowledge Engine]
     |
     v
+[Learning Engine]
+    |
+    v
+[Analytical Reasoning Layer]
+    |
+    v
+[Advanced Statistical Engine]
+    |
+    v
 [Analysis Engine / Autonomous Analyst]
     |
     v
@@ -43,6 +52,10 @@ http://localhost:8050/
 - Suggerimento automatico di query o colonne tramite `QuerySuggestionAgent`.
 - Sessioni iterative con classificazione locale delle richieste.
 - Riconoscimento di pattern analitici e suggerimento automatico delle analisi.
+- Learning Engine locale per confidence, promozione e declassamento pattern.
+- Analytical Reasoning Layer locale per ordinare analisi, esclusioni e chiarimenti.
+- Advanced Statistical Engine locale per percentili, dispersione, outlier,
+  trend, soglie, correlazioni e completezza.
 - Calcoli deterministici Python/Pandas.
 - Insight e report locali da `SeniorDataAnalystEngine`.
 - Grafici Plotly generati dal dataframe reale.
@@ -78,8 +91,11 @@ my_skill_agent/
 |-- services/
 |   |-- analysis_service.py
 |   |-- analysis_engine.py
+|   |-- advanced_statistical_engine.py
 |   |-- analysis_session_manager.py
 |   |-- autonomous_analyst.py
+|   |-- analytical_reasoning_layer.py
+|   |-- learning_engine.py
 |   |-- pattern_knowledge_engine.py
 |   |-- semantic_memory.py
 |   |-- senior_data_analyst_engine.py
@@ -112,6 +128,10 @@ La dashboard Dash e organizzata in tre layer:
   service.
 - `services/analysis_service.py` centralizza stato runtime, parsing upload
   CSV/Excel, invocazione pipeline multi-agent e analisi follow-up deterministiche.
+- `services/analytical_reasoning_layer.py` costruisce la strategia analitica
+  locale ordinata, con razionale, analisi escluse e domande di chiarimento.
+- `services/advanced_statistical_engine.py` calcola statistiche avanzate locali
+  JSON-serializzabili con pandas/numpy.
 - `services/oracle_service.py` incapsula il test di connessione Oracle senza
   esporre la password allo store browser.
 
@@ -476,6 +496,69 @@ vengono salvati nel context e in `processed_data`:
 - `autonomous_recommendations`;
 - `autonomous_mode`.
 
+## Milestone intermedia: Analytical Reasoning Layer
+
+`services/analytical_reasoning_layer.py` introduce un livello locale di
+ragionamento analitico senza chiamate OpenAI. Il motore legge richiesta utente,
+metadata del dataframe, pattern rilevati dal `PatternKnowledgeEngine` e
+`learning_state`, poi produce una strategia JSON-serializzabile con:
+
+- `recommended_sequence`, cioe analisi ordinate con priorita, colonne richieste,
+  dipendenze, output atteso, razionale e confidence;
+- `excluded_analyses`, con motivo esplicito quando i dati non consentono trend,
+  statistiche numeriche o segmentazioni;
+- `clarification_questions`, per richieste ambigue o soglie/SLA non definite;
+- `reasoning_trace`, audit trail delle decisioni e dei fattori di ranking;
+- `data_requirements` e `stopping_conditions`.
+
+Regole principali:
+
+- non vengono inventate colonne non presenti nei metadata;
+- senza colonne data/ora non vengono suggeriti trend temporali;
+- senza colonne numeriche non vengono suggerite statistiche numeriche,
+  percentili, outlier o confronti soglia;
+- richieste su tempi, performance o SLA danno priorita a percentili, trend,
+  outlier e soglie quando i dati lo consentono;
+- richieste su distribuzioni o categorie danno priorita a segmentazioni e top
+  valori.
+
+L'integrazione corrente salva `analytical_strategy` e
+`analytical_reasoning_trace` in `AgentContext`, `processed_data` e nelle
+iterazioni dell'`AnalysisSessionManager`. Il `SeniorDataAnalystEngine` include
+nel report la sezione "Strategia analitica adottata".
+
+## Milestone 7: Advanced Statistical Engine
+
+`services/advanced_statistical_engine.py` introduce una libreria statistica
+locale senza OpenAI. Il motore usa solo pandas/numpy e produce output
+JSON-serializzabili anche quando il dataframe e vuoto o una colonna non e
+compatibile.
+
+Analisi supportate:
+
+- statistiche descrittive e percentili P10, P25, P50, P75, P90, P95, P99;
+- dispersione: range, IQR, varianza, deviazione standard, coefficiente di
+  variazione e MAD;
+- outlier detection con metodo IQR, z-score e modified z-score;
+- trend temporali con rolling mean, rolling standard deviation, growth percent
+  e month-over-month;
+- confronto soglie/SLA;
+- matrici di correlazione Pearson, Spearman e Kendall quando applicabili;
+- frequency table per colonne categoriali;
+- analisi missing/completeness.
+
+Integrazione corrente:
+
+- il `DataProcessorAgent` esegue il motore quando strategy, pattern o metadata
+  indicano analisi statistiche utili;
+- l'`AnalyticalReasoningLayer` suggerisce dispersione avanzata e correlation
+  matrix quando il dataset lo consente;
+- il `PatternKnowledgeEngine` arricchisce `time_performance_analysis` con
+  metriche robuste e outlier avanzati;
+- il `SeniorDataAnalystEngine` include nel report percentili, IQR/MAD, outlier,
+  soglie e correlazioni quando presenti;
+- `AgentContext` e `processed_data` espongono `advanced_statistical_results`.
+
 ## Senior Data Analyst Engine locale
 
 `services/senior_data_analyst_engine.py` riduce la dipendenza da OpenAI
@@ -562,6 +645,34 @@ L'integrazione corrente:
 Gli step suggeriti rappresentano best practice raccomandate. Non vengono
 presentati come risultati eseguiti finche il relativo motore deterministico non
 ha calcolato le metriche.
+
+## Milestone 6: Learning Engine - Completata
+
+`services/learning_engine.py` introduce un ciclo locale di apprendimento sui
+pattern analitici senza chiamate OpenAI. Il motore registra eventi di utilizzo e
+feedback, aggiorna `confidence_score`, promuove pattern efficaci, declassa
+pattern poco utili e produce raccomandazioni operative per migliorare la
+Knowledge Base.
+
+Il motore espone payload JSON-serializzabili e pronti per una futura persistenza
+SQLite:
+
+- `record_usage()`: registra l'uso di un pattern;
+- `record_feedback()`: applica feedback utile, non utile o neutro;
+- `update_confidence()`: ricalcola affidabilita e stato del pattern;
+- `recommend_patterns()`: ordina i pattern disponibili per confidence appresa;
+- `export_learning_state()`: esporta statistiche, eventi e audit trail.
+
+Integrazione corrente:
+
+- `PatternKnowledgeEngine` puo ricevere `learning_state` e usarlo per ordinare i
+  pattern rilevati;
+- `AnalysisSessionManager` salva `learning_events` e snapshot di
+  `learning_state` per ogni iterazione;
+- `SeniorDataAnalystEngine` include nel report note su pattern promossi o
+  declassati;
+- `AgentContext` e `processed_data` espongono `learning_state` e
+  `learning_events`.
 
 ## Logging
 

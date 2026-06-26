@@ -7,18 +7,28 @@ import json
 import re
 from typing import Any
 
+from services.learning_engine import LearningEngine
+
 
 class PatternKnowledgeEngine:
     """Rileva pattern e suggerisce best practice senza chiamate OpenAI."""
 
     SCHEMA_VERSION = 1
 
-    def __init__(self, patterns: list[dict[str, Any]] | None = None):
+    def __init__(
+        self,
+        patterns: list[dict[str, Any]] | None = None,
+        learning_engine: LearningEngine | None = None,
+        learning_state: dict[str, Any] | None = None,
+    ):
         catalog = patterns if patterns is not None else self._default_patterns()
         self._patterns = {
             pattern["pattern_id"]: copy.deepcopy(pattern)
             for pattern in catalog
         }
+        self._learning_engine = learning_engine or (
+            LearningEngine(learning_state) if learning_state else None
+        )
 
     def detect_patterns(
         self,
@@ -54,10 +64,24 @@ class PatternKnowledgeEngine:
             match["metadata_signals"] = metadata_signals
             detected.append(match)
 
-        detected.sort(
-            key=lambda item: (-item["confidence_score"], item["pattern_id"])
-        )
+        detected = self.rank_patterns(user_request, detected)
         return detected
+
+    def rank_patterns(
+        self,
+        user_request: str,
+        patterns: list[dict],
+        learning_state: dict[str, Any] | None = None,
+    ) -> list[dict]:
+        """Ordina i pattern usando il Learning Engine quando disponibile."""
+        learning_engine = self._learning_engine
+        if learning_state is not None:
+            learning_engine = LearningEngine(learning_state)
+        if learning_engine is not None:
+            return learning_engine.recommend_patterns(user_request, patterns)
+        ranked = copy.deepcopy(patterns or [])
+        ranked.sort(key=lambda item: (-item.get("confidence_score", 0), item["pattern_id"]))
+        return ranked
 
     def suggest_analysis_steps(self, patterns: list[dict]) -> list[dict]:
         """Converte i pattern rilevati in una sequenza di analisi consigliate."""
@@ -132,6 +156,11 @@ class PatternKnowledgeEngine:
             "schema_version": self.SCHEMA_VERSION,
             "storage": "memory",
             "pattern_count": len(self._patterns),
+            "learning_state": (
+                self._learning_engine.export_learning_state()
+                if self._learning_engine is not None
+                else None
+            ),
             "patterns": [
                 copy.deepcopy(self._patterns[pattern_id])
                 for pattern_id in sorted(self._patterns)
@@ -222,10 +251,18 @@ class PatternKnowledgeEngine:
                 "recommended_metrics": [
                     "mean",
                     "median",
+                    "p10",
+                    "p25",
                     "p75",
                     "p90",
                     "p95",
                     "p99",
+                    "iqr",
+                    "standard_deviation",
+                    "coefficient_of_variation",
+                    "mad",
+                    "z_score_outliers",
+                    "modified_z_score_outliers",
                     "outlier_count",
                     "sla_breach_rate",
                 ],
@@ -251,9 +288,9 @@ class PatternKnowledgeEngine:
                 "recommended_analysis_steps": [
                     {
                         "title": "Statistiche robuste della durata",
-                        "analysis_type": "numeric_distribution",
-                        "metric": "mean_median_percentiles",
-                        "reason": "Descrivere centro e coda della distribuzione.",
+                        "analysis_type": "advanced_statistical_summary",
+                        "metric": "percentiles_dispersion_outliers",
+                        "reason": "Descrivere centro, coda, dispersione robusta e valori estremi.",
                         "priority": 10,
                     },
                     {

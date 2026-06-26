@@ -31,9 +31,18 @@ class SeniorDataAnalystEngine:
             "execution_summary": data.get("execution_summary") or {},
             "detected_patterns": data.get("detected_patterns") or [],
             "knowledge_analysis_steps": data.get("knowledge_analysis_steps") or [],
+            "learning_state": data.get("learning_state") or {},
+            "learning_events": data.get("learning_events") or [],
+            "analytical_strategy": data.get("analytical_strategy") or {},
+            "analytical_reasoning_trace": data.get("analytical_reasoning_trace") or {},
+            "advanced_statistical_results": data.get("advanced_statistical_results") or {},
         }
         analysis["methodological_notes"] = self._build_methodological_notes(
             analysis["detected_patterns"]
+        )
+        analysis["learning_reliability_notes"] = self._build_learning_reliability_notes(
+            analysis["learning_state"],
+            analysis["detected_patterns"],
         )
         analysis["key_findings"] = self._build_key_findings(analysis)
         analysis["operational_recommendations"] = self._build_recommendations(analysis)
@@ -88,11 +97,19 @@ class SeniorDataAnalystEngine:
             "## Riepilogo esecutivo",
             analysis.get("executive_summary", "Sintesi non disponibile."),
             "",
+            "## Strategia analitica adottata",
+            self._format_analytical_strategy(analysis.get("analytical_strategy", {})),
+            "",
             "## Evidenze principali",
             self._bullet_list(analysis.get("key_findings", [])),
             "",
             "## KPI",
             self._format_kpis(analysis.get("kpi_summary", [])),
+            "",
+            "## Statistiche avanzate",
+            self._format_advanced_statistics(
+                analysis.get("advanced_statistical_results", {})
+            ),
             "",
             "## Trend",
             self._format_structured_items(
@@ -119,6 +136,9 @@ class SeniorDataAnalystEngine:
             "",
             "## Best practice metodologiche",
             self._bullet_list(analysis.get("methodological_notes", [])),
+            "",
+            "## Affidabilita dei pattern",
+            self._bullet_list(analysis.get("learning_reliability_notes", [])),
             "",
             "## Nota metodologica",
             (
@@ -543,6 +563,54 @@ class SeniorDataAnalystEngine:
             )
         return notes
 
+    def _build_learning_reliability_notes(
+        self,
+        learning_state: dict[str, Any],
+        patterns: list[dict[str, Any]],
+    ) -> list[str]:
+        notes = []
+        state_patterns = {}
+        if isinstance(learning_state, dict):
+            for item in learning_state.get("patterns", []) or []:
+                if isinstance(item, dict) and item.get("pattern_id"):
+                    state_patterns[item["pattern_id"]] = item
+
+        for pattern in patterns or []:
+            pattern_id = pattern.get("pattern_id")
+            learning = pattern.get("learning") or state_patterns.get(pattern_id) or {}
+            status = learning.get("status")
+            confidence = learning.get(
+                "confidence_score",
+                pattern.get("confidence_score"),
+            )
+            if status == "promoted":
+                notes.append(
+                    f"Pattern {pattern_id} ad alta affidabilita locale "
+                    f"(confidence {self._fmt(confidence)}): prioritario nel riuso."
+                )
+            elif status == "demoted":
+                notes.append(
+                    f"Pattern {pattern_id} a bassa affidabilita locale "
+                    f"(confidence {self._fmt(confidence)}): da usare con cautela."
+                )
+
+        if isinstance(learning_state, dict):
+            for pattern_id in learning_state.get("promoted_pattern_ids", []) or []:
+                if not any(pattern_id in note for note in notes):
+                    notes.append(
+                        f"Pattern {pattern_id} promosso dal Learning Engine per feedback positivo ricorrente."
+                    )
+            for pattern_id in learning_state.get("demoted_pattern_ids", []) or []:
+                if not any(pattern_id in note for note in notes):
+                    notes.append(
+                        f"Pattern {pattern_id} declassato dal Learning Engine per feedback negativo o confidence bassa."
+                    )
+        if not notes:
+            notes.append(
+                "Non sono ancora disponibili evidenze di apprendimento sufficienti sui pattern rilevati."
+            )
+        return notes
+
     def _kpi(self, name: str, value: Any, category: str, context: str | None = None) -> dict:
         return {"name": name, "value": value, "category": category, "context": context}
 
@@ -579,6 +647,88 @@ class SeniorDataAnalystEngine:
         if not items:
             return f"- {empty}"
         return "\n".join(f"- {item.get('summary', str(item))}" for item in items)
+
+    def _format_analytical_strategy(self, strategy: dict[str, Any]) -> str:
+        if not isinstance(strategy, dict) or not strategy:
+            return "- Strategia analitica locale non disponibile."
+        lines = [
+            f"- Strategy ID: {strategy.get('strategy_id', 'n/a')}",
+            f"- Confidence: {self._fmt(strategy.get('confidence_score', 0))}",
+        ]
+        for step in (strategy.get("recommended_sequence") or [])[:6]:
+            columns = ", ".join(step.get("required_columns") or []) or "nessuna colonna specifica"
+            lines.append(
+                f"- Step {step.get('priority')}: {step.get('analysis_type')} "
+                f"su {columns}. {step.get('rationale', '')}"
+            )
+        questions = strategy.get("clarification_questions") or []
+        if questions:
+            lines.append(
+                "- Chiarimenti aperti: "
+                + "; ".join(item.get("question", "") for item in questions[:3])
+            )
+        excluded = strategy.get("excluded_analyses") or []
+        if excluded:
+            lines.append(
+                "- Analisi escluse: "
+                + "; ".join(
+                    f"{item.get('analysis_type')} ({item.get('reason')})"
+                    for item in excluded[:3]
+                )
+                )
+        return "\n".join(lines)
+
+    def _format_advanced_statistics(self, results: dict[str, Any]) -> str:
+        if not isinstance(results, dict) or not results:
+            return "- Statistiche avanzate non disponibili."
+        if results.get("status") == "skipped":
+            return f"- Analisi statistica avanzata non eseguita: {results.get('reason', 'non richiesta')}."
+        if results.get("status") == "empty":
+            return "- Dataset vuoto: statistiche avanzate non calcolabili."
+        lines: list[str] = []
+        numeric_analysis = results.get("numeric_analysis") or {}
+        for column, analysis in list(numeric_analysis.items())[:5]:
+            if not isinstance(analysis, dict) or analysis.get("status") != "computed":
+                continue
+            percentiles = analysis.get("percentiles") or {}
+            dispersion = analysis.get("dispersion") or {}
+            outliers = analysis.get("outliers") or {}
+            iqr_outliers = (outliers.get("iqr") or {}).get("outlier_count", 0)
+            zscore_outliers = (outliers.get("zscore") or {}).get("outlier_count", 0)
+            modified_outliers = (outliers.get("modified_zscore") or {}).get(
+                "outlier_count",
+                0,
+            )
+            lines.append(
+                f"- **{column}:** P50 {self._fmt(percentiles.get('p50'))}, "
+                f"P90 {self._fmt(percentiles.get('p90'))}, "
+                f"P95 {self._fmt(percentiles.get('p95'))}, "
+                f"IQR {self._fmt(dispersion.get('iqr'))}, "
+                f"MAD {self._fmt(dispersion.get('mad'))}; "
+                f"outlier IQR/Z/modZ: {iqr_outliers}/{zscore_outliers}/{modified_outliers}."
+            )
+        threshold_results = results.get("threshold_comparisons") or {}
+        for key, item in list(threshold_results.items())[:3]:
+            if isinstance(item, dict) and item.get("status") == "computed":
+                lines.append(
+                    f"- **Soglia {key}:** breach rate {self._fmt(item.get('breach_rate'))}% "
+                    f"su {item.get('valid_count', 0)} valori validi."
+                )
+        correlations = results.get("correlation_matrices") or {}
+        pearson = correlations.get("pearson") or {}
+        top_pairs = pearson.get("top_pairs") or []
+        if top_pairs:
+            best = top_pairs[0]
+            pair = " / ".join(best.get("columns", []))
+            lines.append(
+                f"- Correlazione Pearson piu alta: {pair} = {self._fmt(best.get('correlation'))}."
+            )
+        missing = results.get("missing_completeness") or {}
+        if missing:
+            lines.append(
+                f"- Completezza complessiva: {self._fmt(missing.get('overall_completeness_percent'))}%."
+            )
+        return "\n".join(lines) if lines else "- Nessuna statistica avanzata calcolata."
 
     def _fmt(self, value: Any) -> str:
         if isinstance(value, float):
