@@ -9,6 +9,7 @@ from services.anomaly_detection_engine import AnomalyDetectionEngine
 from services.analysis_engine import AnalysisEngine
 from services.analytical_reasoning_layer import AnalyticalReasoningLayer
 from services.autonomous_analyst import AutonomousAnalyst
+from services.domain_pack_loader import DomainPackLoader
 from services.learning_engine import LearningEngine
 from services.pattern_knowledge_engine import PatternKnowledgeEngine
 from utils.context import AgentContext
@@ -35,6 +36,12 @@ class DataProcessorAgent(BaseAgent):
             deterministic_summary = summarize_dataframe(df)
             analysis_engine = AnalysisEngine(history_manager=AnalysisHistoryManager())
             autonomous_analyst = AutonomousAnalyst()
+            domain_pack_loader = DomainPackLoader()
+            context.domain_pack_context = self._build_domain_pack_context(
+                domain_pack_loader,
+                context.user_input,
+                deterministic_summary,
+            )
             context.autonomous_mode = autonomous_analyst.should_run_autonomous(context.user_input)
 
             if context.autonomous_mode:
@@ -84,6 +91,7 @@ class DataProcessorAgent(BaseAgent):
                 context.analysis_plan,
                 context.user_input,
                 deterministic_summary,
+                context.domain_pack_context,
             )
             enrichment = enriched_plan.get("knowledge_enrichment", {})
             context.analysis_plan = enriched_plan
@@ -114,6 +122,7 @@ class DataProcessorAgent(BaseAgent):
                 dataframe_metadata=deterministic_summary,
                 detected_patterns=context.detected_patterns,
                 learning_state=context.learning_state,
+                domain_pack_context=context.domain_pack_context,
             )
             context.analytical_reasoning_trace = reasoning_layer.export_reasoning_trace(
                 context.analytical_strategy
@@ -181,6 +190,9 @@ class DataProcessorAgent(BaseAgent):
             Anomaly detection locale:
             {str(context.anomaly_detection_results)[:2000]}
 
+            Domain pack riconosciuto:
+            {str(context.domain_pack_context)[:1600]}
+
             Analisi autonoma:
             - Modalita autonoma: {context.autonomous_mode}
             - Executive summary autonoma: {context.autonomous_executive_summary[:1200]}
@@ -224,6 +236,7 @@ class DataProcessorAgent(BaseAgent):
                 "analytical_reasoning_trace": context.analytical_reasoning_trace,
                 "advanced_statistical_results": context.advanced_statistical_results,
                 "anomaly_detection_results": context.anomaly_detection_results,
+                "domain_pack_context": context.domain_pack_context,
                 "autonomous_analysis_plan": context.autonomous_analysis_plan,
                 "autonomous_analysis_results": context.autonomous_analysis_results,
                 "autonomous_executive_summary": context.autonomous_executive_summary,
@@ -240,6 +253,33 @@ class DataProcessorAgent(BaseAgent):
             self.log(f"❌ Errore: {e}")
         
         return context
+
+    def _build_domain_pack_context(
+        self,
+        loader: DomainPackLoader,
+        user_request: str,
+        dataframe_metadata: dict,
+    ) -> dict:
+        """Rileva un domain pack senza bloccare la pipeline in caso di errori."""
+        try:
+            suggestion = loader.suggest_pack(user_request, dataframe_metadata)
+            if not suggestion:
+                return {
+                    "status": "not_detected",
+                    "available_packs": loader.list_available_packs(),
+                }
+            knowledge = loader.export_pack_knowledge(suggestion["pack_id"])
+            return {
+                "status": "detected",
+                "pack_id": suggestion["pack_id"],
+                "suggestion": suggestion,
+                "knowledge": knowledge,
+            }
+        except Exception as exc:
+            return {
+                "status": "error",
+                "error": str(exc),
+            }
 
     def _should_run_advanced_statistics(
         self,

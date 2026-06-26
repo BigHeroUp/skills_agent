@@ -75,6 +75,7 @@ class AnalyticalReasoningLayer:
         dataframe_metadata: dict,
         detected_patterns: list[dict] | None = None,
         learning_state: dict | None = None,
+        domain_pack_context: dict | None = None,
     ) -> dict:
         """Produce una strategia ordinata e JSON-serializzabile."""
         request = str(user_request or "").strip()
@@ -90,11 +91,18 @@ class AnalyticalReasoningLayer:
             "detected_patterns": patterns,
             "learning_state": learning_state if isinstance(learning_state, dict) else {},
             "intent": self._classify_intent(request),
+            "domain_pack_context": (
+                domain_pack_context if isinstance(domain_pack_context, dict) else {}
+            ),
         }
 
         candidates, excluded = self._build_candidates(context)
         ranked = self.rank_candidate_analyses(candidates, context)
-        questions = self.identify_missing_context(request, metadata)
+        questions = self.identify_missing_context(
+            request,
+            metadata,
+            context["domain_pack_context"],
+        )
         recommended = [
             self._strategy_step(index, candidate)
             for index, candidate in enumerate(ranked, start=1)
@@ -106,6 +114,10 @@ class AnalyticalReasoningLayer:
             "detected_pattern_ids": [
                 pattern.get("pattern_id") for pattern in patterns if pattern.get("pattern_id")
             ],
+            "domain_pack_id": (
+                context["domain_pack_context"].get("pack_id")
+                or (context["domain_pack_context"].get("suggestion") or {}).get("pack_id")
+            ),
             "candidate_count": len(candidates),
             "excluded_count": len(excluded),
             "ranking_factors": [
@@ -136,6 +148,9 @@ class AnalyticalReasoningLayer:
             "confidence_score": self._strategy_confidence(recommended, questions),
             "data_requirements": self._data_requirements(recommended),
             "stopping_conditions": self._stopping_conditions(questions),
+            "domain_strategy_rules": self._domain_strategy_rules(
+                context["domain_pack_context"]
+            ),
         }
         return self._json_safe(strategy)
 
@@ -196,6 +211,7 @@ class AnalyticalReasoningLayer:
         self,
         user_request: str,
         dataframe_metadata: dict,
+        domain_pack_context: dict | None = None,
     ) -> list[dict]:
         """Identifica chiarimenti necessari prima di conclusioni forti."""
         request = self._normalize(user_request)
@@ -240,6 +256,7 @@ class AnalyticalReasoningLayer:
                 "Sono disponibili piu colonne categoriali compatibili.",
             ))
 
+        questions.extend(self._domain_questions(domain_pack_context))
         return self._deduplicate_questions(questions)
 
     def explain_strategy(self, strategy: dict) -> str:
@@ -470,6 +487,38 @@ class AnalyticalReasoningLayer:
                 0.48,
             )
 
+        domain_rules = self._domain_strategy_rules(context.get("domain_pack_context"))
+        existing_types = {candidate["analysis_type"] for candidate in candidates}
+        for rule in domain_rules:
+            for analysis_type in rule.get("analysis_types", []) or []:
+                if analysis_type in existing_types:
+                    continue
+                required_columns = []
+                if analysis_type in {"categorical_segmentation", "segment_anomaly_analysis"} and categorical:
+                    required_columns = [self._preferred_categorical_column(categorical, context["user_request"])]
+                elif analysis_type in {
+                    "percentile_analysis",
+                    "advanced_dispersion_analysis",
+                    "threshold_comparison",
+                    "anomaly_detection",
+                    "degradation_detection",
+                } and numeric:
+                    required_columns = [self._preferred_numeric_column(numeric, metadata["columns"])]
+                elif analysis_type == "time_trend" and datetime_cols:
+                    required_columns = [datetime_cols[0]]
+                if not required_columns and analysis_type not in {"anomaly_detection"}:
+                    continue
+                add(
+                    analysis_type,
+                    rule.get("description", "Regola derivata dal domain pack."),
+                    required_columns,
+                    "output guidato dal domain pack",
+                    "domain_pack",
+                    int(rule.get("priority", 50)),
+                    0.5,
+                )
+                existing_types.add(analysis_type)
+
         return candidates, self._deduplicate_exclusions(excluded)
 
     def _strategy_step(self, index: int, candidate: dict) -> dict:
@@ -611,6 +660,30 @@ class AnalyticalReasoningLayer:
                 "Richiedere chiarimenti prima di trasformare la strategia in conclusioni operative vincolanti."
             )
         return conditions
+
+    def _domain_strategy_rules(self, domain_pack_context: dict | None) -> list[dict]:
+        context = domain_pack_context if isinstance(domain_pack_context, dict) else {}
+        knowledge = context.get("knowledge") if isinstance(context.get("knowledge"), dict) else {}
+        rules = knowledge.get("strategy_rules") if isinstance(knowledge, dict) else []
+        return [
+            copy.deepcopy(rule)
+            for rule in rules or []
+            if isinstance(rule, dict)
+        ]
+
+    def _domain_questions(self, domain_pack_context: dict | None) -> list[dict]:
+        context = domain_pack_context if isinstance(domain_pack_context, dict) else {}
+        knowledge = context.get("knowledge") if isinstance(context.get("knowledge"), dict) else {}
+        questions = []
+        for item in knowledge.get("questions") or []:
+            if not isinstance(item, dict) or not item.get("question"):
+                continue
+            questions.append(self._question(
+                str(item.get("question_id") or "domain_context"),
+                str(item["question"]),
+                str(item.get("reason") or "Chiarimento richiesto dal domain pack."),
+            ))
+        return questions
 
     def _strategy_confidence(self, recommended: list[dict], questions: list[dict]) -> float:
         if not recommended:

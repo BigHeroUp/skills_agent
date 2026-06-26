@@ -1,0 +1,32 @@
+[
+  {
+    "rule_id": "activation_percentiles_required",
+    "description": "Per analisi tempi usare percentili oltre alla media.",
+    "analysis_types": ["percentile_analysis", "advanced_dispersion_analysis"],
+    "priority": 10
+  },
+  {
+    "rule_id": "delivery_method_separation",
+    "description": "Separare consegna a mano da corriere/agenzia.",
+    "analysis_types": ["categorical_segmentation", "segment_anomaly_analysis"],
+    "priority": 15
+  },
+  {
+    "rule_id": "degradation_month_over_month",
+    "description": "Per degrado usare trend temporale e confronto mese su mese.",
+    "analysis_types": ["time_trend", "degradation_detection"],
+    "priority": 20
+  },
+  {
+    "rule_id": "anomalies_use_engine",
+    "description": "Per anomalie usare AnomalyDetectionEngine.",
+    "analysis_types": ["anomaly_detection"],
+    "priority": 25
+  },
+  {
+    "rule_id": "sla_threshold_comparison",
+    "description": "Per SLA usare threshold comparison.",
+    "analysis_types": ["threshold_comparison"],
+    "priority": 30
+  }
+]

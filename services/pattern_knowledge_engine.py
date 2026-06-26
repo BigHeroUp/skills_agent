@@ -120,6 +120,7 @@ class PatternKnowledgeEngine:
         base_plan: dict,
         user_request: str,
         dataframe_metadata: dict | None = None,
+        domain_pack_context: dict | None = None,
     ) -> dict:
         """Aggiunge conoscenza analitica senza cambiare il calcolo eseguito."""
         plan = copy.deepcopy(base_plan) if isinstance(base_plan, dict) else {}
@@ -136,17 +137,28 @@ class PatternKnowledgeEngine:
             groupings.extend(pattern.get("recommended_groupings", []))
             charts.extend(pattern.get("recommended_charts", []))
 
+        domain_enrichment = self._domain_pack_enrichment(domain_pack_context)
+        metrics.extend(domain_enrichment.get("recommended_metrics", []))
+        groupings.extend(domain_enrichment.get("recommended_groupings", []))
+        charts.extend(domain_enrichment.get("recommended_charts", []))
+        steps.extend(domain_enrichment.get("suggested_analysis_steps", []))
+        notes.extend(domain_enrichment.get("senior_analyst_notes", []))
+
         plan["knowledge_enrichment"] = {
             "schema_version": self.SCHEMA_VERSION,
             "detected_pattern_ids": [
                 pattern["pattern_id"] for pattern in patterns
             ],
             "patterns": patterns,
-            "suggested_analysis_steps": steps,
+            "suggested_analysis_steps": sorted(
+                steps,
+                key=lambda item: (int(item.get("priority", 50)), item.get("step_id", "")),
+            ),
             "recommended_metrics": self._unique(metrics),
             "recommended_groupings": self._unique(groupings),
             "recommended_charts": self._unique(charts),
             "senior_analyst_notes": self._unique(notes),
+            "domain_pack": domain_enrichment,
         }
         return self._json_safe(plan)
 
@@ -537,6 +549,66 @@ class PatternKnowledgeEngine:
             if value not in output:
                 output.append(value)
         return output
+
+    def _domain_pack_enrichment(self, domain_pack_context: dict | None) -> dict:
+        context = domain_pack_context if isinstance(domain_pack_context, dict) else {}
+        pack = context.get("knowledge") if isinstance(context.get("knowledge"), dict) else {}
+        if not pack:
+            return {}
+
+        suggestion = context.get("suggestion") if isinstance(context.get("suggestion"), dict) else {}
+        recommended_metrics = []
+        recommended_groupings = []
+        recommended_charts = []
+        suggested_steps = []
+        analyst_notes = []
+        domain_patterns = []
+
+        for pattern in pack.get("patterns") or []:
+            if not isinstance(pattern, dict):
+                continue
+            pattern_id = pattern.get("pattern_id")
+            domain_patterns.append({
+                "pattern_id": pattern_id,
+                "name": pattern.get("name", pattern_id),
+                "confidence_score": suggestion.get("confidence_score", 0.0),
+            })
+            recommended_metrics.extend(pattern.get("recommended_metrics", []))
+            recommended_groupings.extend(pattern.get("recommended_groupings", []))
+            recommended_charts.extend(pattern.get("recommended_charts", []))
+            for index, step in enumerate(pattern.get("recommended_analysis_steps", []) or [], start=1):
+                if not isinstance(step, dict):
+                    continue
+                suggested_steps.append({
+                    "step_id": f"domain-{pattern_id}-{index}",
+                    "pattern_id": pattern_id,
+                    "title": step.get("title", pattern.get("name", pattern_id)),
+                    "analysis_type": step.get("analysis_type"),
+                    "metric": step.get("metric"),
+                    "grouping": step.get("grouping"),
+                    "reason": step.get("reason", "Suggerimento derivato dal domain pack."),
+                    "priority": int(step.get("priority", 50)),
+                    "confidence_score": suggestion.get("confidence_score", 0.0),
+                    "source": "domain_pack",
+                })
+
+        for rule in pack.get("strategy_rules") or []:
+            if isinstance(rule, dict) and rule.get("description"):
+                analyst_notes.append(rule["description"])
+
+        return {
+            "pack_id": pack.get("pack_id"),
+            "name": (pack.get("manifest") or {}).get("name", pack.get("pack_id")),
+            "confidence_score": suggestion.get("confidence_score", 0.0),
+            "matched_terms": suggestion.get("matched_terms", []),
+            "metadata_signals": suggestion.get("metadata_signals", []),
+            "domain_patterns": domain_patterns,
+            "recommended_metrics": self._unique(recommended_metrics),
+            "recommended_groupings": self._unique(recommended_groupings),
+            "recommended_charts": self._unique(recommended_charts),
+            "suggested_analysis_steps": suggested_steps,
+            "senior_analyst_notes": self._unique(analyst_notes),
+        }
 
     def _json_safe(self, value: Any) -> Any:
         return json.loads(json.dumps(value, ensure_ascii=False, default=str))

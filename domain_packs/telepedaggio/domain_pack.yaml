@@ -1,0 +1,17 @@
+pack_id: telepedaggio
+name: Telepedaggio
+version: 1
+description: Conoscenza di dominio per analisi contratti, attivazioni, device, OBU, antenne e consegne telepedaggio.
+locale: it
+keywords:
+  - telepedaggio
+  - contratto
+  - sottoscrizione
+  - attivazione
+  - device
+  - obu
+  - antenna
+  - consegna
+  - corriere
+  - agenzia
+  - sla

@@ -55,6 +55,8 @@ http://localhost:8050/
 - Suggerimento automatico di query o colonne tramite `QuerySuggestionAgent`.
 - Sessioni iterative con classificazione locale delle richieste.
 - Riconoscimento di pattern analitici e suggerimento automatico delle analisi.
+- Domain Intelligence Packs locali per arricchire pattern, KPI, domande e
+  report senza modificare il core engine.
 - Learning Engine locale per confidence, promozione e declassamento pattern.
 - Analytical Reasoning Layer locale per ordinare analisi, esclusioni e chiarimenti.
 - Advanced Statistical Engine locale per percentili, dispersione, outlier,
@@ -81,6 +83,16 @@ my_skill_agent/
 |-- APPLICATION_CONTEXT.md
 |-- IMPLEMENTATION_SUMMARY.md
 |-- PROJECT_STATUS.md
+|-- domain_packs/
+|   |-- README.md
+|   `-- telepedaggio/
+|       |-- domain_pack.yaml
+|       |-- patterns.json
+|       |-- kpi_definitions.json
+|       |-- strategy_rules.json
+|       |-- questions.json
+|       |-- terminology.json
+|       `-- report_template.md
 |-- agents/
 |   |-- base_agent.py
 |   |-- data_source_manager.py
@@ -100,6 +112,7 @@ my_skill_agent/
 |   |-- analysis_session_manager.py
 |   |-- autonomous_analyst.py
 |   |-- analytical_reasoning_layer.py
+|   |-- domain_pack_loader.py
 |   |-- learning_engine.py
 |   |-- pattern_knowledge_engine.py
 |   |-- semantic_memory.py
@@ -139,6 +152,8 @@ La dashboard Dash e organizzata in tre layer:
   JSON-serializzabili con pandas/numpy.
 - `services/anomaly_detection_engine.py` rileva anomalie spiegabili, severity,
   confidence, drift, degrado e violazioni SLA senza OpenAI.
+- `services/domain_pack_loader.py` scopre e carica conoscenza di dominio locale
+  da `domain_packs/`, senza chiamate OpenAI e senza dipendenze pesanti.
 - `services/oracle_service.py` incapsula il test di connessione Oracle senza
   esporre la password allo store browser.
 
@@ -597,6 +612,31 @@ Integrazione corrente:
 - il `SeniorDataAnalystEngine` include nel report la sezione "Anomalie
   rilevate";
 - `AgentContext` e `processed_data` espongono `anomaly_detection_results`.
+
+## Milestone 9: Domain Intelligence Packs Architecture
+
+`services/domain_pack_loader.py` introduce una architettura locale per caricare
+conoscenza di dominio senza modificare il core engine. Ogni pack contiene
+manifest, pattern, KPI, regole strategiche, domande di chiarimento, terminologia
+e template report.
+
+Il pack iniziale `domain_packs/telepedaggio` copre:
+
+- contratti, sottoscrizioni, attivazioni, device/OBU e antenne;
+- consegne a mano, corriere e agenzia;
+- tempi di attivazione, percentili, SLA e degrado temporale;
+- anomalie per metodo consegna e coerenza stato antenna/contratto.
+
+Il `DataProcessorAgent` suggerisce il pack piu coerente con richiesta utente e
+metadata del dataframe, salva `domain_pack_context` nel context e nei
+`processed_data`, e passa tale contesto a:
+
+- `PatternKnowledgeEngine`, per arricchire metriche, grafici e step suggeriti;
+- `AnalyticalReasoningLayer`, per usare regole strategiche e domande di dominio;
+- `SeniorDataAnalystEngine`, per includere nel report la sezione
+  "Dominio riconosciuto".
+
+Il sistema non blocca la pipeline se nessun pack viene trovato.
 
 ## Senior Data Analyst Engine locale
 

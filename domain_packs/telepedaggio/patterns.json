@@ -1,0 +1,76 @@
+[
+  {
+    "pattern_id": "activation_time_analysis",
+    "name": "Analisi tempi di attivazione",
+    "trigger_keywords": ["attivazione", "sottoscrizione", "tempo attivazione", "tempi", "sla"],
+    "recommended_metrics": ["mean_activation_time", "median_activation_time", "p75_activation_time", "p90_activation_time", "p95_activation_time", "p99_activation_time"],
+    "recommended_groupings": ["mese_attivazione", "metodo_consegna", "stato_contratto"],
+    "recommended_charts": ["time_series", "percentile_distribution", "sla_breach_chart"],
+    "recommended_analysis_steps": [
+      {
+        "title": "Calcolo distribuzione tempi attivazione",
+        "analysis_type": "percentile_analysis",
+        "metric": "activation_duration",
+        "reason": "La media non descrive correttamente la coda operativa dei tempi di attivazione.",
+        "priority": 10
+      },
+      {
+        "title": "Confronto soglia SLA",
+        "analysis_type": "threshold_comparison",
+        "metric": "activation_duration",
+        "reason": "Quantifica la quota di contratti oltre soglia attesa.",
+        "priority": 20
+      }
+    ]
+  },
+  {
+    "pattern_id": "delivery_method_segmentation",
+    "name": "Segmentazione metodo consegna",
+    "trigger_keywords": ["consegna", "corriere", "agenzia", "consegna a mano", "metodo consegna"],
+    "recommended_metrics": ["activation_time_by_delivery_method", "anomaly_rate_by_delivery_method"],
+    "recommended_groupings": ["metodo_consegna"],
+    "recommended_charts": ["bar_chart", "box_plot", "segment_anomaly_chart"],
+    "recommended_analysis_steps": [
+      {
+        "title": "Confronto per metodo consegna",
+        "analysis_type": "categorical_segmentation",
+        "metric": "activation_duration",
+        "grouping": "metodo_consegna",
+        "reason": "Separare consegna a mano, corriere e agenzia evita medie aggregate fuorvianti.",
+        "priority": 15
+      }
+    ]
+  },
+  {
+    "pattern_id": "device_status_analysis",
+    "name": "Analisi stato device",
+    "trigger_keywords": ["device", "obu", "stato device", "apparato"],
+    "recommended_metrics": ["active_devices", "inactive_devices", "missing_devices"],
+    "recommended_groupings": ["stato_device"],
+    "recommended_charts": ["status_distribution"]
+  },
+  {
+    "pattern_id": "antenna_alignment_analysis",
+    "name": "Allineamento antenna contratto",
+    "trigger_keywords": ["antenna", "stato antenna", "contratti senza antenna", "non presente"],
+    "recommended_metrics": ["contracts_without_antenna", "active_antennas", "inactive_antennas", "missing_antennas"],
+    "recommended_groupings": ["stato_antenna", "stato_contratto"],
+    "recommended_charts": ["stacked_bar_chart", "data_quality_scorecard"]
+  },
+  {
+    "pattern_id": "degradation_over_time",
+    "name": "Degrado nel tempo",
+    "trigger_keywords": ["degrado", "trend", "mese", "mensile", "peggioramento"],
+    "recommended_metrics": ["month_over_month_activation_change", "rolling_activation_time"],
+    "recommended_groupings": ["mese_attivazione"],
+    "recommended_charts": ["time_series", "rolling_trend"]
+  },
+  {
+    "pattern_id": "sla_violation_analysis",
+    "name": "Violazioni SLA",
+    "trigger_keywords": ["sla", "soglia", "violazione", "oltre soglia", "fuori target"],
+    "recommended_metrics": ["sla_breach_rate", "contracts_over_threshold"],
+    "recommended_groupings": ["metodo_consegna", "mese_attivazione"],
+    "recommended_charts": ["sla_breach_chart", "heatmap"]
+  }
+]
