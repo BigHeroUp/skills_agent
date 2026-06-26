@@ -104,6 +104,36 @@ def test_correlation_matrix():
     assert result["top_pairs"][0]["columns"] == ["a", "b"]
 
 
+def test_kendall_optional_dependency_failure_does_not_block_other_correlations(monkeypatch):
+    df = pd.DataFrame({
+        "a": [1, 2, 3, 4],
+        "b": [2, 4, 6, 8],
+    })
+    original_corr = pd.DataFrame.corr
+
+    def fake_corr(self, method="pearson", *args, **kwargs):
+        if method == "kendall":
+            raise ImportError("Missing optional dependency 'scipy'")
+        return original_corr(self, method=method, *args, **kwargs)
+
+    monkeypatch.setattr(pd.DataFrame, "corr", fake_corr)
+
+    result = _engine().analyze_dataframe(
+        df,
+        config={"correlation_methods": ["pearson", "spearman", "kendall"]},
+    )
+
+    assert result["correlation_matrices"]["pearson"]["status"] == "computed"
+    assert result["correlation_matrices"]["spearman"]["status"] == "computed"
+    assert result["correlation_matrices"]["kendall"] == {
+        "status": "skipped",
+        "reason": "optional_dependency_missing",
+        "method": "kendall",
+        "error": "Missing optional dependency 'scipy'",
+    }
+    json.dumps(result)
+
+
 def test_missing_completeness_analysis():
     df = pd.DataFrame({"a": [1, None, 3], "b": ["x", "y", None]})
 

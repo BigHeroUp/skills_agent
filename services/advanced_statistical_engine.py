@@ -317,7 +317,26 @@ class AdvancedStatisticalEngine:
         normalized = str(method or "pearson").lower()
         if normalized not in {"pearson", "spearman", "kendall"}:
             return self._status("unsupported_method", method=method)
-        matrix = numeric.corr(method=normalized)
+        try:
+            matrix = numeric.corr(method=normalized)
+        except (ImportError, ModuleNotFoundError) as exc:
+            if normalized == "kendall":
+                return self._status(
+                    "skipped",
+                    reason="optional_dependency_missing",
+                    method=normalized,
+                    error=str(exc),
+                )
+            raise
+        except Exception as exc:
+            if normalized == "kendall" and self._is_optional_dependency_error(exc):
+                return self._status(
+                    "skipped",
+                    reason="optional_dependency_missing",
+                    method=normalized,
+                    error=str(exc),
+                )
+            raise
         pairs = []
         columns = list(matrix.columns)
         for left_index, left in enumerate(columns):
@@ -343,6 +362,19 @@ class AdvancedStatisticalEngine:
             },
             "top_pairs": pairs[:10],
         })
+
+    @staticmethod
+    def _is_optional_dependency_error(exc: Exception) -> bool:
+        message = str(exc).lower()
+        return any(
+            marker in message
+            for marker in (
+                "scipy",
+                "optional dependency",
+                "missing optional dependency",
+                "no module named",
+            )
+        )
 
     def export_statistical_summary(self, results: dict) -> dict:
         """Esporta sintesi compatta dei risultati statistici."""
