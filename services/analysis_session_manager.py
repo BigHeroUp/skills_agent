@@ -132,6 +132,9 @@ class AnalysisSessionManager:
                 "learning_state": self._json_safe(learning_state),
                 "analytical_strategy": self._json_safe(analytical_strategy),
                 "analytical_reasoning_trace": self._json_safe(reasoning_trace),
+                "anomaly_detection_results": self._json_safe(
+                    payload.get("anomaly_detection_results") or {}
+                ),
                 "final_report_snapshot": str(
                     payload.get("final_report_snapshot")
                     or payload.get("final_report")
@@ -185,6 +188,9 @@ class AnalysisSessionManager:
                 ),
                 "latest_analytical_reasoning_trace": (
                     latest.get("analytical_reasoning_trace", {}) if latest else {}
+                ),
+                "latest_anomaly_detection_results": (
+                    latest.get("anomaly_detection_results", {}) if latest else {}
                 ),
                 "latest_final_report": (
                     latest["final_report_snapshot"] if latest else ""
@@ -240,6 +246,10 @@ class AnalysisSessionManager:
                                 [],
                             )
                         ),
+                        "anomaly_count": item.get(
+                            "anomaly_detection_results",
+                            {},
+                        ).get("anomaly_count", 0),
                         "has_final_report": bool(item["final_report_snapshot"]),
                     }
                     for item in iterations
@@ -252,6 +262,11 @@ class AnalysisSessionManager:
                 ),
                 "latest_analytical_reasoning_trace": (
                     iterations[-1].get("analytical_reasoning_trace", {})
+                    if iterations
+                    else {}
+                ),
+                "latest_anomaly_detection_results": (
+                    iterations[-1].get("anomaly_detection_results", {})
                     if iterations
                     else {}
                 ),
