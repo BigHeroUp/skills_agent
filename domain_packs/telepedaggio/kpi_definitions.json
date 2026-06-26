@@ -1,0 +1,50 @@
+[
+  {
+    "kpi_id": "mean_activation_time",
+    "name": "Tempo medio attivazione",
+    "description": "Media della durata tra sottoscrizione e attivazione.",
+    "unit": "giorni"
+  },
+  {
+    "kpi_id": "median_activation_time",
+    "name": "Mediana attivazione",
+    "description": "Mediana della durata tra sottoscrizione e attivazione.",
+    "unit": "giorni"
+  },
+  {
+    "kpi_id": "activation_percentiles",
+    "name": "P75/P90/P95/P99 attivazione",
+    "description": "Percentili di coda della durata di attivazione.",
+    "unit": "giorni"
+  },
+  {
+    "kpi_id": "sla_breach_rate",
+    "name": "Percentuale oltre soglia",
+    "description": "Quota di contratti con durata di attivazione superiore alla soglia/SLA.",
+    "unit": "percentuale"
+  },
+  {
+    "kpi_id": "monthly_activation_trend",
+    "name": "Trend mensile attivazioni",
+    "description": "Andamento mensile dei volumi e dei tempi di attivazione.",
+    "unit": "trend"
+  },
+  {
+    "kpi_id": "delivery_method_anomalies",
+    "name": "Anomalie per metodo consegna",
+    "description": "Scostamenti rilevanti per corriere, agenzia o consegna a mano.",
+    "unit": "conteggio"
+  },
+  {
+    "kpi_id": "contracts_without_antenna",
+    "name": "Contratti senza antenna censita",
+    "description": "Contratti per cui non risulta un'antenna collegata o censita.",
+    "unit": "conteggio"
+  },
+  {
+    "kpi_id": "antenna_status_mix",
+    "name": "Antenne attive/spente/non presenti",
+    "description": "Distribuzione degli stati antenna rilevati.",
+    "unit": "conteggio"
+  }
+]

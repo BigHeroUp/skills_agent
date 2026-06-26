@@ -1,0 +1,22 @@
+[
+  {
+    "question_id": "subscription_activation_columns",
+    "question": "Quali colonne rappresentano sottoscrizione e attivazione?",
+    "reason": "Servono due date affidabili per calcolare il tempo di attivazione."
+  },
+  {
+    "question_id": "sla_threshold",
+    "question": "Esiste una soglia/SLA attesa?",
+    "reason": "La soglia consente di calcolare percentuale oltre target e casi critici."
+  },
+  {
+    "question_id": "delivery_scope",
+    "question": "Vuoi includere o escludere consegne via corriere/agenzia?",
+    "reason": "Il metodo di consegna puo cambiare distribuzione e anomalie."
+  },
+  {
+    "question_id": "analysis_period",
+    "question": "Quale periodo temporale vuoi analizzare?",
+    "reason": "Il perimetro temporale evita confronti tra periodi non omogenei."
+  }
+]

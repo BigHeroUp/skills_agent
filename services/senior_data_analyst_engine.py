@@ -37,6 +37,7 @@ class SeniorDataAnalystEngine:
             "analytical_reasoning_trace": data.get("analytical_reasoning_trace") or {},
             "advanced_statistical_results": data.get("advanced_statistical_results") or {},
             "anomaly_detection_results": data.get("anomaly_detection_results") or {},
+            "domain_pack_context": data.get("domain_pack_context") or {},
         }
         analysis["methodological_notes"] = self._build_methodological_notes(
             analysis["detected_patterns"]
@@ -100,6 +101,9 @@ class SeniorDataAnalystEngine:
             "",
             "## Strategia analitica adottata",
             self._format_analytical_strategy(analysis.get("analytical_strategy", {})),
+            "",
+            "## Dominio riconosciuto",
+            self._format_domain_pack_context(analysis.get("domain_pack_context", {})),
             "",
             "## Evidenze principali",
             self._bullet_list(analysis.get("key_findings", [])),
@@ -682,6 +686,35 @@ class SeniorDataAnalystEngine:
                     for item in excluded[:3]
                 )
                 )
+        return "\n".join(lines)
+
+    def _format_domain_pack_context(self, context: dict[str, Any]) -> str:
+        if not isinstance(context, dict) or context.get("status") != "detected":
+            return "- Nessun domain pack riconosciuto con confidenza sufficiente."
+
+        suggestion = context.get("suggestion") if isinstance(context.get("suggestion"), dict) else {}
+        knowledge = context.get("knowledge") if isinstance(context.get("knowledge"), dict) else {}
+        manifest = knowledge.get("manifest") if isinstance(knowledge.get("manifest"), dict) else {}
+        lines = [
+            f"- Pack: {manifest.get('name', context.get('pack_id', 'n/a'))}",
+            f"- Confidence: {self._fmt(suggestion.get('confidence_score', 0))}",
+        ]
+        if suggestion.get("reason"):
+            lines.append(f"- Motivo: {suggestion['reason']}")
+        kpis = [
+            item.get("name")
+            for item in knowledge.get("kpi_definitions", [])[:8]
+            if isinstance(item, dict) and item.get("name")
+        ]
+        if kpis:
+            lines.append("- KPI di dominio: " + ", ".join(kpis))
+        rules = [
+            item.get("description")
+            for item in knowledge.get("strategy_rules", [])[:5]
+            if isinstance(item, dict) and item.get("description")
+        ]
+        if rules:
+            lines.append("- Regole applicate: " + "; ".join(rules))
         return "\n".join(lines)
 
     def _format_advanced_statistics(self, results: dict[str, Any]) -> str:

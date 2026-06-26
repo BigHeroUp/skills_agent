@@ -1,0 +1,32 @@
+{
+  "concepts": [
+    "contratto",
+    "sottoscrizione",
+    "attivazione",
+    "device",
+    "OBU",
+    "antenna",
+    "consegna",
+    "corriere",
+    "agenzia",
+    "consegna a mano",
+    "stato antenna",
+    "stato contratto"
+  ],
+  "synonyms": {
+    "sottoscrizione": ["firma", "data sottoscrizione", "subscription", "stipula"],
+    "attivazione": ["data attivazione", "activation", "abilitazione"],
+    "device": ["apparato", "obu", "dispositivo"],
+    "antenna": ["tag", "apparato antenna", "stato antenna"],
+    "consegna": ["delivery", "spedizione", "corriere", "agenzia", "consegna a mano"],
+    "contratto": ["contract", "accordo", "pratica"]
+  },
+  "column_hints": {
+    "subscription_date": ["sottoscrizione", "subscription", "stipula", "firma"],
+    "activation_date": ["attivazione", "activation", "abilitazione"],
+    "delivery_method": ["consegna", "delivery", "corriere", "agenzia"],
+    "antenna_status": ["stato antenna", "antenna_status"],
+    "contract_status": ["stato contratto", "contract_status"],
+    "device_id": ["device", "obu", "apparato"]
+  }
+}

@@ -143,10 +143,17 @@ La cronologia gia integrata in `main` comprende:
    - integrazione con `DataProcessorAgent`, `AnalyticalReasoningLayer`,
      `AnalysisSessionManager`, `SeniorDataAnalystEngine` e `AgentContext`;
    - 11 test dedicati.
-
-Il commit della Milestone 5 e locale e non ancora pubblicato:
-`main` e avanti di un commit rispetto a `origin/main` perche le credenziali
-GitHub HTTPS non sono disponibili nella sessione corrente.
+13. **Milestone 9 - Domain Intelligence Packs Architecture**, completata in
+    questa iterazione:
+   - directory `domain_packs/` con pack iniziale `telepedaggio`;
+   - classe `DomainPackLoader`;
+   - discovery, validazione, caricamento ed export JSON-safe dei pack;
+   - suggerimento pack tramite richiesta utente e metadata dataframe;
+   - funzionamento completamente locale senza OpenAI;
+   - integrazione con `PatternKnowledgeEngine`, `AnalyticalReasoningLayer`,
+     `SeniorDataAnalystEngine`, `DataProcessorAgent` e `AgentContext`;
+   - sezione report "Dominio riconosciuto";
+   - 8 test dedicati.
 
 ### Moduli implementati
 
@@ -187,6 +194,8 @@ GitHub HTTPS non sono disponibili nella sessione corrente.
   percentili, dispersione, outlier, trend, soglie, correlazioni e completezza.
 - `services/anomaly_detection_engine.py`: motore locale per anomalie, spike,
   degrado, drift, SLA, severity e raccomandazioni spiegabili.
+- `services/domain_pack_loader.py`: loader locale per domain pack, discovery,
+  validazione, suggerimento pack ed export JSON-safe.
 
 #### Persistenza e utility
 
@@ -299,10 +308,11 @@ passo successivo.
 - Analytical Reasoning Layer completamente locale e senza chiamate OpenAI.
 - Advanced Statistical Engine completamente locale e senza chiamate OpenAI.
 - Anomaly Detection Engine completamente locale e senza chiamate OpenAI.
+- Domain Pack Loader completamente locale e senza chiamate OpenAI.
 
 ### Qualita verificata
 
-- Suite pytest: **120 test superati**.
+- Suite pytest: **128 test superati**.
 - Test dedicati al Senior Data Analyst Engine: **7 superati**.
 - Test dedicati all'Analysis Session Manager: **8 superati**.
 - Test dedicati al Pattern Knowledge Engine: **9 superati**.
@@ -310,6 +320,7 @@ passo successivo.
 - Test dedicati all'Analytical Reasoning Layer: **9 superati**.
 - Test dedicati all'Advanced Statistical Engine: **11 superati**.
 - Test dedicati all'Anomaly Detection Engine: **11 superati**.
+- Test dedicati al Domain Pack Loader: **8 superati**.
 - Copertura presente per Analysis Engine, history, feedback, semantic memory,
   autonomous analysis, follow-up, grafici richiesti, sicurezza Oracle e report
   locale.
@@ -333,6 +344,12 @@ Pattern Knowledge Engine
   - pattern analitici
   - best practice
   - step raccomandati
+        |
+        v
+Domain Pack Loader
+  - domain pack locali
+  - KPI, regole, domande e terminologia
+  - nessuna dipendenza da OpenAI
         |
         v
 Learning Engine
@@ -405,6 +422,7 @@ Chat follow-up e feedback
 - strategia analitica adottata e reasoning trace;
 - risultati statistici avanzati;
 - risultati anomaly detection;
+- domain pack context;
 - metadati di memoria e confidence;
 - risultati autonomous;
 - insight;
@@ -426,6 +444,7 @@ lo stato per aggiornare timeline e risultati.
 | Analytical Reasoning Layer | Completamente locale | Strategia analitica, esclusioni e chiarimenti senza OpenAI. |
 | Advanced Statistical Engine | Completamente locale | Percentili, dispersione, outlier, trend, soglie, correlazioni e completezza. |
 | Anomaly Detection Engine | Completamente locale | Outlier, spike, degrado, drift, SLA, severity e raccomandazioni. |
+| Domain Pack Loader | Completamente locale | Conoscenza di dominio caricabile senza modificare il core engine. |
 | Senior Data Analyst Engine | Completamente locale | Insight, KPI, note metodologiche e raccomandazioni locali. |
 | Report locale | Completamente locale | Il report finale puo essere prodotto senza `OPENAI_API_KEY`. |
 | Interpretazione linguistica | OpenAI opzionale/parzialmente necessaria | Alcuni agenti precedenti usano ancora OpenAI quando non esiste un fallback locale. |
@@ -472,6 +491,7 @@ lo stato per aggiornare timeline e risultati.
 - `AnalyticalReasoningLayer`;
 - `AdvancedStatisticalEngine`;
 - `AnomalyDetectionEngine`;
+- `DomainPackLoader`;
 - `SeniorDataAnalystEngine`;
 - grafici Plotly;
 - PDF;
@@ -633,7 +653,36 @@ piu robusta e visualizzazioni dedicate per anomalie e SLA.
 
 **Dipendenza:** Milestone 7.
 
-### Milestone 9 - Predictive Analytics Engine
+### ✅ Milestone 9 - Domain Intelligence Packs Architecture
+
+**Stato:** Completata.
+
+**Obiettivo raggiunto:** caricare conoscenza di dominio locale senza modificare
+il core engine e senza chiamate OpenAI.
+
+Il loader supporta:
+
+- discovery dei pack disponibili in `domain_packs/`;
+- validazione dei file obbligatori;
+- caricamento del pack e export JSON-safe;
+- suggerimento pack da richiesta utente e metadata dataframe;
+- fallback non bloccante quando nessun pack viene riconosciuto.
+
+Il pack iniziale `telepedaggio` include concetti, pattern, KPI, regole
+strategiche, domande di chiarimento, terminologia e template report per
+contratti, sottoscrizioni, attivazioni, device/OBU, antenne e consegne.
+
+**Moduli:** `services/domain_pack_loader.py`, `domain_packs/`,
+`agents/data_processor.py`, `services/pattern_knowledge_engine.py`,
+`services/analytical_reasoning_layer.py`,
+`services/senior_data_analyst_engine.py`, `utils/context.py`.
+
+**Passo futuro non bloccante:** persistenza/versioning dei pack, UI di gestione
+pack e ulteriori domini verticali.
+
+**Dipendenza:** Milestone 5, 7 e 8.
+
+### Milestone 10 - Predictive Analytics Engine
 
 **Obiettivo:** introdurre:
 
@@ -650,9 +699,9 @@ feature engineering, session manager e report.
 
 **Priorita:** Media.
 
-**Dipendenza:** Milestone 7 e 8.
+**Dipendenza:** Milestone 7, 8 e 9.
 
-### Milestone 10 - Natural Language Planner
+### Milestone 11 - Natural Language Planner
 
 **Obiettivo:** trasformare automaticamente una richiesta utente in un piano
 analitico completo.
@@ -665,9 +714,9 @@ Engine, Session Manager, schema discovery e motore locale di intent.
 
 **Priorita:** Critica per l'autonomia.
 
-**Dipendenza:** Milestone 5, 6 e 7.
+**Dipendenza:** Milestone 5, 6, 7 e 9.
 
-### Milestone 11 - Knowledge Consolidation Engine
+### Milestone 12 - Knowledge Consolidation Engine
 
 **Obiettivo:** fondere pattern simili e costruire una conoscenza strutturata,
 versionata e non ridondante.
@@ -817,16 +866,16 @@ sono:
 ## Ultimo aggiornamento
 
 - **Data:** 26 giugno 2026
-- **Ora:** 12:00:00 CEST
-- **Branch Git:** `feature/milestone-6-learning-engine`
-- **HEAD locale:** `299a44f feat: add pattern knowledge engine`
-- **HEAD remoto `origin/main`:** `299a44f feat: add pattern knowledge engine`
-- **Stato repository:** branch allineata a `origin/main` con modifiche locali
-  non committate per la Milestone 6.
+- **Branch Git:** `feature/domain-intelligence-packs`
+- **HEAD locale:** `3e7d44c feat: implement anomaly detection engine`
+- **HEAD remoto `origin/main`:** `3e7d44c feat: implement anomaly detection engine`
+- **Stato repository:** modifiche locali non committate per la Milestone 9.
 - **Azione Git pendente:** review delle modifiche, commit e pubblicazione della
   branch.
-- **Modifiche locali principali:** `LearningEngine`, integrazione con Knowledge
-  Engine, Session Manager, Senior Data Analyst Engine, context e documentazione.
-- **Numero test:** 89 superati.
-- **Quality gate:** 120 test pytest superati; `.\.venv\Scripts\python.exe -m compileall .`
-  completato; `git diff --check` superato.
+- **Modifiche locali principali:** `DomainPackLoader`, pack `telepedaggio`,
+  integrazione con Data Processor, Pattern Knowledge Engine, Analytical
+  Reasoning Layer, Senior Data Analyst Engine, context, README e stato progetto.
+- **Numero test:** 128 superati.
+- **Quality gate:** `python3 -m pytest` superato; `python3 -m compileall agents connectors services ui utils main.py app_dash.py coordinator.py`
+  da rieseguire dopo ogni modifica; `git diff --check` da rieseguire dopo ogni
+  modifica.
