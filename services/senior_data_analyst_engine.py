@@ -35,6 +35,7 @@ class SeniorDataAnalystEngine:
             "learning_events": data.get("learning_events") or [],
             "analytical_strategy": data.get("analytical_strategy") or {},
             "analytical_reasoning_trace": data.get("analytical_reasoning_trace") or {},
+            "advanced_statistical_results": data.get("advanced_statistical_results") or {},
         }
         analysis["methodological_notes"] = self._build_methodological_notes(
             analysis["detected_patterns"]
@@ -104,6 +105,11 @@ class SeniorDataAnalystEngine:
             "",
             "## KPI",
             self._format_kpis(analysis.get("kpi_summary", [])),
+            "",
+            "## Statistiche avanzate",
+            self._format_advanced_statistics(
+                analysis.get("advanced_statistical_results", {})
+            ),
             "",
             "## Trend",
             self._format_structured_items(
@@ -669,8 +675,60 @@ class SeniorDataAnalystEngine:
                     f"{item.get('analysis_type')} ({item.get('reason')})"
                     for item in excluded[:3]
                 )
-            )
+                )
         return "\n".join(lines)
+
+    def _format_advanced_statistics(self, results: dict[str, Any]) -> str:
+        if not isinstance(results, dict) or not results:
+            return "- Statistiche avanzate non disponibili."
+        if results.get("status") == "skipped":
+            return f"- Analisi statistica avanzata non eseguita: {results.get('reason', 'non richiesta')}."
+        if results.get("status") == "empty":
+            return "- Dataset vuoto: statistiche avanzate non calcolabili."
+        lines: list[str] = []
+        numeric_analysis = results.get("numeric_analysis") or {}
+        for column, analysis in list(numeric_analysis.items())[:5]:
+            if not isinstance(analysis, dict) or analysis.get("status") != "computed":
+                continue
+            percentiles = analysis.get("percentiles") or {}
+            dispersion = analysis.get("dispersion") or {}
+            outliers = analysis.get("outliers") or {}
+            iqr_outliers = (outliers.get("iqr") or {}).get("outlier_count", 0)
+            zscore_outliers = (outliers.get("zscore") or {}).get("outlier_count", 0)
+            modified_outliers = (outliers.get("modified_zscore") or {}).get(
+                "outlier_count",
+                0,
+            )
+            lines.append(
+                f"- **{column}:** P50 {self._fmt(percentiles.get('p50'))}, "
+                f"P90 {self._fmt(percentiles.get('p90'))}, "
+                f"P95 {self._fmt(percentiles.get('p95'))}, "
+                f"IQR {self._fmt(dispersion.get('iqr'))}, "
+                f"MAD {self._fmt(dispersion.get('mad'))}; "
+                f"outlier IQR/Z/modZ: {iqr_outliers}/{zscore_outliers}/{modified_outliers}."
+            )
+        threshold_results = results.get("threshold_comparisons") or {}
+        for key, item in list(threshold_results.items())[:3]:
+            if isinstance(item, dict) and item.get("status") == "computed":
+                lines.append(
+                    f"- **Soglia {key}:** breach rate {self._fmt(item.get('breach_rate'))}% "
+                    f"su {item.get('valid_count', 0)} valori validi."
+                )
+        correlations = results.get("correlation_matrices") or {}
+        pearson = correlations.get("pearson") or {}
+        top_pairs = pearson.get("top_pairs") or []
+        if top_pairs:
+            best = top_pairs[0]
+            pair = " / ".join(best.get("columns", []))
+            lines.append(
+                f"- Correlazione Pearson piu alta: {pair} = {self._fmt(best.get('correlation'))}."
+            )
+        missing = results.get("missing_completeness") or {}
+        if missing:
+            lines.append(
+                f"- Completezza complessiva: {self._fmt(missing.get('overall_completeness_percent'))}%."
+            )
+        return "\n".join(lines) if lines else "- Nessuna statistica avanzata calcolata."
 
     def _fmt(self, value: Any) -> str:
         if isinstance(value, float):

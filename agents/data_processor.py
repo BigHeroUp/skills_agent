@@ -4,6 +4,7 @@ Elabora e trasforma i dati validati
 """
 
 from agents.base_agent import BaseAgent
+from services.advanced_statistical_engine import AdvancedStatisticalEngine
 from services.analysis_engine import AnalysisEngine
 from services.analytical_reasoning_layer import AnalyticalReasoningLayer
 from services.autonomous_analyst import AutonomousAnalyst
@@ -116,6 +117,20 @@ class DataProcessorAgent(BaseAgent):
             context.analytical_reasoning_trace = reasoning_layer.export_reasoning_trace(
                 context.analytical_strategy
             )
+            statistical_engine = AdvancedStatisticalEngine()
+            if self._should_run_advanced_statistics(context, deterministic_summary):
+                context.advanced_statistical_results = statistical_engine.analyze_dataframe(
+                    df,
+                    config={
+                        "correlation_methods": ["pearson", "spearman", "kendall"],
+                        "outlier_methods": ["iqr", "zscore", "modified_zscore"],
+                    },
+                )
+            else:
+                context.advanced_statistical_results = {
+                    "status": "skipped",
+                    "reason": "Strategia analitica e metadata non richiedono analisi statistiche avanzate.",
+                }
 
             # Prepara il prompt per OpenAI
             task_prompt = f"""
@@ -141,6 +156,9 @@ class DataProcessorAgent(BaseAgent):
 
             Strategia analitica locale:
             {str(context.analytical_strategy)[:2000]}
+
+            Statistiche avanzate locali:
+            {str(context.advanced_statistical_results)[:2000]}
 
             Analisi autonoma:
             - Modalita autonoma: {context.autonomous_mode}
@@ -183,6 +201,7 @@ class DataProcessorAgent(BaseAgent):
                 "learning_events": context.learning_events,
                 "analytical_strategy": context.analytical_strategy,
                 "analytical_reasoning_trace": context.analytical_reasoning_trace,
+                "advanced_statistical_results": context.advanced_statistical_results,
                 "autonomous_analysis_plan": context.autonomous_analysis_plan,
                 "autonomous_analysis_results": context.autonomous_analysis_results,
                 "autonomous_executive_summary": context.autonomous_executive_summary,
@@ -199,3 +218,45 @@ class DataProcessorAgent(BaseAgent):
             self.log(f"❌ Errore: {e}")
         
         return context
+
+    def _should_run_advanced_statistics(
+        self,
+        context: AgentContext,
+        dataframe_metadata: dict,
+    ) -> bool:
+        """Esegue statistiche avanzate solo quando i dati o la strategy lo giustificano."""
+        numeric_columns = dataframe_metadata.get("numeric_columns") or []
+        categorical_columns = dataframe_metadata.get("categorical_columns") or []
+        datetime_columns = dataframe_metadata.get("datetime_columns") or []
+        if not any([numeric_columns, categorical_columns, datetime_columns]):
+            return False
+        pattern_ids = {
+            pattern.get("pattern_id")
+            for pattern in context.detected_patterns
+            if isinstance(pattern, dict)
+        }
+        if pattern_ids.intersection({
+            "time_performance_analysis",
+            "operational_kpi_analysis",
+            "data_quality_audit",
+            "categorical_segmentation",
+        }):
+            return True
+        statistical_steps = {
+            "advanced_statistical_summary",
+            "percentile_analysis",
+            "numeric_distribution",
+            "advanced_dispersion_analysis",
+            "outlier_analysis",
+            "threshold_comparison",
+            "time_trend",
+            "correlation_matrix",
+            "categorical_segmentation",
+            "top_values",
+            "data_quality_audit",
+        }
+        return any(
+            step.get("analysis_type") in statistical_steps
+            for step in context.analytical_strategy.get("recommended_sequence", [])
+            if isinstance(step, dict)
+        )

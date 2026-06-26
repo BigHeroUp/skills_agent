@@ -251,10 +251,18 @@ class PatternKnowledgeEngine:
                 "recommended_metrics": [
                     "mean",
                     "median",
+                    "p10",
+                    "p25",
                     "p75",
                     "p90",
                     "p95",
                     "p99",
+                    "iqr",
+                    "standard_deviation",
+                    "coefficient_of_variation",
+                    "mad",
+                    "z_score_outliers",
+                    "modified_z_score_outliers",
                     "outlier_count",
                     "sla_breach_rate",
                 ],
@@ -280,9 +288,9 @@ class PatternKnowledgeEngine:
                 "recommended_analysis_steps": [
                     {
                         "title": "Statistiche robuste della durata",
-                        "analysis_type": "numeric_distribution",
-                        "metric": "mean_median_percentiles",
-                        "reason": "Descrivere centro e coda della distribuzione.",
+                        "analysis_type": "advanced_statistical_summary",
+                        "metric": "percentiles_dispersion_outliers",
+                        "reason": "Descrivere centro, coda, dispersione robusta e valori estremi.",
                         "priority": 10,
                     },
                     {

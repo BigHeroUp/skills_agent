@@ -25,6 +25,9 @@ Input: richiesta + CSV / Excel / Oracle
 [Analytical Reasoning Layer]
     |
     v
+[Advanced Statistical Engine]
+    |
+    v
 [Analysis Engine / Autonomous Analyst]
     |
     v
@@ -51,6 +54,8 @@ http://localhost:8050/
 - Riconoscimento di pattern analitici e suggerimento automatico delle analisi.
 - Learning Engine locale per confidence, promozione e declassamento pattern.
 - Analytical Reasoning Layer locale per ordinare analisi, esclusioni e chiarimenti.
+- Advanced Statistical Engine locale per percentili, dispersione, outlier,
+  trend, soglie, correlazioni e completezza.
 - Calcoli deterministici Python/Pandas.
 - Insight e report locali da `SeniorDataAnalystEngine`.
 - Grafici Plotly generati dal dataframe reale.
@@ -86,6 +91,7 @@ my_skill_agent/
 |-- services/
 |   |-- analysis_service.py
 |   |-- analysis_engine.py
+|   |-- advanced_statistical_engine.py
 |   |-- analysis_session_manager.py
 |   |-- autonomous_analyst.py
 |   |-- analytical_reasoning_layer.py
@@ -124,6 +130,8 @@ La dashboard Dash e organizzata in tre layer:
   CSV/Excel, invocazione pipeline multi-agent e analisi follow-up deterministiche.
 - `services/analytical_reasoning_layer.py` costruisce la strategia analitica
   locale ordinata, con razionale, analisi escluse e domande di chiarimento.
+- `services/advanced_statistical_engine.py` calcola statistiche avanzate locali
+  JSON-serializzabili con pandas/numpy.
 - `services/oracle_service.py` incapsula il test di connessione Oracle senza
   esporre la password allo store browser.
 
@@ -518,6 +526,38 @@ L'integrazione corrente salva `analytical_strategy` e
 `analytical_reasoning_trace` in `AgentContext`, `processed_data` e nelle
 iterazioni dell'`AnalysisSessionManager`. Il `SeniorDataAnalystEngine` include
 nel report la sezione "Strategia analitica adottata".
+
+## Milestone 7: Advanced Statistical Engine
+
+`services/advanced_statistical_engine.py` introduce una libreria statistica
+locale senza OpenAI. Il motore usa solo pandas/numpy e produce output
+JSON-serializzabili anche quando il dataframe e vuoto o una colonna non e
+compatibile.
+
+Analisi supportate:
+
+- statistiche descrittive e percentili P10, P25, P50, P75, P90, P95, P99;
+- dispersione: range, IQR, varianza, deviazione standard, coefficiente di
+  variazione e MAD;
+- outlier detection con metodo IQR, z-score e modified z-score;
+- trend temporali con rolling mean, rolling standard deviation, growth percent
+  e month-over-month;
+- confronto soglie/SLA;
+- matrici di correlazione Pearson, Spearman e Kendall quando applicabili;
+- frequency table per colonne categoriali;
+- analisi missing/completeness.
+
+Integrazione corrente:
+
+- il `DataProcessorAgent` esegue il motore quando strategy, pattern o metadata
+  indicano analisi statistiche utili;
+- l'`AnalyticalReasoningLayer` suggerisce dispersione avanzata e correlation
+  matrix quando il dataset lo consente;
+- il `PatternKnowledgeEngine` arricchisce `time_performance_analysis` con
+  metriche robuste e outlier avanzati;
+- il `SeniorDataAnalystEngine` include nel report percentili, IQR/MAD, outlier,
+  soglie e correlazioni quando presenti;
+- `AgentContext` e `processed_data` espongono `advanced_statistical_results`.
 
 ## Senior Data Analyst Engine locale
 

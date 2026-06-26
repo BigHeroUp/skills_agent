@@ -324,6 +324,16 @@ class AnalyticalReasoningLayer:
                 0.55,
             )
             add(
+                "advanced_dispersion_analysis",
+                "Range, IQR, varianza, deviazione standard, coefficiente di variazione e MAD rendono la variabilita piu leggibile.",
+                [metric],
+                "range, IQR, varianza, deviazione standard, coefficiente di variazione e MAD",
+                "time_performance_analysis" if intent["performance"] else "operational_kpi_analysis",
+                35 if intent["performance"] else 42,
+                0.52,
+                depends_on=["numeric_distribution"],
+            )
+            add(
                 "outlier_analysis",
                 "La distribuzione numerica puo contenere valori estremi da isolare prima delle conclusioni operative.",
                 [metric],
@@ -343,13 +353,30 @@ class AnalyticalReasoningLayer:
                     0.56,
                     depends_on=["percentile_analysis"],
                 )
+            if len(numeric) >= 2:
+                add(
+                    "correlation_matrix",
+                    "Piu colonne numeriche consentono una matrice di correlazione per individuare relazioni lineari e monotone.",
+                    numeric,
+                    "matrici Pearson, Spearman e Kendall con coppie piu correlate",
+                    "operational_kpi_analysis",
+                    65,
+                    0.46,
+                )
         else:
             excluded.extend([
                 self._excluded("percentile_analysis", "Mancano colonne numeriche nei metadata."),
                 self._excluded("numeric_distribution", "Mancano colonne numeriche nei metadata."),
+                self._excluded("advanced_dispersion_analysis", "Mancano colonne numeriche nei metadata."),
                 self._excluded("outlier_analysis", "Mancano colonne numeriche nei metadata."),
                 self._excluded("threshold_comparison", "Mancano colonne numeriche per confrontare soglie o SLA."),
+                self._excluded("correlation_matrix", "Mancano almeno due colonne numeriche nei metadata."),
             ])
+        if len(numeric) == 1:
+            excluded.append(self._excluded(
+                "correlation_matrix",
+                "Serve almeno una seconda colonna numerica per calcolare correlazioni.",
+            ))
 
         if datetime_cols:
             required = [datetime_cols[0]]
@@ -482,7 +509,13 @@ class AnalyticalReasoningLayer:
         pattern_id = candidate.get("pattern_id")
         if intent.get("performance") and (
             pattern_id == "time_performance_analysis"
-            or analysis_type in {"percentile_analysis", "time_trend", "outlier_analysis", "threshold_comparison"}
+            or analysis_type in {
+                "percentile_analysis",
+                "advanced_dispersion_analysis",
+                "time_trend",
+                "outlier_analysis",
+                "threshold_comparison",
+            }
         ):
             return 0.22
         if intent.get("categorical") and (
@@ -524,8 +557,10 @@ class AnalyticalReasoningLayer:
                 step.get("analysis_type") in {
                     "percentile_analysis",
                     "numeric_distribution",
+                    "advanced_dispersion_analysis",
                     "outlier_analysis",
                     "threshold_comparison",
+                    "correlation_matrix",
                 }
                 for step in recommended
             ),
