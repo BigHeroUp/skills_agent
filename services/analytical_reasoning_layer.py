@@ -56,6 +56,18 @@ class AnalyticalReasoningLayer:
         "overview",
         "insight",
     }
+    ANOMALY_TERMS = {
+        "anomalia",
+        "anomalie",
+        "anomalo",
+        "outlier",
+        "spike",
+        "picco",
+        "degrado",
+        "drift",
+        "violazione",
+        "violazioni",
+    }
 
     def build_strategy(
         self,
@@ -342,6 +354,17 @@ class AnalyticalReasoningLayer:
                 20 if intent["performance"] else 45,
                 0.58,
             )
+            if intent["anomaly"] or "time_performance_analysis" in pattern_ids:
+                add(
+                    "anomaly_detection",
+                    "La richiesta o i pattern indicano anomalie, outlier, spike, degrado o drift: serve un controllo dedicato con severity e confidence.",
+                    [metric],
+                    "anomalie numeriche, spike, degrado, drift e possibili violazioni soglia",
+                    "time_performance_analysis" if intent["performance"] else "operational_kpi_analysis",
+                    38 if intent["performance"] else 48,
+                    0.5,
+                    depends_on=["outlier_analysis", "threshold_comparison"],
+                )
             if intent["performance"]:
                 add(
                     "threshold_comparison",
@@ -369,6 +392,7 @@ class AnalyticalReasoningLayer:
                 self._excluded("numeric_distribution", "Mancano colonne numeriche nei metadata."),
                 self._excluded("advanced_dispersion_analysis", "Mancano colonne numeriche nei metadata."),
                 self._excluded("outlier_analysis", "Mancano colonne numeriche nei metadata."),
+                self._excluded("anomaly_detection", "Mancano colonne numeriche per rilevare outlier, degrado o soglie."),
                 self._excluded("threshold_comparison", "Mancano colonne numeriche per confrontare soglie o SLA."),
                 self._excluded("correlation_matrix", "Mancano almeno due colonne numeriche nei metadata."),
             ])
@@ -484,6 +508,7 @@ class AnalyticalReasoningLayer:
             "performance": performance,
             "categorical": categorical,
             "ambiguous": ambiguous,
+            "anomaly": self._contains_any(request, self.ANOMALY_TERMS),
             "quality": self._contains_any(request, {"qualita", "quality", "missing", "null", "duplicati"}),
         }
 
@@ -514,6 +539,7 @@ class AnalyticalReasoningLayer:
                 "advanced_dispersion_analysis",
                 "time_trend",
                 "outlier_analysis",
+                "anomaly_detection",
                 "threshold_comparison",
             }
         ):
@@ -559,6 +585,7 @@ class AnalyticalReasoningLayer:
                     "numeric_distribution",
                     "advanced_dispersion_analysis",
                     "outlier_analysis",
+                    "anomaly_detection",
                     "threshold_comparison",
                     "correlation_matrix",
                 }

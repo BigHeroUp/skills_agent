@@ -28,6 +28,9 @@ Input: richiesta + CSV / Excel / Oracle
 [Advanced Statistical Engine]
     |
     v
+[Anomaly Detection Engine]
+    |
+    v
 [Analysis Engine / Autonomous Analyst]
     |
     v
@@ -56,6 +59,7 @@ http://localhost:8050/
 - Analytical Reasoning Layer locale per ordinare analisi, esclusioni e chiarimenti.
 - Advanced Statistical Engine locale per percentili, dispersione, outlier,
   trend, soglie, correlazioni e completezza.
+- Anomaly Detection Engine locale per outlier, spike, degrado, drift e SLA.
 - Calcoli deterministici Python/Pandas.
 - Insight e report locali da `SeniorDataAnalystEngine`.
 - Grafici Plotly generati dal dataframe reale.
@@ -92,6 +96,7 @@ my_skill_agent/
 |   |-- analysis_service.py
 |   |-- analysis_engine.py
 |   |-- advanced_statistical_engine.py
+|   |-- anomaly_detection_engine.py
 |   |-- analysis_session_manager.py
 |   |-- autonomous_analyst.py
 |   |-- analytical_reasoning_layer.py
@@ -132,6 +137,8 @@ La dashboard Dash e organizzata in tre layer:
   locale ordinata, con razionale, analisi escluse e domande di chiarimento.
 - `services/advanced_statistical_engine.py` calcola statistiche avanzate locali
   JSON-serializzabili con pandas/numpy.
+- `services/anomaly_detection_engine.py` rileva anomalie spiegabili, severity,
+  confidence, drift, degrado e violazioni SLA senza OpenAI.
 - `services/oracle_service.py` incapsula il test di connessione Oracle senza
   esporre la password allo store browser.
 
@@ -558,6 +565,38 @@ Integrazione corrente:
 - il `SeniorDataAnalystEngine` include nel report percentili, IQR/MAD, outlier,
   soglie e correlazioni quando presenti;
 - `AgentContext` e `processed_data` espongono `advanced_statistical_results`.
+
+## Milestone 8: Anomaly Detection Engine
+
+`services/anomaly_detection_engine.py` introduce un motore locale per rilevare
+anomalie statistiche e segnali di degrado usando pandas/numpy e, dove utile,
+`AdvancedStatisticalEngine`.
+
+Il motore rileva:
+
+- outlier numerici;
+- spike temporali e cambi improvvisi;
+- degrado prestazionale su finestre recenti rispetto a baseline storica;
+- drift rispetto a risultati statistici baseline;
+- possibili violazioni soglia/SLA;
+- severita (`low`, `medium`, `high`, `critical`) e `confidence_score`.
+
+Ogni anomalia espone `anomaly_id`, tipo, colonna interessata, periodo quando
+disponibile, valore osservato, valore atteso, deviazione, evidenza, metodo e
+raccomandazione.
+
+Integrazione corrente:
+
+- il `DataProcessorAgent` esegue anomaly detection quando strategy, pattern o
+  richiesta utente indicano outlier, anomalie, spike, degrado, drift, soglie o
+  SLA;
+- l'`AnalyticalReasoningLayer` suggerisce `anomaly_detection` quando i dati lo
+  consentono;
+- l'`AnalysisSessionManager` salva `anomaly_detection_results` per ogni
+  iterazione;
+- il `SeniorDataAnalystEngine` include nel report la sezione "Anomalie
+  rilevate";
+- `AgentContext` e `processed_data` espongono `anomaly_detection_results`.
 
 ## Senior Data Analyst Engine locale
 

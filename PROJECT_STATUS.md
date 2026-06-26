@@ -131,6 +131,18 @@ La cronologia gia integrata in `main` comprende:
    - integrazione con `DataProcessorAgent`, `AnalyticalReasoningLayer`,
      `PatternKnowledgeEngine`, `SeniorDataAnalystEngine` e `AgentContext`;
    - 11 test dedicati.
+12. **Milestone 8 - Anomaly Detection Engine**, completata in questa
+    iterazione:
+   - classe `AnomalyDetectionEngine`;
+   - rilevazione outlier numerici;
+   - spike temporali e cambi improvvisi;
+   - degrado prestazionale;
+   - drift rispetto a baseline;
+   - violazioni soglia/SLA;
+   - severity e `confidence_score` per ogni anomalia;
+   - integrazione con `DataProcessorAgent`, `AnalyticalReasoningLayer`,
+     `AnalysisSessionManager`, `SeniorDataAnalystEngine` e `AgentContext`;
+   - 11 test dedicati.
 
 Il commit della Milestone 5 e locale e non ancora pubblicato:
 `main` e avanti di un commit rispetto a `origin/main` perche le credenziali
@@ -173,6 +185,8 @@ GitHub HTTPS non sono disponibili nella sessione corrente.
   decidere ordine, esclusioni, chiarimenti e reasoning trace delle analisi.
 - `services/advanced_statistical_engine.py`: libreria statistica locale per
   percentili, dispersione, outlier, trend, soglie, correlazioni e completezza.
+- `services/anomaly_detection_engine.py`: motore locale per anomalie, spike,
+  degrado, drift, SLA, severity e raccomandazioni spiegabili.
 
 #### Persistenza e utility
 
@@ -284,16 +298,18 @@ passo successivo.
 - Learning Engine completamente locale e senza chiamate OpenAI.
 - Analytical Reasoning Layer completamente locale e senza chiamate OpenAI.
 - Advanced Statistical Engine completamente locale e senza chiamate OpenAI.
+- Anomaly Detection Engine completamente locale e senza chiamate OpenAI.
 
 ### Qualita verificata
 
-- Suite pytest: **109 test superati**.
+- Suite pytest: **120 test superati**.
 - Test dedicati al Senior Data Analyst Engine: **7 superati**.
 - Test dedicati all'Analysis Session Manager: **8 superati**.
 - Test dedicati al Pattern Knowledge Engine: **9 superati**.
 - Test dedicati al Learning Engine: **10 superati**.
 - Test dedicati all'Analytical Reasoning Layer: **9 superati**.
 - Test dedicati all'Advanced Statistical Engine: **11 superati**.
+- Test dedicati all'Anomaly Detection Engine: **11 superati**.
 - Copertura presente per Analysis Engine, history, feedback, semantic memory,
   autonomous analysis, follow-up, grafici richiesti, sicurezza Oracle e report
   locale.
@@ -340,6 +356,13 @@ Advanced Statistical Engine
   - correlazioni e completezza
         |
         v
+Anomaly Detection Engine
+  - outlier e spike
+  - degrado e drift
+  - violazioni SLA
+  - severity e confidence
+        |
+        v
 Analysis Engine
   - profiling Pandas
   - AnalysisPlan singolo
@@ -381,6 +404,7 @@ Chat follow-up e feedback
 - learning state ed eventi di apprendimento;
 - strategia analitica adottata e reasoning trace;
 - risultati statistici avanzati;
+- risultati anomaly detection;
 - metadati di memoria e confidence;
 - risultati autonomous;
 - insight;
@@ -401,6 +425,7 @@ lo stato per aggiornare timeline e risultati.
 | Learning Engine | Completamente locale | Confidence, promozione, declassamento e audit trail in memoria. |
 | Analytical Reasoning Layer | Completamente locale | Strategia analitica, esclusioni e chiarimenti senza OpenAI. |
 | Advanced Statistical Engine | Completamente locale | Percentili, dispersione, outlier, trend, soglie, correlazioni e completezza. |
+| Anomaly Detection Engine | Completamente locale | Outlier, spike, degrado, drift, SLA, severity e raccomandazioni. |
 | Senior Data Analyst Engine | Completamente locale | Insight, KPI, note metodologiche e raccomandazioni locali. |
 | Report locale | Completamente locale | Il report finale puo essere prodotto senza `OPENAI_API_KEY`. |
 | Interpretazione linguistica | OpenAI opzionale/parzialmente necessaria | Alcuni agenti precedenti usano ancora OpenAI quando non esiste un fallback locale. |
@@ -446,6 +471,7 @@ lo stato per aggiornare timeline e risultati.
 - `LearningEngine`;
 - `AnalyticalReasoningLayer`;
 - `AdvancedStatisticalEngine`;
+- `AnomalyDetectionEngine`;
 - `SeniorDataAnalystEngine`;
 - grafici Plotly;
 - PDF;
@@ -580,20 +606,30 @@ orchestrazione automatica degli step statistici come esecuzioni distinte.
 
 **Dipendenza:** Analysis Engine e Pattern Knowledge Engine.
 
-### Milestone 8 - Anomaly Detection Engine
+### ✅ Milestone 8 - Anomaly Detection Engine
 
-**Obiettivo:** riconoscimento automatico e spiegabile di:
+**Stato:** Completata.
 
+**Obiettivo raggiunto:** riconoscimento automatico e spiegabile di anomalie
+statistiche e segnali di degrado senza chiamate OpenAI.
+
+Il motore supporta:
+
+- outlier numerici;
+- spike temporali;
 - degrado prestazionale;
-- spike;
+- drift rispetto a baseline;
 - cambi improvvisi;
-- stagionalita;
-- drift.
+- violazioni soglia/SLA;
+- severity, confidence score, evidenza e raccomandazione per ogni anomalia.
 
-**Moduli previsti:** `services/anomaly_detection_engine.py`, Statistical
-Engine, Knowledge Base, report e grafici.
+**Moduli:** `services/anomaly_detection_engine.py`,
+`agents/data_processor.py`, `services/analytical_reasoning_layer.py`,
+`services/analysis_session_manager.py`,
+`services/senior_data_analyst_engine.py`, `utils/context.py`.
 
-**Priorita:** Alta.
+**Passo futuro non bloccante:** aggiungere stagionalita, change point detection
+piu robusta e visualizzazioni dedicate per anomalie e SLA.
 
 **Dipendenza:** Milestone 7.
 
@@ -792,5 +828,5 @@ sono:
 - **Modifiche locali principali:** `LearningEngine`, integrazione con Knowledge
   Engine, Session Manager, Senior Data Analyst Engine, context e documentazione.
 - **Numero test:** 89 superati.
-- **Quality gate:** 109 test pytest superati; `.\.venv\Scripts\python.exe -m compileall .`
+- **Quality gate:** 120 test pytest superati; `.\.venv\Scripts\python.exe -m compileall .`
   completato; `git diff --check` superato.

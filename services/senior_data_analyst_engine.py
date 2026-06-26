@@ -36,6 +36,7 @@ class SeniorDataAnalystEngine:
             "analytical_strategy": data.get("analytical_strategy") or {},
             "analytical_reasoning_trace": data.get("analytical_reasoning_trace") or {},
             "advanced_statistical_results": data.get("advanced_statistical_results") or {},
+            "anomaly_detection_results": data.get("anomaly_detection_results") or {},
         }
         analysis["methodological_notes"] = self._build_methodological_notes(
             analysis["detected_patterns"]
@@ -114,6 +115,11 @@ class SeniorDataAnalystEngine:
             "## Trend",
             self._format_structured_items(
                 analysis.get("trend_analysis", []), empty="Nessun trend temporale disponibile."
+            ),
+            "",
+            "## Anomalie rilevate",
+            self._format_detected_anomalies(
+                analysis.get("anomaly_detection_results", {})
             ),
             "",
             "## Segmentazione",
@@ -729,6 +735,41 @@ class SeniorDataAnalystEngine:
                 f"- Completezza complessiva: {self._fmt(missing.get('overall_completeness_percent'))}%."
             )
         return "\n".join(lines) if lines else "- Nessuna statistica avanzata calcolata."
+
+    def _format_detected_anomalies(self, results: dict[str, Any]) -> str:
+        if not isinstance(results, dict) or not results:
+            return "- Anomaly detection locale non disponibile."
+        if results.get("status") == "skipped":
+            return f"- Anomaly detection non eseguita: {results.get('reason', 'non richiesta')}."
+        anomalies = results.get("anomalies") or []
+        if not anomalies:
+            return f"- Nessuna anomalia rilevata. {results.get('reason', '')}".strip()
+        severity_rank = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+        ordered = sorted(
+            anomalies,
+            key=lambda item: (
+                severity_rank.get(item.get("severity", "low"), 0),
+                item.get("confidence_score", 0),
+            ),
+            reverse=True,
+        )
+        lines = []
+        for item in ordered[:8]:
+            evidence = item.get("evidence") or {}
+            evidence_text = "; ".join(
+                f"{key}: {self._fmt(value)}"
+                for key, value in list(evidence.items())[:3]
+            )
+            lines.append(
+                f"- **{item.get('severity', 'low').upper()}** "
+                f"{item.get('anomaly_type')} su {item.get('affected_column')}: "
+                f"osservato {self._fmt(item.get('observed_value'))}, "
+                f"atteso {self._fmt(item.get('expected_value'))}, "
+                f"deviazione {self._fmt(item.get('deviation'))}. "
+                f"Evidenza: {evidence_text or item.get('method')}. "
+                f"Raccomandazione: {item.get('recommendation')}"
+            )
+        return "\n".join(lines)
 
     def _fmt(self, value: Any) -> str:
         if isinstance(value, float):
