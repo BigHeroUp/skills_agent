@@ -154,6 +154,16 @@ La cronologia gia integrata in `main` comprende:
      `SeniorDataAnalystEngine`, `DataProcessorAgent` e `AgentContext`;
    - sezione report "Dominio riconosciuto";
    - 8 test dedicati.
+14. **Milestone 10 - Explainability Engine**, completata in questa iterazione:
+   - classe `ExplainabilityEngine`;
+   - reasoning path JSON-safe;
+   - tracciamento di strategia analitica, engine usati, pattern, statistiche,
+     anomalie, confidence, evidenze, conclusioni e raccomandazioni;
+   - integrazione con `AnalyticalReasoningLayer`, `AdvancedStatisticalEngine`,
+     `AnomalyDetectionEngine`, `LearningEngine`, `PatternKnowledgeEngine` e
+     `SeniorDataAnalystEngine`;
+   - sezione report "Why this conclusion?";
+   - 5 test dedicati.
 
 ### Moduli implementati
 
@@ -196,6 +206,8 @@ La cronologia gia integrata in `main` comprende:
   degrado, drift, SLA, severity e raccomandazioni spiegabili.
 - `services/domain_pack_loader.py`: loader locale per domain pack, discovery,
   validazione, suggerimento pack ed export JSON-safe.
+- `services/explainability_engine.py`: motore locale per spiegazioni
+  strutturate di reasoning, evidenze, confidence e raccomandazioni.
 
 #### Persistenza e utility
 
@@ -309,10 +321,11 @@ passo successivo.
 - Advanced Statistical Engine completamente locale e senza chiamate OpenAI.
 - Anomaly Detection Engine completamente locale e senza chiamate OpenAI.
 - Domain Pack Loader completamente locale e senza chiamate OpenAI.
+- Explainability Engine completamente locale e senza chiamate OpenAI.
 
 ### Qualita verificata
 
-- Suite pytest: **128 test superati**.
+- Suite pytest: **133 test superati**.
 - Test dedicati al Senior Data Analyst Engine: **7 superati**.
 - Test dedicati all'Analysis Session Manager: **8 superati**.
 - Test dedicati al Pattern Knowledge Engine: **9 superati**.
@@ -321,6 +334,7 @@ passo successivo.
 - Test dedicati all'Advanced Statistical Engine: **11 superati**.
 - Test dedicati all'Anomaly Detection Engine: **11 superati**.
 - Test dedicati al Domain Pack Loader: **8 superati**.
+- Test dedicati all'Explainability Engine: **5 superati**.
 - Copertura presente per Analysis Engine, history, feedback, semantic memory,
   autonomous analysis, follow-up, grafici richiesti, sicurezza Oracle e report
   locale.
@@ -398,6 +412,13 @@ Senior Data Analyst Engine
   - raccomandazioni
         |
         v
+Explainability Engine
+  - reasoning path
+  - evidenze e confidence
+  - algoritmi e pattern usati
+  - razionale raccomandazioni
+        |
+        v
 Report
   - Markdown locale
   - grafici Plotly
@@ -423,6 +444,7 @@ Chat follow-up e feedback
 - risultati statistici avanzati;
 - risultati anomaly detection;
 - domain pack context;
+- explainability;
 - metadati di memoria e confidence;
 - risultati autonomous;
 - insight;
@@ -445,6 +467,7 @@ lo stato per aggiornare timeline e risultati.
 | Advanced Statistical Engine | Completamente locale | Percentili, dispersione, outlier, trend, soglie, correlazioni e completezza. |
 | Anomaly Detection Engine | Completamente locale | Outlier, spike, degrado, drift, SLA, severity e raccomandazioni. |
 | Domain Pack Loader | Completamente locale | Conoscenza di dominio caricabile senza modificare il core engine. |
+| Explainability Engine | Completamente locale | Spiega decision flow, evidenze, confidence, algoritmi, pattern e raccomandazioni. |
 | Senior Data Analyst Engine | Completamente locale | Insight, KPI, note metodologiche e raccomandazioni locali. |
 | Report locale | Completamente locale | Il report finale puo essere prodotto senza `OPENAI_API_KEY`. |
 | Interpretazione linguistica | OpenAI opzionale/parzialmente necessaria | Alcuni agenti precedenti usano ancora OpenAI quando non esiste un fallback locale. |
@@ -492,6 +515,7 @@ lo stato per aggiornare timeline e risultati.
 - `AdvancedStatisticalEngine`;
 - `AnomalyDetectionEngine`;
 - `DomainPackLoader`;
+- `ExplainabilityEngine`;
 - `SeniorDataAnalystEngine`;
 - grafici Plotly;
 - PDF;
@@ -682,7 +706,34 @@ pack e ulteriori domini verticali.
 
 **Dipendenza:** Milestone 5, 7 e 8.
 
-### Milestone 10 - Predictive Analytics Engine
+### ✅ Milestone 10 - Explainability Engine
+
+**Stato:** Completata.
+
+**Obiettivo raggiunto:** rendere spiegabile ogni conclusione prodotta dal
+sistema con un motore locale e JSON-serializzabile.
+
+Il motore produce:
+
+- reasoning path;
+- strategia analitica adottata;
+- engine utilizzati;
+- pattern applicati;
+- statistiche usate;
+- anomalie rilevate;
+- confidence score e fattori di confidence;
+- evidenze, conclusioni e raccomandazioni;
+- razionale delle raccomandazioni.
+
+**Moduli:** `services/explainability_engine.py`,
+`services/senior_data_analyst_engine.py`.
+
+**Passo futuro non bloccante:** esporre la spiegazione anche in dashboard e PDF,
+con drill-down interattivo per evidenza, algoritmo e raccomandazione.
+
+**Dipendenza:** Milestone 5, 6, 7, 8 e 9.
+
+### Milestone 11 - Predictive Analytics Engine
 
 **Obiettivo:** introdurre:
 
@@ -699,9 +750,9 @@ feature engineering, session manager e report.
 
 **Priorita:** Media.
 
-**Dipendenza:** Milestone 7, 8 e 9.
+**Dipendenza:** Milestone 7, 8, 9 e 10.
 
-### Milestone 11 - Natural Language Planner
+### Milestone 12 - Natural Language Planner
 
 **Obiettivo:** trasformare automaticamente una richiesta utente in un piano
 analitico completo.
@@ -714,9 +765,9 @@ Engine, Session Manager, schema discovery e motore locale di intent.
 
 **Priorita:** Critica per l'autonomia.
 
-**Dipendenza:** Milestone 5, 6, 7 e 9.
+**Dipendenza:** Milestone 5, 6, 7, 9 e 10.
 
-### Milestone 12 - Knowledge Consolidation Engine
+### Milestone 13 - Knowledge Consolidation Engine
 
 **Obiettivo:** fondere pattern simili e costruire una conoscenza strutturata,
 versionata e non ridondante.
@@ -866,16 +917,17 @@ sono:
 ## Ultimo aggiornamento
 
 - **Data:** 26 giugno 2026
-- **Branch Git:** `feature/domain-intelligence-packs`
-- **HEAD locale:** `3e7d44c feat: implement anomaly detection engine`
-- **HEAD remoto `origin/main`:** `3e7d44c feat: implement anomaly detection engine`
-- **Stato repository:** modifiche locali non committate per la Milestone 9.
+- **Branch Git:** `feature/readme-rework`
+- **HEAD locale:** `4d14eb4 feat: add domain intelligence packs architecture (#3)`
+- **HEAD remoto `origin/main`:** `4d14eb4 feat: add domain intelligence packs architecture (#3)`
+- **Stato repository:** modifiche locali non committate per README rework e
+  Milestone 10.
 - **Azione Git pendente:** review delle modifiche, commit e pubblicazione della
   branch.
-- **Modifiche locali principali:** `DomainPackLoader`, pack `telepedaggio`,
-  integrazione con Data Processor, Pattern Knowledge Engine, Analytical
-  Reasoning Layer, Senior Data Analyst Engine, context, README e stato progetto.
-- **Numero test:** 128 superati.
+- **Modifiche locali principali:** introduzione README aggiornata,
+  `ExplainabilityEngine`, integrazione con Senior Data Analyst Engine, sezione
+  report "Why this conclusion?", test dedicati e stato progetto.
+- **Numero test:** 133 superati.
 - **Quality gate:** `python3 -m pytest` superato; `python3 -m compileall agents connectors services ui utils main.py app_dash.py coordinator.py`
   da rieseguire dopo ogni modifica; `git diff --check` da rieseguire dopo ogni
   modifica.
