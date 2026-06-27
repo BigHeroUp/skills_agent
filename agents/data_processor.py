@@ -8,11 +8,14 @@ from services.advanced_statistical_engine import AdvancedStatisticalEngine
 from services.anomaly_detection_engine import AnomalyDetectionEngine
 from services.analysis_engine import AnalysisEngine
 from services.analytical_reasoning_layer import AnalyticalReasoningLayer
+from services.analytical_intent_planner import AnalyticalIntentPlanner
 from services.autonomous_analyst import AutonomousAnalyst
 from services.domain_pack_loader import DomainPackLoader
 from services.learning_engine import LearningEngine
 from services.pattern_knowledge_engine import PatternKnowledgeEngine
 from services.root_cause_analysis_engine import RootCauseAnalysisEngine
+from services.semantic_column_classifier import SemanticColumnClassifier
+from services.semantic_feature_engineering import SemanticFeatureEngineeringEngine
 from utils.context import AgentContext
 from utils.analysis_history_manager import AnalysisHistoryManager
 from utils.data_analysis import summarize_dataframe
@@ -34,15 +37,62 @@ class DataProcessorAgent(BaseAgent):
                 return context
             
             df = context.raw_data.get("dataframe")
-            deterministic_summary = summarize_dataframe(df)
+            initial_summary = summarize_dataframe(df)
             analysis_engine = AnalysisEngine(history_manager=AnalysisHistoryManager())
             autonomous_analyst = AutonomousAnalyst()
             domain_pack_loader = DomainPackLoader()
+            semantic_classifier = SemanticColumnClassifier()
+            context.semantic_columns = semantic_classifier.classify_dataframe(df)
             context.domain_pack_context = self._build_domain_pack_context(
                 domain_pack_loader,
                 context.user_input,
-                deterministic_summary,
+                initial_summary,
             )
+            feature_engine = SemanticFeatureEngineeringEngine()
+            context.semantic_feature_plan = feature_engine.build_feature_plan(
+                context.user_input,
+                df,
+                context.semantic_columns,
+                context.domain_pack_context,
+            )
+            df_enriched, context.semantic_feature_results = feature_engine.apply_feature_plan(
+                df,
+                context.semantic_feature_plan,
+            )
+            for feature_result in context.semantic_feature_results.get("features", []):
+                self.log(
+                    "Feature engineering: "
+                    f"{feature_result.get('feature_name')} "
+                    f"status={feature_result.get('status')} "
+                    f"sources={feature_result.get('source_columns')} "
+                    f"valid={feature_result.get('valid_count')} "
+                    f"missing={feature_result.get('missing_count')} "
+                    f"negative={feature_result.get('negative_duration_count')}"
+                )
+            context.engineered_features = context.semantic_feature_results.get(
+                "engineered_features",
+                [],
+            )
+            context.dataframe_enriched_metadata = summarize_dataframe(df_enriched)
+            context.raw_data["dataframe"] = df_enriched
+            df = df_enriched
+            context.semantic_columns = semantic_classifier.classify_dataframe(
+                df,
+                context.domain_pack_context,
+            )
+            intent_planner = AnalyticalIntentPlanner()
+            context.analytical_intent_plan = intent_planner.build_plan(
+                context.user_input,
+                df,
+                context.semantic_feature_results,
+                context.semantic_columns,
+                context.domain_pack_context,
+            )
+            context.primary_metric = context.analytical_intent_plan.get("primary_metric")
+            context.time_axis = context.analytical_intent_plan.get("time_axis")
+            context.segmentations = context.analytical_intent_plan.get("segmentations", [])
+            context.forbidden_columns = context.analytical_intent_plan.get("forbidden_columns", [])
+            deterministic_summary = context.dataframe_enriched_metadata
             context.autonomous_mode = autonomous_analyst.should_run_autonomous(context.user_input)
 
             if context.autonomous_mode:
@@ -74,10 +124,12 @@ class DataProcessorAgent(BaseAgent):
                     "similarity_method": None,
                 }
             else:
+                requested_plan = intent_planner.build_analysis_plan(context.analytical_intent_plan)
                 analysis_payload = analysis_engine.run(
                     user_request=context.user_input,
                     df=df,
                     source_type=context.metadata.get("source_type", "unknown"),
+                    plan=requested_plan or None,
                 )
             context.analysis_plan = analysis_payload["analysis_plan"]
             context.deterministic_results = analysis_payload["deterministic_results"]
@@ -124,6 +176,7 @@ class DataProcessorAgent(BaseAgent):
                 detected_patterns=context.detected_patterns,
                 learning_state=context.learning_state,
                 domain_pack_context=context.domain_pack_context,
+                analytical_intent_plan=context.analytical_intent_plan,
             )
             context.analytical_reasoning_trace = reasoning_layer.export_reasoning_trace(
                 context.analytical_strategy
@@ -135,6 +188,8 @@ class DataProcessorAgent(BaseAgent):
                     config={
                         "correlation_methods": ["pearson", "spearman", "kendall"],
                         "outlier_methods": ["iqr", "zscore", "modified_zscore"],
+                        "forbidden_columns": context.forbidden_columns,
+                        "primary_metric": context.primary_metric,
                     },
                 )
             else:
@@ -173,6 +228,7 @@ class DataProcessorAgent(BaseAgent):
                     "advanced_statistical_results": context.advanced_statistical_results,
                     "anomaly_detection_results": context.anomaly_detection_results,
                     "domain_pack_context": context.domain_pack_context,
+                    "analytical_intent_plan": context.analytical_intent_plan,
                 })
             else:
                 context.root_cause_results = {
@@ -182,66 +238,44 @@ class DataProcessorAgent(BaseAgent):
                     "possible_causes": [],
                 }
 
-            # Prepara il prompt per OpenAI
-            task_prompt = f"""
-            Elabora questi dati validati (rispondi SEMPRE in italiano):
-            Riepilogo calcolato dal dataframe reale:
-            {str(deterministic_summary)[:2000]}
+            if (
+                context.analytical_intent_plan.get("temporal_concentration")
+                and context.primary_metric
+                and context.time_axis
+            ):
+                context.temporal_concentration_results = intent_planner.temporal_concentration(
+                    df,
+                    context.primary_metric,
+                    context.time_axis,
+                )
+            else:
+                context.temporal_concentration_results = {
+                    "status": "skipped",
+                    "reason": "not_requested_or_missing_axes",
+                    "metric": context.primary_metric,
+                    "time_axis": context.time_axis,
+                }
 
-            Piano analitico deterministico eseguito dal motore Python/Pandas:
-            {str(context.analysis_plan)[:1200]}
-
-            Risultati deterministici calcolati dal dataframe:
-            {str(context.deterministic_results)[:2000]}
-
-            Knowledge Base analitica:
-            - Pattern rilevati: {str([item.get("pattern_id") for item in context.detected_patterns])}
-            - Step consigliati: {str(context.knowledge_analysis_steps)[:1600]}
-
-            Memoria operativa:
-            - Fonte piano: {"memoria storica" if context.plan_source == "history" else "nuovo piano"}
-            - Confidence score: {context.confidence_score}
-            - Similarity score: {context.similarity_score}
-            - Similarity method: {context.similarity_method}
-
-            Strategia analitica locale:
-            {str(context.analytical_strategy)[:2000]}
-
-            Statistiche avanzate locali:
-            {str(context.advanced_statistical_results)[:2000]}
-
-            Anomaly detection locale:
-            {str(context.anomaly_detection_results)[:2000]}
-
-            Root cause analysis locale:
-            {str(context.root_cause_results)[:2000]}
-
-            Domain pack riconosciuto:
-            {str(context.domain_pack_context)[:1600]}
-
-            Analisi autonoma:
-            - Modalita autonoma: {context.autonomous_mode}
-            - Executive summary autonoma: {context.autonomous_executive_summary[:1200]}
-            - Raccomandazioni autonome: {str(context.autonomous_recommendations)[:1200]}
-            
-            Applica in italiano:
-            1. Aggregazioni necessarie
-            2. Calcoli (somme, medie, percentuali)
-            3. Trasformazioni (normalizzazione, pulizia)
-            4. Grouping e sorting intelligente
-            
-            Ritorna in italiano:
-            {{
-                "trasformazioni_applicate": [...],
-                "statistiche_riepilogative": {{...}},
-                "forma_dati": "X righe, Y colonne",
-                "note_elaborazione": "..."
-            }}
-            """
-            prompt = self.build_prompt_with_skill(task_prompt)
-            
-            messages = [{"role": "user", "content": prompt}]
-            response = self.call_openai(messages)
+            response = {
+                "trasformazioni_applicate": [
+                    "profilazione dataframe",
+                    "feature engineering semantico",
+                    "pianificazione analitica deterministica",
+                    "calcolo KPI e controlli statistici locali",
+                ],
+                "statistiche_riepilogative": {
+                    "row_count": deterministic_summary.get("row_count", 0),
+                    "column_count": deterministic_summary.get("column_count", 0),
+                    "plan_source": context.plan_source,
+                    "patterns": [item.get("pattern_id") for item in context.detected_patterns],
+                },
+                "forma_dati": f"{deterministic_summary.get('row_count', 0)} righe, {deterministic_summary.get('column_count', 0)} colonne",
+                "note_elaborazione": (
+                    "Report di processing generato localmente. OpenAI non viene usato per calcoli, "
+                    "trasformazioni o controlli deterministici."
+                ),
+                "mode": "local",
+            }
             
             context.processed_data = {
                 "processing_report": response,
@@ -258,6 +292,17 @@ class DataProcessorAgent(BaseAgent):
                 "knowledge_analysis_steps": context.knowledge_analysis_steps,
                 "learning_state": context.learning_state,
                 "learning_events": context.learning_events,
+                "semantic_columns": context.semantic_columns,
+                "semantic_feature_plan": context.semantic_feature_plan,
+                "semantic_feature_results": context.semantic_feature_results,
+                "engineered_features": context.engineered_features,
+                "dataframe_enriched_metadata": context.dataframe_enriched_metadata,
+                "analytical_intent_plan": context.analytical_intent_plan,
+                "primary_metric": context.primary_metric,
+                "time_axis": context.time_axis,
+                "segmentations": context.segmentations,
+                "forbidden_columns": context.forbidden_columns,
+                "temporal_concentration_results": context.temporal_concentration_results,
                 "analytical_strategy": context.analytical_strategy,
                 "analytical_reasoning_trace": context.analytical_reasoning_trace,
                 "advanced_statistical_results": context.advanced_statistical_results,
@@ -429,8 +474,17 @@ class DataProcessorAgent(BaseAgent):
     ) -> dict:
         numeric_columns = dataframe_metadata.get("numeric_columns") or []
         datetime_columns = dataframe_metadata.get("datetime_columns") or []
+        forbidden_columns = set(context.forbidden_columns or [])
+        numeric_columns = [column for column in numeric_columns if column not in forbidden_columns]
+        datetime_columns = [column for column in datetime_columns if column not in forbidden_columns]
         metric = None
+        if context.primary_metric in numeric_columns:
+            metric = context.primary_metric
+        elif "TEMPO_ATTIVAZIONE_GIORNI" in numeric_columns:
+            metric = "TEMPO_ATTIVAZIONE_GIORNI"
         for column in numeric_columns:
+            if metric:
+                break
             normalized = str(column).lower()
             if any(term in normalized for term in ("duration", "durata", "tempo", "latency", "sla", "hours")):
                 metric = column
@@ -446,4 +500,7 @@ class DataProcessorAgent(BaseAgent):
             "growth_threshold_percent": 50.0,
             "degradation_threshold_percent": 20.0,
         }
+        if metric == "TEMPO_ATTIVAZIONE_GIORNI":
+            config["numeric_columns"] = [metric]
+            config["growth_threshold_percent"] = 35.0
         return {key: value for key, value in config.items() if value is not None}

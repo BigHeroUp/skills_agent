@@ -18,33 +18,21 @@ class DataExtractorAgent(BaseAgent):
         self.log(f"Estrazione dati da: {context.user_input[:40]}...")
         
         try:
-            # Prepara il prompt per OpenAI
-            task_prompt = f"""
-            L'utente ha richiesto: {context.user_input}
-
-            Suggerimento di estrazione disponibile:
-            {str(context.raw_data.get("extraction_suggestion", {}))[:1200]}
-            
-            Genera un piano di estrazione dati in ITALIANO:
-            1. Quale fonte dati usare (Oracle, CSV, API)?
-            2. Quale query/filtro applicare?
-            3. Quali campi estrarre?
-            
-            Ritorna un JSON con (tutto in italiano):
-            {{
-                "source": "...",
-                "query": "...",
-                "fields": [...],
-                "description": "..."
-            }}
-            """
-            prompt = self.build_prompt_with_skill(task_prompt)
-            
-            messages = [{"role": "user", "content": prompt}]
-            response = self.call_openai(messages)
-            
-            # Conserva i dati caricati dal source manager e aggiunge il piano AI.
-            context.raw_data["extraction_plan"] = response
+            suggestion = context.raw_data.get("extraction_suggestion", {})
+            source_type = context.metadata.get("source_type", suggestion.get("source", "unknown"))
+            dataframe = context.raw_data.get("dataframe")
+            dataframe_columns = list(getattr(dataframe, "columns", []))
+            fields = dataframe_columns if dataframe_columns else suggestion.get("columns_extracted", [])
+            context.raw_data["extraction_plan"] = {
+                "source": source_type,
+                "query": suggestion.get("query", ""),
+                "fields": fields,
+                "description": suggestion.get(
+                    "description",
+                    "Piano di estrazione locale basato sui dati gia disponibili.",
+                ),
+                "mode": "local",
+            }
             context.raw_data["status"] = "estratti"
             
             self.log("✅ Dati estratti con successo")

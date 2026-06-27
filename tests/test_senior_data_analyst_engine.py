@@ -92,8 +92,51 @@ def test_generates_professional_report_without_openai():
     assert analysis["analysis_source"] == "local_deterministic_engine"
     assert analysis["executive_summary"]
     assert analysis["operational_recommendations"]
-    assert "# Relazione di analisi dati" in analysis["final_report"]
-    assert "Nota metodologica" in analysis["final_report"]
+    assert "# Report business" in analysis["final_report"]
+    assert "## Executive Summary" in analysis["final_report"]
+    assert "## KPI principali" in analysis["final_report"]
+    assert "## Appendice tecnica" in analysis["final_report"]
+
+
+def test_business_report_avoids_raw_dumps_and_limits_recommendations():
+    analysis = SeniorDataAnalystEngine().analyze(
+        _processed_data(),
+        user_request="Analizza andamento e distribuzione ticket",
+    )
+    report = analysis["final_report"]
+    recommendations = [
+        line for line in report.splitlines()
+        if line[:2] in {f"{index}." for index in range(1, 10)}
+    ]
+
+    assert "local_analysis: {" not in report
+    assert "{'" not in report
+    assert "'}" not in report
+    assert len(recommendations) <= 5
+    assert report.count("## Executive Summary") == 1
+    assert report.count("## KPI principali") == 1
+
+
+def test_business_report_filters_uninformative_segments():
+    processed_data = _processed_data()
+    processed_data["deterministic_summary"]["categorical_summary"] = {
+        "SMARTMOVE": {
+            "unique": 2,
+            "top_values": {"true": 97, "false": 3},
+            "missing": 0,
+        },
+        "PYID": {
+            "unique": 8,
+            "top_values": {f"PY-{index}": 1 for index in range(8)},
+            "missing": 0,
+        },
+    }
+    processed_data["autonomous_analysis_results"] = []
+
+    analysis = SeniorDataAnalystEngine().analyze(processed_data)
+
+    assert "SMARTMOVE" not in analysis["final_report"]
+    assert "PYID" not in analysis["final_report"]
 
 
 def test_handles_time_trend_and_segmentation():

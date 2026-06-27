@@ -461,7 +461,7 @@ class AnalysisEngine:
 
     def _find_categorical_column(self, df: pd.DataFrame, request: str) -> str | None:
         mentioned = self._find_mentioned_column(df, request)
-        if mentioned and not pd.api.types.is_numeric_dtype(df[mentioned]):
+        if mentioned and not pd.api.types.is_numeric_dtype(df[mentioned]) and not self._is_identifier_column(mentioned, df):
             return str(mentioned)
 
         categorical = [
@@ -478,10 +478,20 @@ class AnalysisEngine:
             if 1 <= df[column].nunique(dropna=True) <= max(30, int(len(df) * 0.5))
         ]
         candidates = low_cardinality or categorical
+        candidates = [
+            column for column in candidates
+            if not self._is_identifier_column(column, df)
+        ]
         return str(candidates[0]) if candidates else None
 
     def _find_numeric_column(self, df: pd.DataFrame, request: str) -> str | None:
-        numeric_columns = list(df.select_dtypes(include="number").columns)
+        numeric_columns = [
+            column for column in df.select_dtypes(include="number").columns
+            if not self._is_identifier_column(column, df)
+        ]
+        for column in numeric_columns:
+            if str(column).upper() == "TEMPO_ATTIVAZIONE_GIORNI":
+                return str(column)
         mentioned = self._find_mentioned_column(df, request)
         if mentioned in numeric_columns:
             return str(mentioned)
@@ -500,11 +510,36 @@ class AnalysisEngine:
 
         for column in df.columns:
             normalized = str(column).lower().replace("_", " ")
-            if any(term in normalized for term in ["date", "data", "time", "timestamp", "giorno", "mese"]):
+            if any(term in normalized for term in [
+                "date", "data", "time", "timestamp", "giorno", "mese",
+                "sottoscrizione", "creazione", "antenna", "attivazione",
+            ]):
                 parsed = pd.to_datetime(df[column], errors="coerce")
                 if parsed.notna().sum() >= max(1, int(len(df) * 0.2)):
                     return str(column)
         return None
+
+    def _is_identifier_column(self, column, df: pd.DataFrame) -> bool:
+        normalized = self._normalize(str(column)).replace(" ", "")
+        id_terms = {
+            "id",
+            "pyid",
+            "pzinskey",
+            "uuid",
+            "guid",
+            "key",
+            "idcontratto",
+            "idcontrattotlm",
+            "contrattoid",
+            "serialnumber",
+            "codicefiscale",
+        }
+        if normalized in id_terms or any(term in normalized for term in id_terms):
+            return True
+        if column in df.columns and pd.api.types.is_numeric_dtype(df[column]) and len(df) >= 10:
+            unique_ratio = df[column].nunique(dropna=True) / max(1, df[column].dropna().shape[0])
+            return unique_ratio >= 0.95
+        return False
 
     def _find_mentioned_column(self, df: pd.DataFrame, request: str):
         normalized_request = self._normalize(request)

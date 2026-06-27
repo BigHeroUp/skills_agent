@@ -33,10 +33,11 @@ class AnalystAgent(BaseAgent):
             )
 
             openai_enrichment = None
+            local_report = local_analysis["final_report"]
             task_prompt = f"""
             Arricchisci stilisticamente questa analisi locale senza modificare,
             stimare o inventare alcun valore (rispondi SEMPRE in italiano):
-            {str(local_analysis)[:6000]}
+            {local_report[:6000]}
             
             Produci solo una nota narrativa opzionale. I risultati numerici e le
             conclusioni fattuali devono restare quelli del motore locale.
@@ -44,9 +45,15 @@ class AnalystAgent(BaseAgent):
             if self.openai_available:
                 try:
                     prompt = self.build_prompt_with_skill(task_prompt)
-                    openai_enrichment = self.call_openai([{"role": "user", "content": prompt}])
+                    openai_enrichment = self.call_openai(
+                        [{"role": "user", "content": prompt}],
+                        task_name="analyst_narrative_enrichment",
+                        fallback=None,
+                    )
                 except Exception as exc:
                     self.logger.warning("Arricchimento OpenAI non disponibile: %s", exc)
+            if not openai_enrichment:
+                openai_enrichment = None
             
             context.insights = {
                 "local_analysis": local_analysis,
@@ -58,8 +65,8 @@ class AnalystAgent(BaseAgent):
                 "segmentation_analysis": local_analysis["segmentation_analysis"],
                 "data_quality_notes": local_analysis["data_quality_notes"],
                 "operational_recommendations": local_analysis["operational_recommendations"],
-                "local_final_report": local_analysis["final_report"],
-                "analysis_report": openai_enrichment or local_analysis["final_report"],
+                "local_final_report": local_report,
+                "analysis_report": local_report,
                 "openai_enrichment": openai_enrichment,
                 "deterministic_insights": deterministic_insights,
                 "key_metrics": deterministic_insights.get("key_metrics", {}),

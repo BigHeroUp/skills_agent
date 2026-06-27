@@ -27,6 +27,24 @@ def should_disable_polling(status: str) -> bool:
     return status not in {'processing', 'starting'}
 
 
+def build_followup_request_id(n_clicks: int | None, user_message: str | None) -> str:
+    """Identifica in modo stabile una richiesta follow-up da click e testo."""
+    return f"{int(n_clicks or 0)}:{(user_message or '').strip()}"
+
+
+def should_process_followup_request(
+    n_clicks: int | None,
+    user_message: str | None,
+    last_processed_n_clicks: int | None,
+    last_followup_request_id: str | None,
+) -> bool:
+    """Evita doppie esecuzioni dello stesso submit follow-up."""
+    if not n_clicks or not user_message or not user_message.strip():
+        return False
+    request_id = build_followup_request_id(n_clicks, user_message)
+    return int(n_clicks) > int(last_processed_n_clicks or 0) and request_id != last_followup_request_id
+
+
 def register_callbacks(app, state, logger):
     """Registra tutte le callback Dash sull'applicazione passata."""
     @app.callback(
@@ -187,6 +205,9 @@ def register_callbacks(app, state, logger):
         state.current_charts = []
         state.query_feedback_status = {"query_id": None, "submitted": False, "message": ""}
         state.followup_charts = []
+        state.followup_processing = False
+        state.last_followup_request_id = None
+        state.last_processed_n_clicks = 0
         logger.info("Analisi richiesta dalla dashboard. source_type=%s", source_type)
         
         def run_pipeline():
@@ -238,6 +259,7 @@ def register_callbacks(app, state, logger):
     @app.callback(
         Output('agent-timeline', 'children'),
         Output('progress-container', 'style'),
+        Output('progress-fill', 'style'),
         Input('interval-component', 'n_intervals')
     )
     def update_timeline(n):
@@ -253,23 +275,29 @@ def register_callbacks(app, state, logger):
         
         status = state.processing_status.get('status', 'idle')
         current_agent = state.processing_status.get('current_agent', '')
+        progress = int(state.processing_status.get('progress', 0) or 0)
         
         if status == 'idle':
-            return no_update, {"display": "none"}
+            return no_update, {"display": "none"}, {"width": "0%"}
         
         timeline = []
+        current_index = agents.index(current_agent) if current_agent in agents else -1
         for i, agent in enumerate(agents):
-            if agent == current_agent:
+            if status == 'error' and (agent == current_agent or (current_index < 0 and i == 0)):
+                badge_class = "error"
+                icon = "!"
+                status_text = "Errore"
+            elif agent == current_agent and status == 'processing':
                 badge_class = "active"
-                icon = "⚙️"
+                icon = "●"
                 status_text = "In elaborazione"
-            elif status == 'completed':
+            elif status == 'completed' or (status == 'processing' and current_index >= 0 and i < current_index):
                 badge_class = "completed"
-                icon = "✅"
+                icon = "✓"
                 status_text = "Completato"
             else:
                 badge_class = "pending"
-                icon = "⏳"
+                icon = "○"
                 status_text = "In attesa"
             
             step_class = "agent-step"
@@ -277,6 +305,8 @@ def register_callbacks(app, state, logger):
                 step_class += " active"
             elif badge_class == 'completed':
                 step_class += " completed"
+            elif badge_class == 'error':
+                step_class += " error"
             
             timeline.append(
                 html.Div([
@@ -287,8 +317,14 @@ def register_callbacks(app, state, logger):
             )
         
         progress_style = {"display": "block"} if status == 'processing' else {"display": "none"}
+        progress_fill_style = {"width": f"{max(0, min(progress, 100))}%"}
+        timeline_key = (status, current_agent)
+        if getattr(update_timeline, "_last_timeline_key", None) == timeline_key:
+            timeline = no_update
+        else:
+            update_timeline._last_timeline_key = timeline_key
         
-        return timeline, progress_style
+        return timeline, progress_style, progress_fill_style
     
     
     # Callback per mostrare risultati
@@ -479,13 +515,14 @@ def register_callbacks(app, state, logger):
     # Callback per download PDF
     @app.callback(
         Output('pdf-download-status', 'children'),
+        Output('report-download', 'data'),
         Input('download-pdf-button', 'n_clicks'),
         prevent_initial_call=True
     )
     def download_pdf(n_clicks):
         """Genera e offre download del PDF"""
         if n_clicks == 0 or state.current_context is None:
-            return ""
+            return "", no_update
         
         try:
             logger.info("Generazione PDF richiesta")
@@ -523,46 +560,62 @@ def register_callbacks(app, state, logger):
             
             if success:
                 logger.info(f"PDF generato: {pdf_path}")
-                return html.Div([
-                    html.Span("✅ Report PDF generato con successo!", style={"color": "#2ca02c"}),
-                    html.Br(),
-                    html.A(
-                        "📥 Scarica PDF",
-                        href=f"data/reports/report_{uuid.uuid4().hex[:8]}.pdf",
-                        download=True,
-                        style={"color": "#1f77b4", "textDecoration": "underline"}
-                    )
-                ])
+                return (
+                    html.Span("✅ Report PDF generato e download avviato.", style={"color": "#2ca02c"}),
+                    dcc.send_file(pdf_path),
+                )
             else:
                 return html.Span(
                     "❌ Errore nella generazione del PDF",
                     style={"color": "#d62728"}
-                )
+                ), no_update
         
         except Exception as e:
             logger.error(f"Errore download PDF: {type(e).__name__}")
             return html.Span(
                 f"❌ Errore: {str(e)}",
                 style={"color": "#d62728"}
-            )
+            ), no_update
     
     
     # Callback per chat follow-up
     @app.callback(
         Output('chat-messages', 'children'),
+        Output('chat-input', 'value'),
         Input('interval-component', 'n_intervals'),
         Input('chat-send-button', 'n_clicks'),
         State('chat-input', 'value'),
+        running=[(Output('chat-send-button', 'disabled'), True, False)],
         prevent_initial_call=True
     )
     def handle_chat_message(n_intervals, n_clicks, user_message):
         """Gestisce i messaggi della chat follow-up"""
-        
+
         if ctx.triggered_id == 'interval-component':
-            return _render_chat_messages()
-    
-        if n_clicks == 0 or not user_message or not user_message.strip():
-            return _render_chat_messages()
+            return _render_chat_messages(), no_update
+
+        if not should_process_followup_request(
+            n_clicks,
+            user_message,
+            state.last_processed_n_clicks,
+            state.last_followup_request_id,
+        ):
+            return _render_chat_messages(), no_update
+
+        request_id = build_followup_request_id(n_clicks, user_message)
+        with state.followup_lock:
+            if state.followup_processing:
+                return _render_chat_messages(), no_update
+            if not should_process_followup_request(
+                n_clicks,
+                user_message,
+                state.last_processed_n_clicks,
+                state.last_followup_request_id,
+            ):
+                return _render_chat_messages(), no_update
+            state.followup_processing = True
+            state.last_processed_n_clicks = int(n_clicks or 0)
+            state.last_followup_request_id = request_id
         
         try:
             # Inizializza conversation manager se necessario
@@ -587,41 +640,46 @@ def register_callbacks(app, state, logger):
             if chart_result:
                 state.followup_charts.append(chart_result)
                 state.conversation_manager.add_assistant_message(chart_result["message"])
-                return _render_chat_messages()
+                state.followup_processing = False
+                return _render_chat_messages(), ""
     
             analysis_result = try_run_followup_analysis(user_message, state.current_context)
             if analysis_result:
+                if analysis_result.get("context") is not None:
+                    state.current_context = analysis_result["context"]
+                    result_df = state.current_context.raw_data.get("dataframe")
+                    if isinstance(result_df, pd.DataFrame) and not result_df.empty:
+                        state.current_charts = ChartGenerator.generate_dashboard_charts(
+                            result_df,
+                            state.current_context.insights,
+                        )["charts"]
                 if analysis_result.get("chart"):
                     state.followup_charts.append({
                         "figure": analysis_result["chart"],
                         "description": analysis_result["description"],
-                    })
+                })
                 state.conversation_manager.add_assistant_message(analysis_result["message"])
-                return _render_chat_messages()
+                state.followup_processing = False
+                return _render_chat_messages(), ""
             
-            # Genera risposta in background
-            def generate_response():
-                try:
-                    response = state.conversation_agent.answer_followup_question(
-                        question=user_message,
-                        previous_context={
-                            'raw_data': state.current_context.raw_data,
-                            'processed_data': state.current_context.processed_data,
-                            'insights': state.current_context.insights,
-                            'is_valid': state.current_context.is_valid,
-                            'errors': state.current_context.errors
-                        },
-                        conversation_history=state.conversation_manager.get_chat_history()
-                    )
-                    state.conversation_manager.add_assistant_message(response)
-                except Exception as e:
-                    logger.error(f"Errore generazione risposta: {type(e).__name__}")
-                    state.conversation_manager.add_assistant_message(f"❌ Errore nella risposta: {str(e)}")
-            
-            # Esegui in thread
-            thread = threading.Thread(target=generate_response)
-            thread.daemon = True
-            thread.start()
+            try:
+                response = state.conversation_agent.answer_followup_question(
+                    question=user_message,
+                    previous_context={
+                        'raw_data': state.current_context.raw_data,
+                        'processed_data': state.current_context.processed_data,
+                        'insights': state.current_context.insights,
+                        'is_valid': state.current_context.is_valid,
+                        'errors': state.current_context.errors
+                    },
+                    conversation_history=state.conversation_manager.get_chat_history()
+                )
+                state.conversation_manager.add_assistant_message(response)
+            except Exception as e:
+                logger.error(f"Errore generazione risposta: {type(e).__name__}")
+                state.conversation_manager.add_assistant_message(f"❌ Errore nella risposta: {str(e)}")
+            finally:
+                state.followup_processing = False
             
             # Costruisce il display dei messaggi
             messages_html = []
@@ -637,14 +695,15 @@ def register_callbacks(app, state, logger):
                         html.Span(msg.content)
                     ], style={"marginBottom": "10px", "padding": "8px", "backgroundColor": "rgba(255, 127, 14, 0.1)", "borderRadius": "8px"}))
             
-            return _render_chat_messages()
+            return _render_chat_messages(), ""
         
         except Exception as e:
+            state.followup_processing = False
             logger.error(f"Errore gestione chat: {type(e).__name__}")
             return [html.Div([
                 html.Span("❌ Errore: ", style={"color": "#d62728"}),
                 html.Span(str(e))
-            ])]
+            ])], no_update
     
     def _render_chat_messages():
         """Costruisce il rendering della chat corrente."""

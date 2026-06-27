@@ -7,13 +7,19 @@ anche dai test esistenti, senza dipendere da componenti Dash.
 import base64
 import io
 import json
+import threading
 from dataclasses import dataclass, field
 from typing import Any
 
 import pandas as pd
 import plotly.express as px
 
+from agents.analyst import AnalystAgent
+from agents.data_processor import DataProcessorAgent
+from agents.report_generator import ReportGeneratorAgent
 from coordinator import Coordinator
+from services.analytical_intent_planner import AnalyticalIntentPlanner
+from utils.context import AgentContext
 from utils.pdf_generator import PDFGenerator
 
 
@@ -47,6 +53,10 @@ class DashboardRuntimeState:
     followup_charts: list = field(default_factory=list)
     results_rendered: bool = False
     cached_results_view: dict = field(default_factory=dict)
+    followup_lock: Any = field(default_factory=threading.Lock)
+    followup_processing: bool = False
+    last_followup_request_id: str | None = None
+    last_processed_n_clicks: int = 0
 
     def reset_for_analysis(self):
         """Resetta solo lo stato volatile di una nuova elaborazione."""
@@ -56,6 +66,9 @@ class DashboardRuntimeState:
         self.followup_charts = []
         self.results_rendered = False
         self.cached_results_view = {}
+        self.followup_processing = False
+        self.last_followup_request_id = None
+        self.last_processed_n_clicks = 0
 
 
 def parse_uploaded_dataframe(contents: str, filename: str, source_type: str):
@@ -197,6 +210,10 @@ def try_run_followup_analysis(user_message: str, current_context):
     if current_context is None:
         return None
 
+    filtered = try_run_filtered_reanalysis(user_message, current_context)
+    if filtered:
+        return filtered
+
     message = user_message.lower()
     wants_ticket_overview = any(term in message for term in [
         "puoi procedere", "procedi", "fammi tutto", "fai tutto", "quanto hai detto",
@@ -289,6 +306,78 @@ def try_run_followup_analysis(user_message: str, current_context):
         "message": message_text,
         "chart": fig,
         "description": f"Distribuzione della durata ticket calcolata tra '{start_col}' e '{end_col}'.",
+    }
+
+
+def try_run_filtered_reanalysis(user_message: str, current_context):
+    """Rilancia la pipeline analitica locale su un dataframe filtrato da follow-up."""
+    df = current_context.raw_data.get("dataframe") if current_context else None
+    if not isinstance(df, pd.DataFrame) or df.empty:
+        return None
+
+    planner = AnalyticalIntentPlanner()
+    filter_spec = planner.parse_followup_filter(user_message, df)
+    if not filter_spec:
+        return None
+
+    filtered_df = planner.apply_followup_filter(df, filter_spec)
+    if filtered_df.empty:
+        return {
+            "message": (
+                f"Ho riconosciuto il filtro {filter_spec['column']} == {filter_spec['value']}, "
+                "ma non ci sono record corrispondenti nel dataframe corrente."
+            ),
+            "description": "Ri-analisi filtrata non eseguita: subset vuoto.",
+            "applied_filters": [filter_spec],
+            "filtered_row_count": 0,
+            "followup_execution_type": "filtered_reanalysis",
+        }
+
+    original_request = getattr(current_context, "user_input", "")
+    reanalysis_request = (
+        f"{original_request}\n\nFollow-up filtrato: {user_message}. "
+        f"Analizza solo i record con {filter_spec['column']} == {filter_spec['value']}."
+    )
+    metadata = dict(getattr(current_context, "metadata", {}) or {})
+    metadata["source_type"] = metadata.get("source_type") if metadata.get("source_type") in {"csv", "excel"} else "csv"
+    context = AgentContext(
+        user_input=reanalysis_request,
+        raw_data={
+            "dataframe": filtered_df.copy(),
+            "row_count": len(filtered_df),
+            "columns": list(filtered_df.columns),
+            "source": "followup_filtered_reanalysis",
+            "shape": filtered_df.shape,
+        },
+        metadata=metadata,
+    )
+    context.followup_execution_type = "filtered_reanalysis"
+    context.applied_filters = [filter_spec]
+    context.filtered_row_count = int(len(filtered_df))
+
+    for agent in (DataProcessorAgent(), AnalystAgent(), ReportGeneratorAgent()):
+        context = agent.process(context)
+
+    context.followup_execution_type = "filtered_reanalysis"
+    context.applied_filters = [filter_spec]
+    context.filtered_row_count = int(len(filtered_df))
+    context.processed_data["followup_execution_type"] = context.followup_execution_type
+    context.processed_data["applied_filters"] = context.applied_filters
+    context.processed_data["filtered_row_count"] = context.filtered_row_count
+
+    return {
+        "message": (
+            f"Ho rilanciato l'analisi sul subset filtrato: "
+            f"{filter_spec['column']} == {filter_spec['value']}.\n\n"
+            f"- Righe filtrate: {len(filtered_df)} su {len(df)}\n"
+            f"- Tipo esecuzione: filtered_reanalysis\n\n"
+            f"{context.final_report}"
+        ),
+        "description": f"Ri-analisi filtrata su {filter_spec['column']} == {filter_spec['value']}.",
+        "context": context,
+        "applied_filters": [filter_spec],
+        "filtered_row_count": int(len(filtered_df)),
+        "followup_execution_type": "filtered_reanalysis",
     }
 
 

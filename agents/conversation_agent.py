@@ -103,7 +103,12 @@ La tua specialità è:
             prompt = self._build_prompt(question, previous_context, conversation_history)
             
             messages = [{"role": "user", "content": self.build_prompt_with_skill(prompt)}]
-            response = self.call_openai(messages, temperature=0.5)
+            response = self.call_openai(
+                messages,
+                temperature=0.5,
+                task_name="conversation_followup",
+                fallback=self._build_local_response(question, previous_context),
+            )
             
             self.log("✅ Risposta generata")
             return response
@@ -160,6 +165,24 @@ Se la domanda richiede nuovi dati non disponibili, suggerisci di effettuare una 
 """
         
         return prompt
+
+    def _build_local_response(self, question: str, previous_context: Dict[str, Any]) -> str:
+        """Fallback locale sintetico quando OpenAI non è disponibile."""
+        insights = previous_context.get("insights", {}) or {}
+        processed_data = previous_context.get("processed_data", {}) or {}
+        final_report = insights.get("local_final_report") or insights.get("analysis_report") or ""
+        if final_report:
+            return (
+                "OpenAI non è disponibile o il budget chiamate è esaurito. "
+                "Rispondo usando il report locale: "
+                f"{str(final_report)[:1200]}"
+            )
+        shape = processed_data.get("shape", "dimensione non disponibile")
+        return (
+            "OpenAI non è disponibile o il budget chiamate è esaurito. "
+            f"Posso rispondere solo sui risultati locali disponibili ({shape}). "
+            f"Domanda ricevuta: {question}"
+        )
     
     def _format_insights(self, insights: Dict[str, Any]) -> str:
         """Formatta gli insights per il prompt"""

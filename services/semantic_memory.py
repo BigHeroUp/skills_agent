@@ -16,7 +16,7 @@ class SemanticMemory:
 
     def __init__(self, client=None, embedding_model: str | None = None):
         self.embedding_model = embedding_model or os.getenv("OPENAI_EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL)
-        self.client = client if client is not None else self._build_default_client()
+        self.client = client
 
     def embed_text(self, text: str) -> list[float] | None:
         """Ritorna un embedding normalizzato o None se non disponibile."""
@@ -54,11 +54,4 @@ class SemanticMemory:
         return SequenceMatcher(None, normalized_left, normalized_right).ratio()
 
     def _build_default_client(self):
-        if not os.getenv("OPENAI_API_KEY"):
-            return None
-        try:
-            from openai import OpenAI
-
-            return OpenAI()
-        except Exception:
-            return None
+        return None

@@ -105,4 +105,4 @@ def test_data_processor_enriches_context_in_autonomous_mode(monkeypatch, tmp_pat
     assert result.autonomous_executive_summary
     assert result.autonomous_recommendations
     assert result.processed_data["autonomous_mode"] is True
-    assert calls["openai"] == 1
+    assert calls["openai"] == 0

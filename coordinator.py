@@ -12,6 +12,7 @@ from agents.analyst import AnalystAgent
 from agents.report_generator import ReportGeneratorAgent
 from utils.context import AgentContext
 from utils.logging_config import get_logger
+from services.llm_gateway import reset_llm_gateway
 from typing import Callable, Optional
 from pathlib import Path
 import sys
@@ -79,6 +80,7 @@ class Coordinator:
         safe_print("INIZIO ELABORAZIONE MULTI-AGENT")
         safe_print("="*60)
         logger.info("Pipeline avviata. source_type=%s", (metadata or {}).get("source_type", "non specificata"))
+        reset_llm_gateway()
         
         # Inizializza context con metadata
         self.context = AgentContext(user_input=user_input)
@@ -134,5 +136,4 @@ class Coordinator:
 {'='*40}
 """
         return summary
-
 

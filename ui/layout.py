@@ -185,6 +185,7 @@ DASH_INDEX_STRING = '''
                 display: flex;
                 flex-direction: column;
                 gap: 12px;
+                position: relative;
             }
             
             .agent-step {
@@ -194,17 +195,24 @@ DASH_INDEX_STRING = '''
                 padding: 12px;
                 background: rgba(255, 255, 255, 0.05);
                 border-radius: 8px;
-                animation: slideIn 0.4s ease-out;
+                border-left: 4px solid rgba(255, 255, 255, 0.14);
+                transition: background-color 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
             }
             
             .agent-step.active {
-                background: rgba(31, 119, 180, 0.2);
-                border-left: 4px solid #1f77b4;
+                background: rgba(31, 119, 180, 0.16);
+                border-left-color: #4aa3df;
+                box-shadow: inset 0 0 0 1px rgba(74, 163, 223, 0.35), 0 0 18px rgba(74, 163, 223, 0.18);
             }
             
             .agent-step.completed {
-                background: rgba(44, 160, 44, 0.2);
-                border-left: 4px solid #2ca02c;
+                background: rgba(44, 160, 44, 0.16);
+                border-left-color: #2ca02c;
+            }
+
+            .agent-step.error {
+                background: rgba(214, 39, 40, 0.16);
+                border-left-color: #d62728;
             }
             
             .agent-icon {
@@ -226,19 +234,24 @@ DASH_INDEX_STRING = '''
             }
             
             .status-badge.pending {
-                background: rgba(255, 127, 14, 0.3);
-                color: #ff7f0e;
+                background: rgba(255, 255, 255, 0.08);
+                color: rgba(255, 255, 255, 0.74);
             }
             
             .status-badge.active {
-                background: rgba(31, 119, 180, 0.3);
-                color: #1f77b4;
-                animation: pulse 1.5s infinite;
+                background: rgba(31, 119, 180, 0.24);
+                color: #9ed8ff;
+                box-shadow: 0 0 16px rgba(74, 163, 223, 0.2);
             }
             
             .status-badge.completed {
                 background: rgba(44, 160, 44, 0.3);
-                color: #2ca02c;
+                color: #7ee787;
+            }
+
+            .status-badge.error {
+                background: rgba(214, 39, 40, 0.24);
+                color: #ff9b9b;
             }
             
             .progress-bar {
@@ -254,7 +267,9 @@ DASH_INDEX_STRING = '''
                 height: 100%;
                 background: linear-gradient(90deg, #1f77b4, #ff7f0e);
                 border-radius: 2px;
-                animation: slideRight 2s ease-in-out infinite;
+                width: 0%;
+                transition: width 0.7s ease;
+                box-shadow: 0 0 14px rgba(74, 163, 223, 0.28);
             }
             
             @keyframes slideDown {
@@ -268,30 +283,19 @@ DASH_INDEX_STRING = '''
                 }
             }
             
-            @keyframes slideIn {
-                from {
-                    opacity: 0;
-                    transform: translateX(-20px);
-                }
-                to {
-                    opacity: 1;
-                    transform: translateX(0);
-                }
-            }
-            
-            @keyframes slideRight {
-                0%, 100% { width: 0%; }
-                50% { width: 100%; }
-            }
-            
             @keyframes fadeIn {
                 from { opacity: 0; }
                 to { opacity: 1; }
             }
-            
-            @keyframes pulse {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.7; }
+
+            @media (prefers-reduced-motion: reduce) {
+                .header,
+                .card,
+                .agent-step,
+                .progress-fill {
+                    animation: none !important;
+                    transition: none !important;
+                }
             }
             
             .charts-grid {
@@ -379,6 +383,7 @@ def create_layout(processing_status):
         dcc.Store(id='context-store', data=None),
         dcc.Store(id='charts-store', data=None),
         dcc.Store(id='oracle-connection-store', data={"verified": False}),
+        dcc.Download(id='report-download'),
         dcc.Interval(id='interval-component', interval=500, n_intervals=0, disabled=True),
         
         html.Div([
