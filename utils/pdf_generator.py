@@ -4,9 +4,11 @@ Include grafici, analisi LLM e statistiche
 """
 
 import io
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+from xml.sax.saxutils import escape
 import pandas as pd
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -151,8 +153,7 @@ class PDFGenerator:
         elements.extend(self._build_header(title, user_input))
         elements.append(Spacer(1, 0.3*inch))
         
-        # Sezione Executive Summary
-        elements.extend(self._build_summary(context))
+        elements.extend(self._build_business_report_section(context))
         elements.append(Spacer(1, 0.3*inch))
         
         # Grafici
@@ -160,15 +161,6 @@ class PDFGenerator:
             elements.append(PageBreak())
             elements.extend(self._build_charts_section(charts_figures))
             elements.append(Spacer(1, 0.2*inch))
-        
-        # Insights e Analisi
-        elements.append(PageBreak())
-        elements.extend(self._build_insights_section(context))
-        elements.append(Spacer(1, 0.3*inch))
-        
-        # Statistiche
-        elements.extend(self._build_statistics_section(context))
-        elements.append(Spacer(1, 0.3*inch))
         
         # Footer
         elements.extend(self._build_footer())
@@ -208,7 +200,7 @@ class PDFGenerator:
         elements = []
         
         elements.append(
-            Paragraph("📋 Executive Summary", self.styles['SectionHeading'])
+            Paragraph("Executive Summary", self.styles['SectionHeading'])
         )
         
         summary_text = context.get('final_report', 'Analisi completata senza report.')
@@ -220,13 +212,82 @@ class PDFGenerator:
         )
         
         return elements
+
+    def _build_business_report_section(self, context: Dict[str, Any]) -> List:
+        """Renderizza il report business senza dump tecnici raw."""
+        final_report = context.get('final_report') or context.get('insights', {}).get('local_final_report')
+        if not final_report:
+            final_report = "Analisi completata senza report business disponibile."
+        return self._markdown_to_flowables(str(final_report))
+
+    def _markdown_to_flowables(self, markdown_text: str) -> List:
+        elements = []
+        table_rows = []
+
+        def flush_table():
+            nonlocal table_rows
+            if not table_rows:
+                return
+            cleaned_rows = [
+                [self._clean_inline_markdown(cell.strip()) for cell in row]
+                for row in table_rows
+                if row and not all(re.fullmatch(r"-+", cell.strip()) for cell in row)
+            ]
+            table_rows = []
+            if not cleaned_rows:
+                return
+            table = Table(cleaned_rows, repeatRows=1)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), self.COLORS['primary']),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('BACKGROUND', (0, 1), (-1, -1), self.COLORS['light']),
+                ('TEXTCOLOR', (0, 1), (-1, -1), self.COLORS['dark']),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            elements.append(table)
+            elements.append(Spacer(1, 0.12*inch))
+
+        for raw_line in markdown_text.splitlines():
+            line = raw_line.strip()
+            if not line:
+                flush_table()
+                elements.append(Spacer(1, 0.08*inch))
+                continue
+            if line.startswith("|") and line.endswith("|"):
+                cells = [cell.strip() for cell in line.strip("|").split("|")]
+                if not all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells):
+                    table_rows.append(cells)
+                continue
+            flush_table()
+            if line.startswith("# "):
+                elements.append(Paragraph(self._clean_inline_markdown(line[2:]), self.styles['ReportTitle']))
+            elif line.startswith("## "):
+                elements.append(Paragraph(self._clean_inline_markdown(line[3:]), self.styles['SectionHeading']))
+            elif line.startswith("- "):
+                elements.append(Paragraph(f"• {self._clean_inline_markdown(line[2:])}", self.styles['Insight']))
+            elif re.match(r"^\d+\. ", line):
+                elements.append(Paragraph(self._clean_inline_markdown(line), self.styles['Insight']))
+            else:
+                elements.append(Paragraph(self._clean_inline_markdown(line), self.styles['Normal']))
+        flush_table()
+        return elements
+
+    def _clean_inline_markdown(self, value: str) -> str:
+        text = escape(str(value))
+        text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", text)
+        return text
     
     def _build_charts_section(self, charts_figures: List[Any]) -> List:
         """Crea sezione grafici"""
         elements = []
         
         elements.append(
-            Paragraph("📊 Visualizzazioni Dati", self.styles['SectionHeading'])
+            Paragraph("Visualizzazioni dati", self.styles['SectionHeading'])
         )
         
         for i, fig in enumerate(charts_figures, 1):
@@ -249,7 +310,7 @@ class PDFGenerator:
             except Exception as e:
                 logger.warning(f"Errore conversione grafico {i}: {str(e)}")
                 elements.append(
-                    Paragraph(f"❌ Errore visualizzazione grafico {i}", self.styles['Normal'])
+                    Paragraph(f"Errore visualizzazione grafico {i}", self.styles['Normal'])
                 )
             
             if i % 2 == 0:
@@ -274,19 +335,29 @@ class PDFGenerator:
         
         # Formatta insights per PDF
         if isinstance(insights, dict):
-            for key, value in insights.items():
+            allowed_keys = (
+                "executive_summary",
+                "key_findings",
+                "data_quality_notes",
+                "operational_recommendations",
+                "openai_enrichment",
+                "openai_report_enrichment",
+            )
+            for key in allowed_keys:
+                value = insights.get(key)
+                if not value:
+                    continue
                 if isinstance(value, str):
                     elements.append(
-                        Paragraph(f"<b>• {key}:</b> {value}", self.styles['Insight'])
+                        Paragraph(f"<b>• {escape(key)}:</b> {self._clean_inline_markdown(value)}", self.styles['Insight'])
                     )
-                elif isinstance(value, (list, dict)):
+                elif isinstance(value, list):
+                    summary = "; ".join(str(item) for item in value[:5])
                     elements.append(
-                        Paragraph(f"<b>• {key}:</b> {str(value)[:200]}...", self.styles['Insight'])
+                        Paragraph(f"<b>• {escape(key)}:</b> {self._clean_inline_markdown(summary)}", self.styles['Insight'])
                     )
         else:
-            elements.append(
-                Paragraph(str(insights)[:500], self.styles['Normal'])
-            )
+            elements.append(Paragraph(self._clean_inline_markdown(str(insights)[:500]), self.styles['Normal']))
         
         return elements
     

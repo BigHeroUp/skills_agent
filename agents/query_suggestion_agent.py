@@ -147,6 +147,10 @@ FETCH FIRST 5 ROWS ONLY;
         Ritorna dict con query e metadata.
         """
         try:
+            local_fallback = self._build_local_suggestion(context, source_type)
+            if source_type in {"csv", "excel"}:
+                return local_fallback
+
             # Prepara le istruzioni in base al tipo sorgente
             if source_type == "oracle":
                 instructions = self._get_oracle_instructions(context)
@@ -157,7 +161,12 @@ FETCH FIRST 5 ROWS ONLY;
             
             # Chiama LLM
             messages = [{"role": "user", "content": self.build_prompt_with_skill(instructions)}]
-            response = self.call_openai(messages, temperature=0.5)
+            response = self.call_openai(
+                messages,
+                temperature=0.5,
+                task_name="query_suggestion",
+                fallback=local_fallback,
+            )
             
             # Parsifica risposta (dovrebbe contenere JSON)
             suggestion = self._parse_llm_response(response, source_type)
@@ -181,7 +190,31 @@ FETCH FIRST 5 ROWS ONLY;
         
         except Exception as e:
             self.logger.error(f"Errore generazione query: {e}")
-            raise
+            return self._build_local_suggestion(context, source_type)
+
+    def _build_local_suggestion(self, context: AgentContext, source_type: str) -> dict:
+        """Fallback locale per evitare chiamate LLM non necessarie."""
+        dataframe = context.raw_data.get("dataframe")
+        columns = list(getattr(dataframe, "columns", []) or [])
+        numeric_columns = []
+        datetime_columns = []
+        if dataframe is not None and hasattr(dataframe, "select_dtypes"):
+            numeric_columns = list(dataframe.select_dtypes(include="number").columns)
+            datetime_columns = [
+                column for column in columns
+                if "data" in str(column).lower() or "date" in str(column).lower() or "time" in str(column).lower()
+            ]
+        return {
+            "source": "local_fallback",
+            "query": "",
+            "description": "Suggerimento locale basato su schema e richiesta utente.",
+            "main_columns": columns[:8],
+            "grouping_column": columns[0] if columns else None,
+            "value_column": numeric_columns[0] if numeric_columns else None,
+            "time_column": datetime_columns[0] if datetime_columns else None,
+            "chart_suggestions": ["bar", "line"] if datetime_columns else ["bar"],
+            "source_type": source_type,
+        }
     
     def _get_oracle_instructions(self, context: AgentContext) -> str:
         """Istruzioni per generare query Oracle"""
@@ -254,7 +287,7 @@ RISPOSTA IN FORMATO JSON con questi campi:
             if json_match:
                 json_str = json_match.group(0)
                 parsed = json.loads(json_str)
-                parsed["source"] = "generated"
+                parsed["source"] = parsed.get("source", "generated")
                 return parsed
         except (json.JSONDecodeError, AttributeError):
             pass

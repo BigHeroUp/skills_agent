@@ -35,25 +35,40 @@ class AdvancedStatisticalEngine:
                 "missing_completeness": self._missing_completeness(df),
             })
 
-        numeric_columns = [str(column) for column in df.select_dtypes(include="number").columns]
+        forbidden_columns = {str(column) for column in cfg.get("forbidden_columns", [])}
+        primary_metric = cfg.get("primary_metric")
+        numeric_columns = [
+            str(column)
+            for column in df.select_dtypes(include="number").columns
+            if str(column) not in forbidden_columns
+        ]
+        if primary_metric in df.columns and primary_metric not in numeric_columns:
+            numeric_columns.insert(0, str(primary_metric))
         categorical_columns = [
             str(column)
             for column in df.columns
             if (
+                str(column) not in forbidden_columns
+                and (
                 pd.api.types.is_object_dtype(df[column])
                 or pd.api.types.is_string_dtype(df[column])
                 or isinstance(df[column].dtype, pd.CategoricalDtype)
                 or pd.api.types.is_bool_dtype(df[column])
+                )
             )
         ]
-        datetime_columns = self._datetime_columns(df)
+        datetime_columns = [
+            column for column in self._datetime_columns(df)
+            if column not in forbidden_columns
+        ]
         numeric_analysis = {
             column: self.analyze_numeric_column(df, column, cfg)
             for column in numeric_columns
         }
         correlations = {}
+        correlation_df = df[[column for column in numeric_columns if column in df.columns]]
         for method in cfg.get("correlation_methods", ["pearson", "spearman", "kendall"]):
-            result = self.build_correlation_matrix(df, method=method)
+            result = self.build_correlation_matrix(correlation_df, method=method)
             correlations[method] = result
         frequency_tables = {
             column: self._frequency_table(df, column, int(cfg.get("top_n", 10)))

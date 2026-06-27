@@ -8,7 +8,7 @@ import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
 from dotenv import load_dotenv
-from openai import OpenAI
+from services.llm_gateway import get_llm_gateway
 from utils.context import AgentContext
 from utils.logging_config import get_logger
 
@@ -21,20 +21,23 @@ class BaseAgent(ABC):
         self.skill_name = skill_name or name.lower()
         self.logger = get_logger(f"agent.{self.name}")
         
-        # Carica API key
+        # Carica configurazione ambiente per il gateway LLM condiviso.
         load_dotenv()
-        api_key = os.getenv("OPENAI_API_KEY")
-        self.client = OpenAI(api_key=api_key) if api_key else None
-        if not api_key:
+        self.llm_gateway = get_llm_gateway()
+        self.client = self.llm_gateway.client
+        if not os.getenv("OPENAI_API_KEY"):
             self.logger.warning(
                 "Configurazione OpenAI assente: l'agente usera i fallback locali disponibili"
             )
-        self.model = "gpt-3.5-turbo"
+        self.model = self.llm_gateway.model
 
     @property
     def openai_available(self) -> bool:
         """Indica se il client OpenAI opzionale e configurato."""
-        return self.client is not None
+        gateway = getattr(self, "llm_gateway", None)
+        if gateway is not None:
+            return gateway.client is not None
+        return getattr(self, "client", None) is not None
     
     def load_skill_prompt(self) -> str:
         """Carica il prompt dello skill dal file SKILL.md"""
@@ -56,31 +59,44 @@ TASK CORRENTE:
 {task_prompt}
 """
     
-    def call_openai(self, messages: list, temperature: float = 0.7) -> str:
-        """Chiama l'API OpenAI e ritorna la risposta"""
-        try:
-            if not self.client:
-                raise RuntimeError("OPENAI_API_KEY non configurata")
-            self.logger.info("Richiesta OpenAI avviata. model=%s", self.model)
-            # Aggiungi sistema message per forzare italiano
-            system_message = {
-                "role": "system",
-                "content": "Rispondi SEMPRE in italiano. Tutte le tue risposte devono essere in italiano, senza eccezioni."
-            }
-            
-            # Inserisci system message all'inizio
-            messages_with_system = [system_message] + messages
-            
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages_with_system,
-                temperature=temperature
-            )
-            self.logger.info("Richiesta OpenAI completata")
-            return response.choices[0].message.content
-        except Exception as e:
-            self.logger.error("Richiesta OpenAI fallita: %s", type(e).__name__)
-            raise Exception(f"❌ Errore OpenAI in {self.name}: {str(e)}")
+    def call_openai(
+        self,
+        messages: list,
+        temperature: float | None = None,
+        task_name: str | None = None,
+        cache_key: str | None = None,
+        fallback: str | dict | None = None,
+    ) -> str:
+        """Wrapper compatibile verso il gateway LLM centralizzato."""
+        if not hasattr(self, "llm_gateway"):
+            self.llm_gateway = get_llm_gateway()
+            self.model = self.llm_gateway.model
+        system_message = {
+            "role": "system",
+            "content": "Rispondi SEMPRE in italiano. Tutte le tue risposte devono essere in italiano, senza eccezioni."
+        }
+        result = self.llm_gateway.complete(
+            [system_message] + messages,
+            task_name=task_name or self.name,
+            temperature=temperature,
+            cache_key=cache_key,
+            fallback=fallback,
+        )
+        usage_summary = self.llm_gateway.get_usage_summary()
+        self.logger.info(
+            "Richiesta OpenAI gestita. task_name=%s model=%s cached=%s status=%s calls=%s/%s",
+            result.get("task_name"),
+            result.get("model"),
+            result.get("cached"),
+            result.get("status"),
+            usage_summary.get("calls_used"),
+            usage_summary.get("max_calls"),
+        )
+        if result.get("status") == "fallback":
+            self.logger.warning("OpenAI fallback usato per task=%s: %s", result.get("task_name"), result.get("error"))
+        elif result.get("status") == "error":
+            self.logger.warning("OpenAI non disponibile per task=%s: %s", result.get("task_name"), result.get("error"))
+        return result.get("content", "")
     
     def log(self, message: str):
         """Log di debug"""

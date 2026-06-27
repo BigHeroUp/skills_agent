@@ -15,18 +15,32 @@ class SeniorDataAnalystEngine:
         data = processed_data if isinstance(processed_data, dict) else {}
         summary = data.get("deterministic_summary") or {}
         results = self._collect_results(data)
+        semantic_columns = data.get("semantic_columns") or {}
+        intent_plan = data.get("analytical_intent_plan") or {}
+        forbidden_columns = set(data.get("forbidden_columns") or intent_plan.get("forbidden_columns") or [])
 
         analysis = {
             "user_request": user_request,
             "analysis_source": "local_deterministic_engine",
             "dataset_profile": self._dataset_profile(summary, data),
             "key_findings": [],
-            "kpi_summary": self._build_kpis(summary, results),
-            "trend_analysis": self._build_trends(summary, results),
-            "anomaly_analysis": self._build_anomalies(summary, results),
-            "segmentation_analysis": self._build_segments(summary, results),
+            "kpi_summary": self._build_kpis(summary, results, semantic_columns),
+            "trend_analysis": self._build_trends(summary, results, intent_plan),
+            "anomaly_analysis": self._build_anomalies(summary, results, semantic_columns),
+            "segmentation_analysis": self._build_segments(summary, results, forbidden_columns),
             "data_quality_notes": self._build_quality_notes(summary, results),
             "operational_recommendations": [],
+            "semantic_columns": semantic_columns,
+            "analytical_intent_plan": intent_plan,
+            "primary_metric": data.get("primary_metric"),
+            "time_axis": data.get("time_axis"),
+            "segmentations": data.get("segmentations") or [],
+            "forbidden_columns": list(forbidden_columns),
+            "semantic_feature_plan": data.get("semantic_feature_plan") or {},
+            "semantic_feature_results": data.get("semantic_feature_results") or {},
+            "engineered_features": data.get("engineered_features") or [],
+            "activation_time_analysis": self._build_activation_time_analysis(data),
+            "temporal_concentration_results": data.get("temporal_concentration_results") or {},
             "analysis_plan": data.get("analysis_plan") or {},
             "execution_summary": data.get("execution_summary") or {},
             "detected_patterns": data.get("detected_patterns") or [],
@@ -54,75 +68,74 @@ class SeniorDataAnalystEngine:
         return self._json_safe(analysis)
 
     def generate_executive_summary(self, analysis: dict) -> str:
-        """Produce una sintesi direzionale basata sui soli risultati calcolati."""
+        """Produce una sintesi direzionale in massimo cinque bullet."""
+        return self._bullet_list(self._build_executive_bullets(analysis))
+
+    def _build_executive_bullets(self, analysis: dict) -> list[str]:
         profile = analysis.get("dataset_profile", {})
         rows = profile.get("row_count", 0)
         columns = profile.get("column_count", 0)
-        findings = analysis.get("key_findings", [])
-        anomalies = analysis.get("anomaly_analysis", [])
-        trends = analysis.get("trend_analysis", [])
+        activation = analysis.get("activation_time_analysis") or {}
+        anomaly_summary = self._summarize_anomalies(analysis)
+        recommendations = analysis.get("operational_recommendations") or []
 
-        opening = (
-            f"L'analisi deterministica copre {rows} righe e {columns} colonne"
-            if rows or columns
-            else "L'analisi deterministica disponibile non espone la dimensione completa del dataset"
-        )
-        sentences = [f"{opening}."]
-        if findings:
-            sentences.append(findings[0])
-        if trends:
-            sentences.append(trends[0]["summary"])
-        if anomalies:
-            high_priority = sum(
-                item.get("severity") in {"alta", "critica"} for item in anomalies
+        bullets = [
+            (
+                f"Analizzati {rows} record e {columns} colonne per misurare tempi, qualita dati e concentrazioni operative."
+                if rows or columns
+                else "Analisi completata sul perimetro disponibile; dimensione dataset non esposta nel payload."
             )
-            sentences.append(
-                f"Sono stati rilevati {len(anomalies)} segnali da verificare"
-                + (f", di cui {high_priority} ad alta priorità." if high_priority else ".")
+        ]
+        if activation.get("status") == "computed":
+            bullets.append(
+                f"Record calcolabili per il tempo di attivazione: {activation.get('valid_count', 0)}; "
+                f"mediana {self._fmt(activation.get('median'))} giorni e P95 {self._fmt(activation.get('p95'))} giorni."
+            )
+        elif analysis.get("key_findings"):
+            bullets.append(str(analysis["key_findings"][0]))
+        bullets.append(anomaly_summary["executive_note"])
+        temporal = analysis.get("temporal_concentration_results") or {}
+        if temporal.get("status") == "computed":
+            bullets.append(
+                "I tempi lunghi sono concentrati in giornate specifiche."
+                if temporal.get("conclusion") == "concentrated"
+                else "I tempi lunghi risultano distribuiti sul periodo osservato."
             )
         else:
-            sentences.append("Non emergono anomalie quantificabili dai risultati disponibili.")
-        return " ".join(sentences)
+            bullets.append("La concentrazione temporale non ha evidenza sufficiente o non e stata calcolata.")
+        if recommendations:
+            bullets.append(f"Prossima azione consigliata: {recommendations[0]}")
+        return bullets[:5]
 
     def generate_final_report(self, analysis: dict) -> str:
-        """Compone un report Markdown leggibile ed esportabile."""
+        """Compone un report Markdown business-first ed esportabile."""
         profile = analysis.get("dataset_profile", {})
         request = analysis.get("user_request") or "Analisi generale dei dati"
         sections = [
-            "# Relazione di analisi dati",
+            "# Report business",
             "",
             f"**Obiettivo:** {request}",
-            (
-                f"**Perimetro analizzato:** {profile.get('row_count', 0)} righe, "
-                f"{profile.get('column_count', 0)} colonne."
+            f"**Perimetro:** {profile.get('row_count', 0)} record, {profile.get('column_count', 0)} colonne.",
+            "",
+            "## Executive Summary",
+            self._bullet_list(self._build_executive_bullets(analysis)),
+            "",
+            "## KPI principali",
+            self._format_business_kpi_table(analysis),
+            "",
+            "## Interpretazione business",
+            self._format_business_interpretation(analysis),
+            "",
+            "## Concentrazione temporale dei tempi lunghi",
+            self._format_temporal_concentration_table(
+                analysis.get("temporal_concentration_results", {})
             ),
             "",
-            "## Riepilogo esecutivo",
-            analysis.get("executive_summary", "Sintesi non disponibile."),
-            "",
-            "## Strategia analitica adottata",
-            self._format_analytical_strategy(analysis.get("analytical_strategy", {})),
-            "",
-            "## Dominio riconosciuto",
-            self._format_domain_pack_context(analysis.get("domain_pack_context", {})),
-            "",
-            "## Evidenze principali",
-            self._bullet_list(analysis.get("key_findings", [])),
-            "",
-            "## KPI",
-            self._format_kpis(analysis.get("kpi_summary", [])),
-            "",
-            "## Statistiche avanzate",
-            self._format_advanced_statistics(
-                analysis.get("advanced_statistical_results", {})
-            ),
-            "",
-            "## Trend",
-            self._format_structured_items(
-                analysis.get("trend_analysis", []), empty="Nessun trend temporale disponibile."
-            ),
+            "## Segmentazione utile",
+            self._format_business_segments(analysis.get("segmentation_analysis", [])),
             "",
             "## Anomalie rilevate",
+            self._format_anomaly_summary(analysis),
             self._format_detected_anomalies(
                 analysis.get("anomaly_detection_results", {})
             ),
@@ -130,38 +143,207 @@ class SeniorDataAnalystEngine:
             "## Possibili cause radice",
             self._format_root_causes(analysis.get("root_cause_results", {})),
             "",
-            "## Segmentazione",
-            self._format_structured_items(
-                analysis.get("segmentation_analysis", []),
-                empty="Nessuna segmentazione deterministica disponibile.",
-            ),
-            "",
-            "## Anomalie e segnali di attenzione",
-            self._format_structured_items(
-                analysis.get("anomaly_analysis", []),
-                empty="Nessuna anomalia quantificabile rilevata.",
-            ),
-            "",
-            "## Qualità dei dati",
-            self._bullet_list(analysis.get("data_quality_notes", [])),
-            "",
             "## Raccomandazioni operative",
-            self._numbered_list(analysis.get("operational_recommendations", [])),
+            self._numbered_list((analysis.get("operational_recommendations") or [])[:5]),
             "",
             "## Best practice metodologiche",
-            self._bullet_list(analysis.get("methodological_notes", [])),
+            self._bullet_list((analysis.get("methodological_notes") or [])[:3]),
             "",
-            "## Affidabilita dei pattern",
-            self._bullet_list(analysis.get("learning_reliability_notes", [])),
-            "",
-            "## Nota metodologica",
-            (
-                "Insight, KPI e conclusioni sono stati generati localmente a partire "
-                "da risultati Python/Pandas già calcolati. Il report non introduce "
-                "valori stimati o inventati da un modello linguistico."
-            ),
+            "## Appendice tecnica",
+            self._format_technical_appendix(analysis),
         ]
         return "\n".join(sections)
+
+    def _format_business_kpi_table(self, analysis: dict) -> str:
+        rows = self._business_kpi_rows(analysis)
+        lines = ["| KPI | Valore |", "|---|---:|"]
+        lines.extend(f"| {name} | {self._fmt(value)} |" for name, value in rows)
+        return "\n".join(lines)
+
+    def _business_kpi_rows(self, analysis: dict) -> list[tuple[str, Any]]:
+        profile = analysis.get("dataset_profile", {})
+        activation = analysis.get("activation_time_analysis") or {}
+        anomaly_summary = self._summarize_anomalies(analysis)
+        rows = [
+            ("Record analizzati", profile.get("row_count", 0)),
+            ("Record calcolabili", activation.get("valid_count", "n/a")),
+            ("Media", activation.get("mean", "n/a")),
+            ("Mediana", activation.get("median", "n/a")),
+            ("P75", activation.get("p75", "n/a")),
+            ("P90", activation.get("p90", "n/a")),
+            ("P95", activation.get("p95", "n/a")),
+            ("P99", activation.get("p99", "n/a")),
+            ("Outlier count", anomaly_summary["positive_count"]),
+            ("Negative duration count", anomaly_summary["negative_duration_count"]),
+        ]
+        if activation.get("status") != "computed":
+            for kpi in analysis.get("kpi_summary", []):
+                name = kpi.get("name")
+                if name in {"Righe analizzate", "Record analizzati"}:
+                    rows[0] = ("Record analizzati", kpi.get("value", rows[0][1]))
+                elif rows[2][1] == "n/a" and str(name).lower().startswith("media"):
+                    rows[2] = ("Media", kpi.get("value"))
+        return rows
+
+    def _format_business_interpretation(self, analysis: dict) -> str:
+        activation = analysis.get("activation_time_analysis") or {}
+        anomaly_summary = self._summarize_anomalies(analysis)
+        if activation.get("status") != "computed":
+            return (
+                "- Non e disponibile una metrica di durata calcolata: interpretare i KPI come indicatori descrittivi del dataset.\n"
+                f"- Segnale principale: {anomaly_summary['business_note']}"
+            )
+        lines = [
+            (
+                f"- La media ({self._fmt(activation.get('mean'))}) indica il valore medio, ma puo essere spostata da pochi casi estremi."
+            ),
+            (
+                f"- La mediana ({self._fmt(activation.get('median'))}) descrive il caso tipico: meta dei record calcolabili sta sotto questo valore."
+            ),
+            (
+                f"- Il P95 ({self._fmt(activation.get('p95'))}) rappresenta la coda operativa: il 5% dei casi supera questa durata."
+            ),
+            f"- Lettura del segnale: {anomaly_summary['business_note']}",
+        ]
+        if activation.get("negative_duration_count", 0):
+            lines.append(
+                "- Le durate negative vanno trattate come possibile problema di qualita dati, non come tempi lunghi reali."
+            )
+        return "\n".join(lines)
+
+    def _format_temporal_concentration_table(self, results: dict[str, Any]) -> str:
+        if not isinstance(results, dict) or results.get("status") not in {"computed", "insufficient_evidence"}:
+            return "- Analisi non disponibile o non calcolabile."
+        if results.get("conclusion") == "insufficient_evidence":
+            return "- Conclusione: evidenza insufficiente per stabilire concentrazione temporale."
+        lines = ["| Giorno | Record | Outlier | Ratio | Nota |", "|---|---:|---:|---:|---|"]
+        top_days = results.get("top_days") or []
+        for item in top_days[:5]:
+            ratio = item.get("outlier_ratio")
+            note = "giorno critico" if self._is_number(ratio) and float(ratio) >= 0.5 else "da monitorare"
+            lines.append(
+                f"| {item.get('day', 'n/a')} | {item.get('total_count', 0)} | "
+                f"{item.get('outlier_count', 0)} | {self._fmt(ratio)} | {note} |"
+            )
+        if len(lines) == 2:
+            lines.append("| n/a | 0 | 0 | n/a | nessun giorno critico disponibile |")
+        conclusion = results.get("conclusion")
+        label = "concentrati" if conclusion == "concentrated" else "distribuiti"
+        lines.append("")
+        lines.append(f"- Conclusione: tempi lunghi {label}.")
+        return "\n".join(lines)
+
+    def _format_business_segments(self, segments: list[dict[str, Any]]) -> str:
+        useful = [
+            segment for segment in segments
+            if self._is_useful_segment_column(segment.get("column"), segment)
+        ][:5]
+        if not useful:
+            return "- Nessuna segmentazione sufficientemente informativa sul perimetro analizzato."
+        lines = ["| Dimensione | Segmento principale | Valore | Quota |", "|---|---|---:|---:|"]
+        for segment in useful:
+            lines.append(
+                f"| {segment.get('column') or 'n/a'} | {segment.get('leading_segment')} | "
+                f"{self._fmt(segment.get('leading_value'))} | {self._fmt(segment.get('leading_share_percent'))}% |"
+            )
+        return "\n".join(lines)
+
+    def _format_anomaly_summary(self, analysis: dict) -> str:
+        summary = self._summarize_anomalies(analysis)
+        lines = [
+            f"- Anomalie positive rilevate: {summary['positive_count']}.",
+            f"- Durate negative rilevate: {summary['negative_duration_count']} (possibile qualita dati).",
+            f"- Soglia usata: {summary['threshold']}.",
+            f"- Min/Max osservati: {summary['min_value']} / {summary['max_value']}.",
+        ]
+        if summary["examples"]:
+            lines.append("- Esempi principali: " + "; ".join(summary["examples"][:5]) + ".")
+        return "\n".join(lines)
+
+    def _format_technical_appendix(self, analysis: dict) -> str:
+        profile = analysis.get("dataset_profile", {})
+        source = analysis.get("analysis_source", "local_deterministic_engine")
+        mode = analysis.get("execution_summary", {}).get("source", "n/a")
+        return "\n".join([
+            f"- Fonte analisi: {source}.",
+            f"- Esecuzione: {mode}.",
+            f"- Colonne numeriche considerate: {len(profile.get('numeric_columns', []))}.",
+            f"- Colonne categoriali considerate: {len(profile.get('categorical_columns', []))}.",
+            "- Nessun dump tecnico raw incluso nel report business.",
+        ])
+
+    def _summarize_anomalies(self, analysis: dict) -> dict[str, Any]:
+        activation = analysis.get("activation_time_analysis") or {}
+        detection = analysis.get("anomaly_detection_results") or {}
+        detected = detection.get("anomalies") if isinstance(detection, dict) else []
+        positive_count = 0
+        quality_count = 0
+        examples = []
+        threshold = "n/a"
+        values = []
+        for item in analysis.get("anomaly_analysis") or []:
+            if not isinstance(item, dict):
+                continue
+            anomaly_type = item.get("type")
+            if anomaly_type == "potential_extreme_value":
+                positive_count += 1
+                value = item.get("value")
+                if isinstance(value, dict):
+                    for key in ("min", "max", "mean"):
+                        if self._is_number(value.get(key)):
+                            values.append(float(value[key]))
+            else:
+                quality_count += 1
+            if item.get("summary") and len(examples) < 5:
+                examples.append(str(item.get("summary")))
+        for item in detected or []:
+            if not isinstance(item, dict):
+                continue
+            observed = item.get("observed_value")
+            if self._is_number(observed):
+                values.append(float(observed))
+                if float(observed) >= 0:
+                    positive_count += 1
+            else:
+                positive_count += 1
+            if item.get("recommendation") and len(examples) < 5:
+                examples.append(str(item.get("recommendation")))
+            evidence = item.get("evidence") or {}
+            if threshold == "n/a" and isinstance(evidence, dict):
+                threshold = evidence.get("threshold") or evidence.get("upper_bound") or threshold
+        positive_count = max(positive_count, int(activation.get("outlier_count", 0) or 0))
+        negative_count = int(activation.get("negative_duration_count", 0) or 0)
+        for value in (activation.get("mean"), activation.get("median"), activation.get("p95"), activation.get("p99")):
+            if self._is_number(value):
+                values.append(float(value))
+        business_note = (
+            "il dato suggerisce prima una verifica di qualita sulle date negative."
+            if negative_count
+            else "il dato suggerisce controlli di qualita dati prima del consolidamento dei KPI."
+            if quality_count
+            else "il dato suggerisce una coda operativa da monitorare sui casi estremi."
+            if positive_count
+            else "non emergono segnali anomali rilevanti dai controlli disponibili."
+        )
+        executive_note = (
+            f"Rischio principale: {negative_count} durate negative da verificare come qualita dati."
+            if negative_count
+            else f"Rischio principale: {quality_count} segnali di qualita dati da correggere o validare."
+            if quality_count
+            else f"Rischio principale: {positive_count} anomalie positive o outlier da verificare."
+            if positive_count
+            else "Rischio principale: nessuna anomalia critica nei controlli disponibili."
+        )
+        return {
+            "positive_count": positive_count,
+            "negative_duration_count": negative_count,
+            "threshold": self._fmt(threshold),
+            "min_value": self._fmt(min(values) if values else "n/a"),
+            "max_value": self._fmt(max(values) if values else "n/a"),
+            "examples": examples,
+            "business_note": business_note,
+            "executive_note": executive_note,
+        }
 
     def _collect_results(self, data: dict) -> list[dict[str, Any]]:
         collected: list[dict[str, Any]] = []
@@ -205,7 +387,12 @@ class SeniorDataAnalystEngine:
             ) or [],
         }
 
-    def _build_kpis(self, summary: dict, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _build_kpis(
+        self,
+        summary: dict,
+        results: list[dict[str, Any]],
+        semantic_columns: dict[str, dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
         kpis: list[dict[str, Any]] = []
         if summary.get("row_count") is not None:
             kpis.append(self._kpi("Righe analizzate", summary.get("row_count", 0), "volume"))
@@ -213,6 +400,8 @@ class SeniorDataAnalystEngine:
             kpis.append(self._kpi("Colonne analizzate", summary.get("column_count", 0), "struttura"))
 
         for column, stats in list((summary.get("numeric_summary") or {}).items())[:8]:
+            if not self._is_business_metric(column, semantic_columns):
+                continue
             for metric, label in (("mean", "Media"), ("sum", "Totale"), ("min", "Minimo"), ("max", "Massimo")):
                 if stats.get(metric) is not None:
                     kpis.append(
@@ -241,10 +430,22 @@ class SeniorDataAnalystEngine:
                 )
         return self._deduplicate(kpis, ("name", "value"))[:30]
 
-    def _build_trends(self, summary: dict, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _build_trends(
+        self,
+        summary: dict,
+        results: list[dict[str, Any]],
+        intent_plan: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         trends: list[dict[str, Any]] = []
+        plan = intent_plan if isinstance(intent_plan, dict) else {}
+        preferred_time_axis = plan.get("time_axis")
+        primary_metric = plan.get("primary_metric")
         for item in results:
             result = item["result"]
+            if preferred_time_axis and result.get("time_column") != preferred_time_axis:
+                continue
+            if primary_metric and result.get("value_column") not in {primary_metric, None}:
+                continue
             points = result.get("points")
             if not isinstance(points, list) or not points:
                 continue
@@ -257,7 +458,9 @@ class SeniorDataAnalystEngine:
             first = float(numeric_points[0]["value"])
             last = float(numeric_points[-1]["value"])
             change = last - first
-            change_percent = None if first == 0 else round(change / abs(first) * 100, 2)
+            change_percent = None
+            if first != 0 and first * last >= 0 and abs(first) >= 1:
+                change_percent = round(change / abs(first) * 100, 2)
             direction = "crescente" if change > 0 else "decrescente" if change < 0 else "stabile"
             peak = max(numeric_points, key=lambda point: float(point["value"]))
             low = min(numeric_points, key=lambda point: float(point["value"]))
@@ -267,7 +470,7 @@ class SeniorDataAnalystEngine:
                 + (
                     f" ({change_percent:+.2f}%)."
                     if change_percent is not None
-                    else ", con base iniziale pari a zero."
+                    else ", senza percentuale riportata per evitare letture fuorvianti."
                 )
             )
             trends.append({
@@ -288,6 +491,8 @@ class SeniorDataAnalystEngine:
 
         if not trends:
             for column, time_range in (summary.get("time_ranges") or {}).items():
+                if preferred_time_axis and column != preferred_time_axis:
+                    continue
                 trends.append({
                     "title": f"Copertura temporale {column}",
                     "time_column": column,
@@ -299,7 +504,12 @@ class SeniorDataAnalystEngine:
                 })
         return trends
 
-    def _build_anomalies(self, summary: dict, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _build_anomalies(
+        self,
+        summary: dict,
+        results: list[dict[str, Any]],
+        semantic_columns: dict[str, dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
         anomalies: list[dict[str, Any]] = []
         for column, stats in (summary.get("missing_values") or {}).items():
             percent = float(stats.get("percent", 0) or 0)
@@ -321,6 +531,8 @@ class SeniorDataAnalystEngine:
             })
 
         for column, stats in (summary.get("numeric_summary") or {}).items():
+            if not self._is_business_metric(column, semantic_columns):
+                continue
             mean = stats.get("mean")
             std = stats.get("std")
             minimum = stats.get("min")
@@ -383,8 +595,14 @@ class SeniorDataAnalystEngine:
                     })
         return anomalies
 
-    def _build_segments(self, summary: dict, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _build_segments(
+        self,
+        summary: dict,
+        results: list[dict[str, Any]],
+        forbidden_columns: set[str] | None = None,
+    ) -> list[dict[str, Any]]:
         segments: list[dict[str, Any]] = []
+        forbidden = forbidden_columns or set()
         for item in results:
             result = item["result"]
             values = result.get("counts") or result.get("top") or result.get("groups")
@@ -408,6 +626,8 @@ class SeniorDataAnalystEngine:
             leader = max(normalized, key=lambda entry: float(entry["value"]))
             share = round(float(leader["value"]) / total * 100, 2) if total else None
             column = result.get("target_column") or result.get("group_by_column")
+            if column in forbidden or not self._is_useful_segment_column(column, {"segments": normalized}):
+                continue
             segments.append({
                 "title": item["title"],
                 "column": column,
@@ -424,6 +644,8 @@ class SeniorDataAnalystEngine:
 
         if not segments:
             for column, stats in list((summary.get("categorical_summary") or {}).items())[:5]:
+                if column in forbidden:
+                    continue
                 top_values = stats.get("top_values") or {}
                 if not top_values:
                     continue
@@ -431,6 +653,11 @@ class SeniorDataAnalystEngine:
                 total = sum(float(entry["value"]) for entry in values)
                 leader = max(values, key=lambda entry: float(entry["value"]))
                 share = round(float(leader["value"]) / total * 100, 2) if total else None
+                if not self._is_useful_segment_column(
+                    column,
+                    {"segments": values, "leading_share_percent": share},
+                ):
+                    continue
                 segments.append({
                     "title": f"Distribuzione di {column}",
                     "column": column,
@@ -498,6 +725,25 @@ class SeniorDataAnalystEngine:
             f"{len(profile.get('numeric_columns', []))} metriche numeriche e "
             f"{len(profile.get('categorical_columns', []))} dimensioni categoriali."
         )
+        activation = analysis.get("activation_time_analysis") or {}
+        if activation.get("status") == "computed":
+            findings.append(
+                f"Tempi di attivazione calcolabili su {activation.get('valid_count', 0)} record: "
+                f"mediana {self._fmt(activation.get('median'))} giorni, "
+                f"P95 {self._fmt(activation.get('p95'))} giorni."
+            )
+        temporal = analysis.get("temporal_concentration_results") or {}
+        if temporal.get("status") == "computed":
+            conclusion = temporal.get("conclusion")
+            if conclusion == "concentrated":
+                findings.append(
+                    f"I tempi lunghi risultano concentrati in poche giornate: "
+                    f"{len(temporal.get('top_days') or [])} giornate critiche principali."
+                )
+            elif conclusion == "distributed":
+                findings.append(
+                    "I tempi lunghi risultano distribuiti e non riconducibili a singole giornate."
+                )
         findings.extend(item["summary"] for item in analysis["segmentation_analysis"][:3])
         findings.extend(item["summary"] for item in analysis["trend_analysis"][:2])
         findings.extend(item["summary"] for item in analysis["anomaly_analysis"][:3])
@@ -570,7 +816,7 @@ class SeniorDataAnalystEngine:
         recommendations.append(
             "Raccogliere feedback sull'utilità dell'analisi per migliorare il riuso dei pattern analitici."
         )
-        return list(dict.fromkeys(recommendations))
+        return list(dict.fromkeys(recommendations))[:5]
 
     def _build_methodological_notes(self, patterns: list[dict[str, Any]]) -> list[str]:
         notes = []
@@ -632,6 +878,114 @@ class SeniorDataAnalystEngine:
             )
         return notes
 
+    def _build_activation_time_analysis(self, data: dict[str, Any]) -> dict[str, Any]:
+        summary = data.get("deterministic_summary") or {}
+        column = "TEMPO_ATTIVAZIONE_GIORNI"
+        stats = (summary.get("numeric_summary") or {}).get(column)
+        if not isinstance(stats, dict):
+            return {"status": "not_available"}
+
+        feature = {}
+        for item in (data.get("semantic_feature_results") or {}).get("features", []) or []:
+            if item.get("feature_name") == column:
+                feature = item
+                break
+
+        advanced = data.get("advanced_statistical_results") or {}
+        advanced_column = (advanced.get("numeric_analysis") or {}).get(column) or {}
+        percentiles = advanced_column.get("percentiles") or {}
+        dispersion = advanced_column.get("dispersion") or {}
+        outliers = advanced_column.get("outliers") or {}
+        iqr_outliers = (outliers.get("iqr") or {}).get("outlier_count", 0)
+
+        p75 = percentiles.get("p75")
+        p95 = percentiles.get("p95")
+        median = stats.get("median", percentiles.get("p50"))
+        mean = stats.get("mean")
+        long_tail = (
+            self._is_number(p95)
+            and self._is_number(median)
+            and float(median) > 0
+            and float(p95) / float(median) >= 2
+        )
+        return {
+            "status": "computed",
+            "feature_name": column,
+            "source_columns": feature.get("source_columns", {}),
+            "valid_count": feature.get("valid_count", stats.get("count", 0)),
+            "missing_count": feature.get("missing_count", stats.get("missing", 0)),
+            "negative_duration_count": feature.get("negative_duration_count", 0),
+            "mean": mean,
+            "median": median,
+            "p75": p75,
+            "p90": percentiles.get("p90"),
+            "p95": p95,
+            "p99": percentiles.get("p99"),
+            "iqr": dispersion.get("iqr"),
+            "mad": dispersion.get("mad"),
+            "outlier_count": iqr_outliers,
+            "long_tail": long_tail,
+        }
+
+    def _format_activation_time_analysis(self, analysis: dict[str, Any]) -> str:
+        if not isinstance(analysis, dict) or analysis.get("status") != "computed":
+            return "- Feature TEMPO_ATTIVAZIONE_GIORNI non disponibile o non richiesta."
+        sources = analysis.get("source_columns") or {}
+        lines = [
+            f"- Feature: **{analysis.get('feature_name')}**.",
+            (
+                f"- Colonne sorgente: {sources.get('start', 'n/a')} -> "
+                f"{sources.get('end', 'n/a')}."
+            ),
+            (
+                f"- Record calcolabili: {analysis.get('valid_count', 0)}; "
+                f"mancanti/non parsabili: {analysis.get('missing_count', 0)}; "
+                f"durate negative: {analysis.get('negative_duration_count', 0)}."
+            ),
+            (
+                f"- Media {self._fmt(analysis.get('mean'))} giorni; "
+                f"mediana {self._fmt(analysis.get('median'))} giorni; "
+                f"P75 {self._fmt(analysis.get('p75'))}; P90 {self._fmt(analysis.get('p90'))}; "
+                f"P95 {self._fmt(analysis.get('p95'))}; P99 {self._fmt(analysis.get('p99'))}."
+            ),
+            (
+                f"- Variabilita: IQR {self._fmt(analysis.get('iqr'))}, "
+                f"MAD {self._fmt(analysis.get('mad'))}, outlier IQR {analysis.get('outlier_count', 0)}."
+            ),
+            (
+                "- La distribuzione mostra una coda lunga: il P95 è almeno il doppio della mediana."
+                if analysis.get("long_tail")
+                else "- Non emerge una coda lunga estrema dal rapporto P95/mediana."
+            ),
+        ]
+        return "\n".join(lines)
+
+    def _format_temporal_concentration(self, results: dict[str, Any]) -> str:
+        if not isinstance(results, dict) or results.get("status") not in {"computed", "insufficient_evidence"}:
+            return "- Analisi di concentrazione temporale non richiesta o non calcolabile."
+        if results.get("conclusion") == "insufficient_evidence":
+            return "- Evidenze insufficienti per stabilire se i tempi lunghi siano concentrati in giornate specifiche."
+        top_days = results.get("top_days") or []
+        if results.get("conclusion") == "concentrated":
+            opening = f"- I tempi lunghi risultano concentrati in {len(top_days)} giornate principali."
+        else:
+            opening = "- I tempi lunghi risultano distribuiti e non riconducibili a singole giornate."
+        lines = [
+            opening,
+            (
+                f"- Soglia outlier: {self._fmt(results.get('outlier_threshold'))} "
+                f"su {results.get('metric')} per {results.get('time_axis')}; "
+                f"outlier totali: {results.get('outlier_count', 0)}."
+            ),
+        ]
+        for item in top_days[:5]:
+            lines.append(
+                f"- {item.get('day')}: {item.get('outlier_count')} outlier "
+                f"su {item.get('total_count')} record "
+                f"(ratio {self._fmt(item.get('outlier_ratio'))})."
+            )
+        return "\n".join(lines)
+
     def _kpi(self, name: str, value: Any, category: str, context: str | None = None) -> dict:
         return {"name": name, "value": value, "category": category, "context": context}
 
@@ -667,7 +1021,7 @@ class SeniorDataAnalystEngine:
     def _format_structured_items(self, items: list[dict[str, Any]], empty: str) -> str:
         if not items:
             return f"- {empty}"
-        return "\n".join(f"- {item.get('summary', str(item))}" for item in items)
+        return "\n".join(f"- {item.get('summary', 'Elemento sintetico disponibile.')}" for item in items)
 
     def _format_analytical_strategy(self, strategy: dict[str, Any]) -> str:
         if not isinstance(strategy, dict) or not strategy:
@@ -728,7 +1082,11 @@ class SeniorDataAnalystEngine:
             lines.append("- Regole applicate: " + "; ".join(rules))
         return "\n".join(lines)
 
-    def _format_advanced_statistics(self, results: dict[str, Any]) -> str:
+    def _format_advanced_statistics(
+        self,
+        results: dict[str, Any],
+        forbidden_columns: list[str] | None = None,
+    ) -> str:
         if not isinstance(results, dict) or not results:
             return "- Statistiche avanzate non disponibili."
         if results.get("status") == "skipped":
@@ -736,8 +1094,13 @@ class SeniorDataAnalystEngine:
         if results.get("status") == "empty":
             return "- Dataset vuoto: statistiche avanzate non calcolabili."
         lines: list[str] = []
+        forbidden = set(forbidden_columns or [])
         numeric_analysis = results.get("numeric_analysis") or {}
-        for column, analysis in list(numeric_analysis.items())[:5]:
+        for column, analysis in numeric_analysis.items():
+            if column in forbidden:
+                continue
+            if not self._is_business_metric(column, None):
+                continue
             if not isinstance(analysis, dict) or analysis.get("status") != "computed":
                 continue
             percentiles = analysis.get("percentiles") or {}
@@ -757,6 +1120,8 @@ class SeniorDataAnalystEngine:
                 f"MAD {self._fmt(dispersion.get('mad'))}; "
                 f"outlier IQR/Z/modZ: {iqr_outliers}/{zscore_outliers}/{modified_outliers}."
             )
+            if len(lines) >= 5:
+                break
         threshold_results = results.get("threshold_comparisons") or {}
         for key, item in list(threshold_results.items())[:3]:
             if isinstance(item, dict) and item.get("status") == "computed":
@@ -767,8 +1132,12 @@ class SeniorDataAnalystEngine:
         correlations = results.get("correlation_matrices") or {}
         pearson = correlations.get("pearson") or {}
         top_pairs = pearson.get("top_pairs") or []
-        if top_pairs:
-            best = top_pairs[0]
+        valid_pairs = [
+            pair for pair in top_pairs
+            if all(column not in forbidden and self._is_business_metric(column, None) for column in pair.get("columns", []))
+        ]
+        if valid_pairs:
+            best = valid_pairs[0]
             pair = " / ".join(best.get("columns", []))
             lines.append(
                 f"- Correlazione Pearson piu alta: {pair} = {self._fmt(best.get('correlation'))}."
@@ -782,9 +1151,9 @@ class SeniorDataAnalystEngine:
 
     def _format_detected_anomalies(self, results: dict[str, Any]) -> str:
         if not isinstance(results, dict) or not results:
-            return "- Anomaly detection locale non disponibile."
+            return "- Nessun dettaglio aggiuntivo sulle anomalie disponibile."
         if results.get("status") == "skipped":
-            return f"- Anomaly detection non eseguita: {results.get('reason', 'non richiesta')}."
+            return f"- Controllo anomalie non eseguito: {results.get('reason', 'non richiesto')}."
         anomalies = results.get("anomalies") or []
         if not anomalies:
             return f"- Nessuna anomalia rilevata. {results.get('reason', '')}".strip()
@@ -798,7 +1167,7 @@ class SeniorDataAnalystEngine:
             reverse=True,
         )
         lines = []
-        for item in ordered[:8]:
+        for item in ordered[:5]:
             evidence = item.get("evidence") or {}
             evidence_text = "; ".join(
                 f"{key}: {self._fmt(value)}"
@@ -849,6 +1218,55 @@ class SeniorDataAnalystEngine:
 
     def _is_number(self, value: Any) -> bool:
         return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value))
+
+    def _is_business_metric(
+        self,
+        column: str,
+        semantic_columns: dict[str, dict[str, Any]] | None,
+    ) -> bool:
+        if str(column).upper() == "TEMPO_ATTIVAZIONE_GIORNI":
+            return True
+        if not semantic_columns:
+            normalized = str(column).lower().replace("_", "")
+            return not any(
+                term in normalized
+                for term in ("id", "pyid", "contrattoid", "idcontrattotlm", "serialnumber")
+            )
+        semantic_type = (semantic_columns.get(str(column)) or {}).get("semantic_type")
+        return semantic_type in {"METRIC", "AMOUNT", "PERCENTAGE", "DURATION"}
+
+    def _is_useful_segment_column(
+        self,
+        column: Any,
+        segment: dict[str, Any] | None = None,
+    ) -> bool:
+        normalized = str(column or "").lower().replace("_", "")
+        if not normalized:
+            return False
+        blocked_terms = {
+            "pyid",
+            "contrattoid",
+            "serialnumber",
+            "idcontrattotlm",
+        }
+        if normalized in blocked_terms or any(term in normalized for term in blocked_terms):
+            return False
+        values = (segment or {}).get("segments") or []
+        if len(values) <= 1:
+            return False
+        total = sum(float(item.get("value", 0) or 0) for item in values if isinstance(item, dict))
+        if total:
+            leader = max(
+                (item for item in values if isinstance(item, dict)),
+                key=lambda item: float(item.get("value", 0) or 0),
+                default=None,
+            )
+            if leader and float(leader.get("value", 0) or 0) / total >= 0.95:
+                return False
+        share = (segment or {}).get("leading_share_percent")
+        if self._is_number(share) and float(share) >= 95:
+            return False
+        return True
 
     def _json_safe(self, value: Any) -> Any:
         if isinstance(value, dict):

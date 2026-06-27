@@ -43,14 +43,17 @@ class ReportGeneratorAgent(BaseAgent):
                     openai_enrichment = self.call_openai(
                         [{"role": "user", "content": prompt}],
                         temperature=0.5,
+                        task_name="report_language_enrichment",
+                        fallback=None,
                     )
                 except Exception as exc:
                     self.logger.warning("Report OpenAI non disponibile: %s", exc)
+            if not openai_enrichment:
+                openai_enrichment = None
 
             if openai_enrichment:
-                context.final_report = (
-                    f"{local_report}\n\n## Arricchimento narrativo opzionale\n{openai_enrichment}"
-                )
+                context.insights["openai_report_enrichment"] = openai_enrichment
+                context.final_report = local_report
             else:
                 context.final_report = local_report
             

@@ -38,6 +38,17 @@ class AgentContext:
     knowledge_analysis_steps: List[Dict[str, Any]] = field(default_factory=list)
     learning_state: Dict[str, Any] = field(default_factory=dict)
     learning_events: List[Dict[str, Any]] = field(default_factory=list)
+    semantic_columns: Dict[str, Any] = field(default_factory=dict)
+    semantic_feature_plan: Dict[str, Any] = field(default_factory=dict)
+    semantic_feature_results: Dict[str, Any] = field(default_factory=dict)
+    engineered_features: List[str] = field(default_factory=list)
+    dataframe_enriched_metadata: Dict[str, Any] = field(default_factory=dict)
+    analytical_intent_plan: Dict[str, Any] = field(default_factory=dict)
+    primary_metric: str | None = None
+    time_axis: str | None = None
+    segmentations: List[str] = field(default_factory=list)
+    forbidden_columns: List[str] = field(default_factory=list)
+    temporal_concentration_results: Dict[str, Any] = field(default_factory=dict)
     analytical_strategy: Dict[str, Any] = field(default_factory=dict)
     analytical_reasoning_trace: Dict[str, Any] = field(default_factory=dict)
     advanced_statistical_results: Dict[str, Any] = field(default_factory=dict)
@@ -51,6 +62,9 @@ class AgentContext:
     autonomous_executive_summary: str = ""
     autonomous_recommendations: List[str] = field(default_factory=list)
     autonomous_mode: bool = False
+    followup_execution_type: str = ""
+    applied_filters: List[Dict[str, Any]] = field(default_factory=list)
+    filtered_row_count: int | None = None
     
     # Analisi e insight
     insights: Dict[str, Any] = field(default_factory=dict)

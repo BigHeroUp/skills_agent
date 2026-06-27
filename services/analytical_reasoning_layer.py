@@ -91,6 +91,7 @@ class AnalyticalReasoningLayer:
         detected_patterns: list[dict] | None = None,
         learning_state: dict | None = None,
         domain_pack_context: dict | None = None,
+        analytical_intent_plan: dict | None = None,
     ) -> dict:
         """Produce una strategia ordinata e JSON-serializzabile."""
         request = str(user_request or "").strip()
@@ -108,6 +109,9 @@ class AnalyticalReasoningLayer:
             "intent": self._classify_intent(request),
             "domain_pack_context": (
                 domain_pack_context if isinstance(domain_pack_context, dict) else {}
+            ),
+            "analytical_intent_plan": (
+                analytical_intent_plan if isinstance(analytical_intent_plan, dict) else {}
             ),
         }
 
@@ -166,6 +170,7 @@ class AnalyticalReasoningLayer:
             "domain_strategy_rules": self._domain_strategy_rules(
                 context["domain_pack_context"]
             ),
+            "analytical_intent_plan": context["analytical_intent_plan"],
         }
         return self._json_safe(strategy)
 
@@ -318,13 +323,21 @@ class AnalyticalReasoningLayer:
     def _build_candidates(self, context: dict) -> tuple[list[dict], list[dict]]:
         metadata = context["metadata"]
         intent = context["intent"]
+        intent_plan = context.get("analytical_intent_plan") or {}
         patterns = context.get("detected_patterns", [])
         pattern_ids = {pattern.get("pattern_id") for pattern in patterns}
         candidates: list[dict[str, Any]] = []
         excluded: list[dict[str, Any]] = []
-        numeric = metadata["numeric_columns"]
-        categorical = metadata["categorical_columns"]
-        datetime_cols = metadata["datetime_columns"]
+        forbidden = set(intent_plan.get("forbidden_columns") or [])
+        numeric = [column for column in metadata["numeric_columns"] if column not in forbidden]
+        categorical = [column for column in metadata["categorical_columns"] if column not in forbidden]
+        datetime_cols = [column for column in metadata["datetime_columns"] if column not in forbidden]
+        primary_metric = intent_plan.get("primary_metric")
+        time_axis = intent_plan.get("time_axis")
+        segmentations = [
+            column for column in intent_plan.get("segmentations", [])
+            if column in metadata["columns"] and column not in forbidden
+        ]
 
         def add(
             analysis_type: str,
@@ -348,7 +361,7 @@ class AnalyticalReasoningLayer:
             })
 
         if numeric:
-            metric = self._preferred_numeric_column(numeric, metadata["columns"])
+            metric = primary_metric if primary_metric in numeric else self._preferred_numeric_column(numeric, metadata["columns"])
             add(
                 "percentile_analysis",
                 "La richiesta riguarda tempi/prestazioni/SLA: percentili e mediana descrivono meglio la coda della sola media.",
@@ -423,7 +436,7 @@ class AnalyticalReasoningLayer:
                 add(
                     "correlation_matrix",
                     "Piu colonne numeriche consentono una matrice di correlazione per individuare relazioni lineari e monotone.",
-                    numeric,
+                    [column for column in numeric if column not in forbidden],
                     "matrici Pearson, Spearman e Kendall con coppie piu correlate",
                     "operational_kpi_analysis",
                     65,
@@ -446,9 +459,11 @@ class AnalyticalReasoningLayer:
             ))
 
         if datetime_cols:
-            required = [datetime_cols[0]]
+            selected_time = time_axis if time_axis in datetime_cols else datetime_cols[0]
+            required = [selected_time]
             if numeric:
-                required.append(self._preferred_numeric_column(numeric, metadata["columns"]))
+                metric = primary_metric if primary_metric in numeric else self._preferred_numeric_column(numeric, metadata["columns"])
+                required.append(metric)
             add(
                 "time_trend",
                 "Esiste una colonna data: il trend puo mostrare variazioni nel tempo senza inventare assi temporali.",
@@ -466,7 +481,7 @@ class AnalyticalReasoningLayer:
             ))
 
         if categorical:
-            segment = self._preferred_categorical_column(categorical, context["user_request"])
+            segment = segmentations[0] if segmentations else self._preferred_categorical_column(categorical, context["user_request"])
             add(
                 "categorical_segmentation",
                 "La richiesta parla di distribuzione/categorie o i dati contengono dimensioni categoriali segmentabili.",
@@ -490,6 +505,13 @@ class AnalyticalReasoningLayer:
             excluded.extend([
                 self._excluded("categorical_segmentation", "Mancano colonne categoriali nei metadata."),
                 self._excluded("top_values", "Mancano colonne categoriali nei metadata."),
+            ])
+
+        for column in sorted(forbidden):
+            excluded.extend([
+                self._excluded("top_values", f"{column} esclusa: identificativo o codice tecnico."),
+                self._excluded("correlation_matrix", f"{column} esclusa: identificativo o codice tecnico."),
+                self._excluded("categorical_segmentation", f"{column} esclusa: identificativo o codice tecnico."),
             ])
 
         if pattern_ids and "data_quality_audit" in pattern_ids:

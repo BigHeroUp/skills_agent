@@ -159,6 +159,25 @@ The platform explains:
 
 ---
 
+## Validation Lab
+
+Skills Agent uses a Validation Lab to evaluate the system against real and synthetic evidence instead of relying only on implementation milestones.
+
+The lab tracks:
+
+- analytical correctness;
+- report quality;
+- dashboard UX;
+- LLM Gateway robustness;
+- domain pack maturity.
+
+See:
+
+- [Validation Lab README](validation_lab/README.md)
+- [Quality Gates](validation_lab/quality_gates.md)
+
+---
+
 # 🏗 Architecture
 
 The project follows a modular **Hub & Spoke Architecture**.

@@ -28,13 +28,17 @@ class ChartGenerator:
         "key",
         "idcontratto",
         "idcontrattotlm",
+        "contrattoid",
         "contractid",
         "smartmoveid",
+        "serialnumber",
+        "codicefiscale",
     }
     METRIC_TERMS = {
         "amount",
         "importo",
         "tempo",
+        "tempoattivazione",
         "duration",
         "durata",
         "processing",
@@ -47,7 +51,10 @@ class ChartGenerator:
         "revenue",
         "cost",
     }
-    DATE_TERMS = {"date", "data", "time", "timestamp", "created", "updated", "giorno", "mese"}
+    DATE_TERMS = {
+        "date", "data", "time", "timestamp", "created", "updated", "giorno", "mese",
+        "creazione", "agg", "sottoscrizione", "attivazione", "chiusura", "apertura",
+    }
 
     @staticmethod
     def generate_requested_charts(df: pd.DataFrame, user_request: str) -> List[go.Figure]:
@@ -98,6 +105,7 @@ class ChartGenerator:
                 column: ChartGenerator._profile_column(df, column)
                 for column in df.columns
             }
+            charts.extend(ChartGenerator._activation_time_charts(df))
             for profile in profiles.values():
                 if not profile["chart_allowed"]:
                     ChartGenerator._log_skipped_chart(profile)
@@ -135,7 +143,8 @@ class ChartGenerator:
                         showlegend=False,
                         height=400
                     )
-                    charts.append(fig)
+                    if not ChartGenerator._has_title(charts, fig.layout.title.text):
+                        charts.append(fig)
             
             # 2. Correlazione tra variabili numeriche
             if len(numeric_cols) >= 2:
@@ -152,7 +161,8 @@ class ChartGenerator:
                     template='plotly_dark',
                     height=400
                 )
-                charts.append(fig)
+                if not ChartGenerator._has_title(charts, fig.layout.title.text):
+                    charts.append(fig)
             
             # 3. Distribuzione informativa per colonna categorica
             if categorical_cols:
@@ -172,7 +182,8 @@ class ChartGenerator:
                     height=400,
                     showlegend=False
                 )
-                charts.append(fig)
+                if not ChartGenerator._has_title(charts, fig.layout.title.text):
+                    charts.append(fig)
             
             # 4. Serie temporale se presente colonna data
             if date_cols and numeric_cols:
@@ -191,7 +202,8 @@ class ChartGenerator:
                         template='plotly_dark',
                         height=400
                     )
-                    charts.append(fig)
+                    if not ChartGenerator._has_title(charts, fig.layout.title.text):
+                        charts.append(fig)
                 except:
                     pass
             
@@ -209,7 +221,8 @@ class ChartGenerator:
                     template='plotly_dark',
                     height=400
                 )
-                charts.append(fig)
+                if not ChartGenerator._has_title(charts, fig.layout.title.text):
+                    charts.append(fig)
             
             # 6. KPI riassuntivi solo per metriche informative
             if numeric_cols:
@@ -237,7 +250,8 @@ class ChartGenerator:
                     template='plotly_dark',
                     height=300
                 )
-                charts.append(fig)
+                if not ChartGenerator._has_title(charts, fig.layout.title.text):
+                    charts.append(fig)
             
         except Exception as e:
             logger.error("Generazione grafici fallita: %s", type(e).__name__)
@@ -299,6 +313,96 @@ class ChartGenerator:
             "missing_count": int(series.isna().sum()),
             "duplicate_count": int(non_null.duplicated().sum()) if not non_null.empty else 0,
         }
+
+    @staticmethod
+    def _activation_time_charts(df: pd.DataFrame) -> list[go.Figure]:
+        metric = "TEMPO_ATTIVAZIONE_GIORNI"
+        if metric not in df.columns:
+            return []
+        charts: list[go.Figure] = []
+        valid = df[pd.to_numeric(df[metric], errors="coerce").notna()].copy()
+        if valid.empty:
+            return charts
+        valid[metric] = pd.to_numeric(valid[metric], errors="coerce")
+
+        hist = px.histogram(
+            valid,
+            x=metric,
+            nbins=30,
+            title="Distribuzione tempi di attivazione",
+            labels={metric: "Tempo attivazione (giorni)"},
+        )
+        hist.update_layout(template="plotly_dark", height=420)
+        charts.append(hist)
+
+        box = px.box(
+            valid,
+            y=metric,
+            points="outliers",
+            title="Boxplot tempi di attivazione",
+            labels={metric: "Tempo attivazione (giorni)"},
+        )
+        box.update_layout(template="plotly_dark", height=420)
+        charts.append(box)
+
+        date_col = ChartGenerator._find_activation_date_column(valid)
+        if date_col:
+            parsed = pd.to_datetime(valid[date_col], errors="coerce")
+            trend_df = valid.loc[parsed.notna(), [metric]].copy()
+            trend_df["_activation_date"] = parsed.loc[parsed.notna()]
+            trend = (
+                trend_df.set_index("_activation_date")[metric]
+                .resample("W")
+                .agg(["mean", "median"])
+                .dropna(how="all")
+                .reset_index()
+            )
+            if not trend.empty:
+                line = px.line(
+                    trend,
+                    x="_activation_date",
+                    y=["mean", "median"],
+                    markers=True,
+                    title=f"Trend medio/mediano tempi attivazione per {date_col}",
+                    labels={"_activation_date": "Periodo", "value": "Giorni", "variable": "Metrica"},
+                )
+                line.update_layout(template="plotly_dark", height=420)
+                charts.append(line)
+
+        method_col = ChartGenerator._find_method_column(valid)
+        if method_col and valid[method_col].nunique(dropna=True) >= 2:
+            by_method = px.box(
+                valid,
+                x=method_col,
+                y=metric,
+                points=False,
+                title=f"Tempi di attivazione per {method_col}",
+                labels={metric: "Tempo attivazione (giorni)", method_col: method_col},
+            )
+            by_method.update_layout(template="plotly_dark", height=420, xaxis_tickangle=-25)
+            charts.append(by_method)
+        return charts
+
+    @staticmethod
+    def _find_activation_date_column(df: pd.DataFrame):
+        for preferred in ("DATASOTTOSCRIZIONE", "DATA_SOTTOSCRIZIONE", "CREAZIONE_ANTENNA"):
+            if preferred in df.columns:
+                return preferred
+        return ChartGenerator._find_datetime_column(df)
+
+    @staticmethod
+    def _find_method_column(df: pd.DataFrame):
+        for column in df.columns:
+            normalized = ChartGenerator._normalize_column(column)
+            if "metodoconsegna" in normalized or ("metodo" in normalized and "consegna" in normalized):
+                return column
+        return None
+
+    @staticmethod
+    def _has_title(charts: list[go.Figure], title: str | None) -> bool:
+        if not title:
+            return False
+        return any(getattr(chart.layout.title, "text", None) == title for chart in charts)
 
     @staticmethod
     def _semantic_type(column, series: pd.Series, distinct_count: int, row_count: int) -> str:

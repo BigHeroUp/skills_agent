@@ -1,7 +1,7 @@
 import pandas as pd
 
 from services.business_insight_generator import BusinessInsightGenerator
-from ui.callbacks import should_disable_polling
+from ui.callbacks import build_followup_request_id, should_disable_polling, should_process_followup_request
 from ui.layout import create_layout
 from utils.chart_generator import ChartGenerator
 
@@ -88,3 +88,11 @@ def test_dashboard_layout_is_insight_first_and_interval_starts_disabled():
     assert should_disable_polling("completed") is True
     assert should_disable_polling("error") is True
     assert should_disable_polling("processing") is False
+
+
+def test_followup_request_guard_rejects_duplicate_click():
+    request_id = build_followup_request_id(3, " procedi ")
+
+    assert should_process_followup_request(3, "procedi", 2, None) is True
+    assert should_process_followup_request(3, " procedi ", 3, request_id) is False
+    assert should_process_followup_request(0, "procedi", 0, None) is False

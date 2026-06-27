@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pandas as pd
+
 
 class BusinessInsightGenerator:
     """Trasforma metadata tecnici in note leggibili per utenti business."""
@@ -44,3 +46,41 @@ class BusinessInsightGenerator:
         if not useful_columns:
             return None
         return "Le visualizzazioni automatiche sono state limitate alle colonne informative per trend, metriche e distribuzioni business."
+
+    def generate_activation_time_insights(
+        self,
+        df: pd.DataFrame,
+        feature_results: dict[str, Any] | None = None,
+    ) -> list[str]:
+        metric = "TEMPO_ATTIVAZIONE_GIORNI"
+        if not isinstance(df, pd.DataFrame) or metric not in df.columns:
+            return []
+        values = pd.to_numeric(df[metric], errors="coerce").dropna()
+        if values.empty:
+            return []
+        insights = [
+            f"La mediana dei tempi di attivazione è {values.median():.1f} giorni.",
+            f"Il P95 è {values.quantile(0.95):.1f} giorni: il 5% dei casi supera questa durata.",
+        ]
+        if values.quantile(0.95) >= max(values.median() * 2, values.median() + 1):
+            insights.append("La distribuzione presenta una coda lunga: pochi casi estremi allungano sensibilmente i tempi.")
+        else:
+            insights.append("La distribuzione non mostra una coda lunga estrema rispetto alla mediana.")
+
+        method_col = self._find_method_column(df)
+        if method_col:
+            grouped = df.assign(**{metric: pd.to_numeric(df[metric], errors="coerce")}).groupby(method_col)[metric].mean().dropna()
+            if not grouped.empty:
+                leader = grouped.sort_values(ascending=False).index[0]
+                insights.append(
+                    f"Il metodo di consegna {leader} presenta tempi medi superiori rispetto agli altri."
+                )
+        insights.append("Sono stati esclusi ID e codici tecnici dalle statistiche descrittive.")
+        return insights
+
+    def _find_method_column(self, df: pd.DataFrame):
+        for column in df.columns:
+            normalized = str(column).lower().replace("_", "")
+            if "metodoconsegna" in normalized:
+                return column
+        return None
