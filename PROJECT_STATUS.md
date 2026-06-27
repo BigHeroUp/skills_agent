@@ -52,6 +52,22 @@ un chatbot che risponde genericamente. Deve:
 
 ## Stato attuale
 
+### Validation Lab e Quality Gates
+
+Il progetto ora include `validation_lab/`, una struttura dedicata alla raccolta
+di evidenze da test reali e sintetici:
+
+- test case con dataset, prompt, risultato atteso, risultato ottenuto e log;
+- quality gate per Data Ingestion, Semantic Understanding, Feature
+  Engineering, Intent Planner, Statistical Engine, Root Cause, Report,
+  Dashboard UX, LLM Gateway, Learning Engine e Domain Packs;
+- template per bug report e architecture review;
+- benchmark suite su domini non lavorativi.
+
+La prossima fase deve essere hardening basato su evidenze: prima di introdurre
+nuovi engine o nuove feature, i quality gate principali devono essere stabili e
+i bug emersi dai test reali devono essere collegati a casi riproducibili.
+
 ### Milestone completate
 
 La cronologia gia integrata in `main` comprende:
