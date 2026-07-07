@@ -543,6 +543,54 @@ def create_layout(processing_status):
                     html.Div(id='charts-container', className="charts-grid")
                 ], className="card")
             ], id='results-container', style={"display": "none"}),
+
+            # Knowledge Graph Explorer
+            html.Div([
+                html.Div([
+                    html.Div([
+                        html.Div([
+                            html.H3("Knowledge Graph Explorer"),
+                            html.P(
+                                "Lineage visuale dell'ultima analisi salvata nel Knowledge Graph.",
+                                style={"color": "#aaa", "marginTop": "6px"}
+                            ),
+                        ]),
+                        html.Button(
+                            "Aggiorna grafo",
+                            id='knowledge-graph-refresh-button',
+                            n_clicks=0,
+                            className='secondary-button',
+                            style={"width": "auto"}
+                        ),
+                    ], style={
+                        "display": "flex",
+                        "justifyContent": "space-between",
+                        "alignItems": "center",
+                        "gap": "16px",
+                        "flexWrap": "wrap",
+                    }),
+                    html.Div(id='knowledge-graph-status', style={"color": "#9ed8ff", "marginTop": "12px"}),
+                    dcc.Graph(
+                        id='knowledge-graph-figure',
+                        config={"displayModeBar": True, "responsive": True},
+                        style={"marginTop": "12px"}
+                    ),
+                    html.Div([
+                        html.H4("Dettaglio nodo", style={"marginBottom": "10px"}),
+                        html.Div(
+                            "Seleziona un nodo nel grafo per vedere type, id e properties principali.",
+                            id='knowledge-graph-node-details',
+                            style={"color": "#aaa", "lineHeight": "1.55"}
+                        )
+                    ], style={
+                        "marginTop": "16px",
+                        "padding": "14px",
+                        "border": "1px solid rgba(255,255,255,0.12)",
+                        "borderRadius": "8px",
+                        "background": "rgba(0,0,0,0.22)",
+                    })
+                ], className="card")
+            ], id='knowledge-graph-container', style={"display": "none"}),
             
             # Sezione Chat Follow-up
             html.Div([

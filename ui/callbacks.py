@@ -16,6 +16,11 @@ from services.analysis_service import (
     try_run_followup_analysis,
 )
 from services.business_insight_generator import BusinessInsightGenerator
+from services.knowledge_graph.graph_visualizer import (
+    KnowledgeGraphVisualizer,
+    build_empty_knowledge_graph_figure,
+    format_node_details_payload,
+)
 from services.oracle_service import verify_oracle_connection
 from utils.chart_generator import ChartGenerator
 from utils.conversation_manager import ConversationManager
@@ -399,6 +404,70 @@ def register_callbacks(app, state, logger):
         except Exception as e:
             logger.error("Visualizzazione risultati fallita: %s", type(e).__name__)
             return f"❌ Errore nella visualizzazione: {str(e)}", {"display": "block"}, [], {"display": "none"}
+
+    @app.callback(
+        Output('knowledge-graph-container', 'style'),
+        Output('knowledge-graph-status', 'children'),
+        Output('knowledge-graph-figure', 'figure'),
+        Input('interval-component', 'n_intervals'),
+        Input('knowledge-graph-refresh-button', 'n_clicks'),
+        prevent_initial_call=True
+    )
+    def render_knowledge_graph(n_intervals, refresh_clicks):
+        """Renderizza la lineage dell'ultima analisi nel Knowledge Graph."""
+        if state.processing_status.get('status') != 'completed' or state.current_context is None:
+            return {"display": "none"}, "", no_update
+        try:
+            payload = KnowledgeGraphVisualizer().build_latest_analysis_lineage()
+            return {"display": "block"}, payload["message"], payload["figure"]
+        except Exception as e:
+            logger.warning("Knowledge Graph Explorer non disponibile: %s", type(e).__name__)
+            fallback = build_empty_knowledge_graph_figure(
+                "Knowledge Graph Explorer non disponibile in questo momento."
+            )
+            return (
+                {"display": "block"},
+                f"Knowledge Graph Explorer non disponibile: {str(e)}",
+                fallback,
+            )
+
+    @app.callback(
+        Output('knowledge-graph-node-details', 'children'),
+        Input('knowledge-graph-figure', 'clickData'),
+        prevent_initial_call=True
+    )
+    def show_knowledge_graph_node_details(click_data):
+        """Mostra i dettagli del nodo selezionato nel grafo."""
+        points = (click_data or {}).get("points") or []
+        node = points[0].get("customdata") if points else None
+        details = format_node_details_payload(node)
+        if not details["id"]:
+            return "Seleziona un nodo nel grafo per vedere type, id e properties principali."
+        property_rows = [
+            html.Div([
+                html.Span(f"{item['key']}: ", style={"color": "#9ed8ff", "fontWeight": "600"}),
+                html.Span(item["value"]),
+            ], style={"marginBottom": "4px"})
+            for item in details["properties"]
+        ]
+        return html.Div([
+            html.Div([
+                html.Span("Label: ", style={"color": "#9ed8ff", "fontWeight": "600"}),
+                html.Span(details["label"]),
+            ]),
+            html.Div([
+                html.Span("Type: ", style={"color": "#9ed8ff", "fontWeight": "600"}),
+                html.Span(details["type"]),
+            ]),
+            html.Div([
+                html.Span("ID: ", style={"color": "#9ed8ff", "fontWeight": "600"}),
+                html.Span(details["id"]),
+            ], style={"wordBreak": "break-word"}),
+            html.Div(property_rows, style={"marginTop": "10px"}) if property_rows else html.Div(
+                "Nessuna property sintetica disponibile.",
+                style={"color": "#aaa", "marginTop": "10px"}
+            ),
+        ])
     
     
     @app.callback(

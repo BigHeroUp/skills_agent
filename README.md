@@ -259,6 +259,37 @@ execution type and up to 10 matching graph nodes with compact properties. If
 the local JSON graph has not been generated yet, the chat returns a readable
 message instead of failing.
 
+## Knowledge Graph Explorer
+
+The dashboard includes a first visual Knowledge Graph Explorer built with
+Plotly and Dash, without Neo4j, NetworkX or extra frontend dependencies.
+
+The MVP shows the lineage of the latest saved analysis run:
+
+```text
+analysis_run -> dataset
+analysis_run -> dataframe_column
+analysis_run -> insight
+analysis_run -> anomaly
+analysis_run -> root_cause
+analysis_run -> report
+```
+
+The explorer appears after an analysis completes and can be refreshed with the
+`Aggiorna grafo` button. Clicking a node opens a compact detail panel with
+label, type, id and the first relevant properties.
+
+If `data/knowledge_graph/knowledge_graph.json` does not exist, or if no
+`analysis_run` is available yet, the explorer shows a readable empty-state
+message instead of failing.
+
+MVP limits:
+
+- only the `latest_analysis_lineage` view is rendered;
+- nodes are capped at 80 for readability;
+- layout is deterministic by node type, not force-directed;
+- graph editing and full-code graph exploration are intentionally deferred.
+
 ---
 
 # 🏗 Architecture
