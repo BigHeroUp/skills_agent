@@ -12,6 +12,7 @@ from services.analysis_service import (
     parse_uploaded_dataframe,
     run_analysis_pipeline,
     try_generate_followup_chart,
+    try_run_knowledge_graph_query,
     try_run_followup_analysis,
 )
 from services.business_insight_generator import BusinessInsightGenerator
@@ -659,6 +660,12 @@ def register_callbacks(app, state, logger):
                         "description": analysis_result["description"],
                 })
                 state.conversation_manager.add_assistant_message(analysis_result["message"])
+                state.followup_processing = False
+                return _render_chat_messages(), ""
+
+            knowledge_graph_result = try_run_knowledge_graph_query(user_message)
+            if knowledge_graph_result:
+                state.conversation_manager.add_assistant_message(knowledge_graph_result["message"])
                 state.followup_processing = False
                 return _render_chat_messages(), ""
             

@@ -69,6 +69,11 @@ class AnalystAgent(BaseAgent):
                 "analysis_report": local_report,
                 "openai_enrichment": openai_enrichment,
                 "deterministic_insights": deterministic_insights,
+                "visualization_plan": (
+                    local_analysis.get("visualization_plan")
+                    or context.processed_data.get("visualization_plan", [])
+                ),
+                "processed_data": context.processed_data,
                 "key_metrics": deterministic_insights.get("key_metrics", {}),
                 "status": "analizzato",
                 "analysis_mode": "local_with_openai_enrichment" if openai_enrichment else "local_only",

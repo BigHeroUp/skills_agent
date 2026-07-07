@@ -68,6 +68,24 @@ La prossima fase deve essere hardening basato su evidenze: prima di introdurre
 nuovi engine o nuove feature, i quality gate principali devono essere stabili e
 i bug emersi dai test reali devono essere collegati a casi riproducibili.
 
+### Analytical Planning Engine
+
+Questa iterazione introduce l'`AnalyticalPlanningEngine` per pianificare prima
+di calcolare:
+
+- parsing deterministico di intent, preprocessing richiesto e follow-up;
+- trasformazioni auditabili come `datetime_shift` su colonne data, senza
+  sovrascrivere colonne originali;
+- quality gate sul KPI `TEMPO_ATTIVAZIONE_GIORNI` con esclusione sicura delle
+  durate negative dai KPI principali;
+- piani di analisi e visualizzazione limitati e coerenti con la domanda;
+- confronto baseline vs subset nelle analisi filtrate successive.
+
+Il Validation Lab include ora
+`validation_lab/test_cases/TEST-004_datetime_shift_activation_time.md`, dedicato
+al caso GMT `+1h`, uso della colonna adjusted, quality gate sulle durate
+negative, report business-first e follow-up comparativo.
+
 ### Milestone completate
 
 La cronologia gia integrata in `main` comprende:

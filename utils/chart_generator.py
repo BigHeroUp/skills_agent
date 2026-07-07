@@ -105,6 +105,20 @@ class ChartGenerator:
                 column: ChartGenerator._profile_column(df, column)
                 for column in df.columns
             }
+            visualization_plan = ChartGenerator._extract_visualization_plan(insights)
+            if visualization_plan:
+                planned_charts = ChartGenerator._charts_from_visualization_plan(df, visualization_plan)
+                for profile in profiles.values():
+                    if not profile["chart_allowed"]:
+                        skipped_charts.append(profile)
+                        note = ChartGenerator._skip_business_note(profile)
+                        if note:
+                            business_notes.append(note)
+                return {
+                    "charts": planned_charts[:4],
+                    "skipped_charts": skipped_charts,
+                    "business_insights": business_notes,
+                }
             charts.extend(ChartGenerator._activation_time_charts(df))
             for profile in profiles.values():
                 if not profile["chart_allowed"]:
@@ -264,6 +278,70 @@ class ChartGenerator:
         }
 
     @staticmethod
+    def _extract_visualization_plan(insights: Dict[str, Any] | None) -> list[dict[str, Any]]:
+        if not isinstance(insights, dict):
+            return []
+        if isinstance(insights.get("visualization_plan"), list):
+            return insights["visualization_plan"]
+        local = insights.get("local_analysis") if isinstance(insights.get("local_analysis"), dict) else {}
+        if isinstance(local.get("visualization_plan"), list):
+            return local["visualization_plan"]
+        processed = insights.get("processed_data") if isinstance(insights.get("processed_data"), dict) else {}
+        plan = processed.get("visualization_plan")
+        return plan if isinstance(plan, list) else []
+
+    @staticmethod
+    def _charts_from_visualization_plan(df: pd.DataFrame, visualization_plan: list[dict[str, Any]]) -> list[go.Figure]:
+        charts: list[go.Figure] = []
+        for item in visualization_plan[:4]:
+            metric = item.get("metric")
+            if metric not in df.columns:
+                continue
+            data = df.copy()
+            values = pd.to_numeric(data[metric], errors="coerce")
+            if item.get("filter") in {">=0", "positive_outliers"}:
+                data = data.loc[values >= 0].copy()
+                data[metric] = pd.to_numeric(data[metric], errors="coerce")
+            if data.empty:
+                continue
+            chart_type = item.get("chart_type")
+            title = item.get("title") or metric
+            if chart_type == "histogram":
+                fig = px.histogram(data, x=metric, nbins=30, title=title, labels={metric: metric})
+            elif chart_type == "boxplot":
+                fig = px.box(data, y=metric, points="outliers", title=title, labels={metric: metric})
+            elif chart_type == "bar" and item.get("filter") == "positive_outliers":
+                date_col = ChartGenerator._find_activation_date_column(data)
+                outlier_data = ChartGenerator._positive_outlier_rows(data, metric)
+                if outlier_data.empty or not date_col:
+                    continue
+                parsed = pd.to_datetime(outlier_data[date_col], errors="coerce")
+                counts = parsed.dropna().dt.date.astype(str).value_counts().sort_index().reset_index()
+                counts.columns = ["Giorno", "Outlier"]
+                fig = px.bar(counts, x="Giorno", y="Outlier", title=title)
+            elif chart_type in {"scatter", "line"}:
+                x_col = item.get("x") if item.get("x") in data.columns else ChartGenerator._find_activation_date_column(data)
+                if not x_col:
+                    continue
+                fig = px.scatter(data, x=x_col, y=metric, title=title)
+            else:
+                continue
+            fig.update_layout(template="plotly_dark", height=420)
+            charts.append(fig)
+        return charts
+
+    @staticmethod
+    def _positive_outlier_rows(df: pd.DataFrame, metric: str) -> pd.DataFrame:
+        values = pd.to_numeric(df[metric], errors="coerce")
+        positive = values[values >= 0].dropna()
+        if positive.empty:
+            return df.iloc[0:0]
+        q1 = positive.quantile(0.25)
+        q3 = positive.quantile(0.75)
+        threshold = q3 + 1.5 * (q3 - q1)
+        return df.loc[values > threshold].copy()
+
+    @staticmethod
     def _profile_column(df: pd.DataFrame, column) -> Dict[str, Any]:
         series = df[column]
         non_null = series.dropna()
@@ -385,7 +463,13 @@ class ChartGenerator:
 
     @staticmethod
     def _find_activation_date_column(df: pd.DataFrame):
-        for preferred in ("DATASOTTOSCRIZIONE", "DATA_SOTTOSCRIZIONE", "CREAZIONE_ANTENNA"):
+        for preferred in (
+            "DATASOTTOSCRIZIONE_ADJUSTED",
+            "DATA_SOTTOSCRIZIONE_ADJUSTED",
+            "DATASOTTOSCRIZIONE",
+            "DATA_SOTTOSCRIZIONE",
+            "CREAZIONE_ANTENNA",
+        ):
             if preferred in df.columns:
                 return preferred
         return ChartGenerator._find_datetime_column(df)

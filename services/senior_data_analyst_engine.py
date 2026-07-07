@@ -41,6 +41,14 @@ class SeniorDataAnalystEngine:
             "engineered_features": data.get("engineered_features") or [],
             "activation_time_analysis": self._build_activation_time_analysis(data),
             "temporal_concentration_results": data.get("temporal_concentration_results") or {},
+            "analytical_execution_plan": data.get("analytical_execution_plan") or {},
+            "applied_transformations": data.get("applied_transformations") or [],
+            "transformation_results": data.get("transformation_results") or [],
+            "quality_gate_results": data.get("quality_gate_results") or [],
+            "data_quality_issues": data.get("data_quality_issues") or [],
+            "metric_filtering_policy": data.get("metric_filtering_policy") or {},
+            "visualization_plan": data.get("visualization_plan") or [],
+            "followup_comparison_results": data.get("followup_comparison_results") or {},
             "analysis_plan": data.get("analysis_plan") or {},
             "execution_summary": data.get("execution_summary") or {},
             "detected_patterns": data.get("detected_patterns") or [],
@@ -109,6 +117,9 @@ class SeniorDataAnalystEngine:
 
     def generate_final_report(self, analysis: dict) -> str:
         """Compone un report Markdown business-first ed esportabile."""
+        if self._is_activation_concentration_analysis(analysis):
+            return self._generate_activation_concentration_report(analysis)
+
         profile = analysis.get("dataset_profile", {})
         request = analysis.get("user_request") or "Analisi generale dei dati"
         sections = [
@@ -153,6 +164,131 @@ class SeniorDataAnalystEngine:
             self._format_technical_appendix(analysis),
         ]
         return "\n".join(sections)
+
+    def _is_activation_concentration_analysis(self, analysis: dict) -> bool:
+        plan = analysis.get("analytical_execution_plan") or {}
+        analysis_plan = plan.get("analysis_plan") or analysis.get("analysis_plan") or {}
+        return (
+            analysis_plan.get("analysis_type") == "activation_time_temporal_concentration"
+            or analysis.get("activation_time_analysis", {}).get("feature_name") == "TEMPO_ATTIVAZIONE_GIORNI"
+        )
+
+    def _generate_activation_concentration_report(self, analysis: dict) -> str:
+        profile = analysis.get("dataset_profile", {})
+        request = analysis.get("user_request") or "Analisi tempi di attivazione"
+        sections = [
+            "# Report business",
+            "",
+            f"**Obiettivo:** {request}",
+            f"**Perimetro:** {profile.get('row_count', 0)} record, {profile.get('column_count', 0)} colonne.",
+            "",
+            "## Risposta breve",
+            self._format_activation_short_answer(analysis),
+            "",
+            "## Numeri chiave",
+            self._format_activation_key_numbers(analysis),
+            "",
+            "## Qualita dato",
+            self._format_activation_quality(analysis),
+            "",
+            "## Concentrazione temporale dei tempi lunghi",
+            self._format_temporal_concentration_table(
+                analysis.get("temporal_concentration_results", {})
+            ),
+            "",
+            "## Visualizzazioni consigliate",
+            self._format_visualization_plan(analysis.get("visualization_plan") or []),
+            "",
+            "## Raccomandazioni operative",
+            self._numbered_list(self._activation_recommendations(analysis)),
+        ]
+        return "\n".join(sections)
+
+    def _format_activation_short_answer(self, analysis: dict) -> str:
+        temporal = analysis.get("temporal_concentration_results") or {}
+        if temporal.get("status") != "computed":
+            return "- Non ci sono evidenze sufficienti per dire se i tempi lunghi siano concentrati in giornate specifiche."
+        if temporal.get("conclusion") == "concentrated":
+            return "- Sì: i tempi lunghi risultano concentrati in alcune giornate specifiche, quindi il fenomeno va letto come criticità temporale e non solo come varianza casuale."
+        return "- No: i tempi lunghi risultano distribuiti nel periodo osservato; il segnale principale è la variabilità complessiva più che una concentrazione su poche giornate."
+
+    def _format_activation_key_numbers(self, analysis: dict) -> str:
+        profile = analysis.get("dataset_profile", {})
+        activation = analysis.get("activation_time_analysis") or {}
+        anomaly = self._summarize_anomalies(analysis)
+        rows = [
+            ("Metrica KPI", activation.get("feature_name") or "TEMPO_ATTIVAZIONE_GIORNI"),
+            ("Record analizzati", profile.get("row_count", 0)),
+            ("KPI validi", activation.get("valid_count", "n/a")),
+            ("Durate negative escluse", self._negative_duration_count(analysis)),
+            ("Mediana giorni", activation.get("median", "n/a")),
+            ("P95 giorni", activation.get("p95", "n/a")),
+            ("Outlier positivi", anomaly.get("positive_count", 0)),
+        ]
+        lines = ["| KPI | Valore |", "|---|---:|"]
+        lines.extend(f"| {name} | {self._fmt(value)} |" for name, value in rows)
+        return "\n".join(lines)
+
+    def _format_activation_quality(self, analysis: dict) -> str:
+        count = self._negative_duration_count(analysis)
+        policy = analysis.get("metric_filtering_policy") or {}
+        treatment = policy.get("negative_values_treatment") or "data_quality_issue"
+        filter_label = policy.get("positive_filter") or ">=0"
+        if count:
+            return (
+                f"- Durate negative rilevate: {count}; sono trattate come problema di qualità dato, non come tempi lunghi.\n"
+                f"- Policy KPI principale: esclusione dei valori negativi con filtro {filter_label}; trattamento={treatment}."
+            )
+        return "- Nessuna durata negativa rilevata sul KPI principale; il filtro KPI mantiene solo durate valide."
+
+    def _format_visualization_plan(self, plan: list[dict[str, Any]]) -> str:
+        if not plan:
+            return "- Nessuna visualizzazione pianificata."
+        labels = {
+            "histogram": "Istogramma",
+            "boxplot": "Boxplot",
+            "bar": "Bar chart",
+            "scatter": "Scatter plot",
+            "line": "Linea",
+        }
+        lines = []
+        for item in plan[:4]:
+            chart_type = labels.get(item.get("chart_type"), item.get("chart_type", "Grafico"))
+            title = item.get("title") or item.get("metric") or "Visualizzazione"
+            lines.append(f"- {chart_type}: {title}.")
+        return "\n".join(lines)
+
+    def _activation_recommendations(self, analysis: dict) -> list[str]:
+        recommendations: list[str] = []
+        temporal = analysis.get("temporal_concentration_results") or {}
+        if temporal.get("conclusion") == "concentrated":
+            recommendations.append(
+                "Analizzare le giornate critiche con ownership operativa, volumi, canale tecnico e metodo consegna."
+            )
+        else:
+            recommendations.append(
+                "Analizzare la distribuzione per canale tecnico e metodo consegna per isolare driver strutturali della varianza."
+            )
+        if self._negative_duration_count(analysis):
+            recommendations.append(
+                "Correggere o riconciliare le date che generano durate negative prima di consolidare KPI e SLA."
+            )
+        recommendations.append(
+            "Monitorare mediana, P95 e quota outlier positivi con soglie condivise di intervento."
+        )
+        filtered = [
+            item for item in recommendations
+            if "Integrare media" not in item
+        ]
+        return list(dict.fromkeys(filtered))[:3]
+
+    def _negative_duration_count(self, analysis: dict) -> int:
+        issues = analysis.get("data_quality_issues") or analysis.get("quality_gate_results") or []
+        for issue in issues:
+            if isinstance(issue, dict) and issue.get("negative_duration_count") is not None:
+                return int(issue.get("negative_duration_count") or 0)
+        activation = analysis.get("activation_time_analysis") or {}
+        return int(activation.get("negative_duration_count") or 0)
 
     def _format_business_kpi_table(self, analysis: dict) -> str:
         rows = self._business_kpi_rows(analysis)

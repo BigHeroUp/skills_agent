@@ -9,6 +9,7 @@ from services.anomaly_detection_engine import AnomalyDetectionEngine
 from services.analysis_engine import AnalysisEngine
 from services.analytical_reasoning_layer import AnalyticalReasoningLayer
 from services.analytical_intent_planner import AnalyticalIntentPlanner
+from services.analytical_planning_engine import AnalyticalPlanningEngine
 from services.autonomous_analyst import AutonomousAnalyst
 from services.domain_pack_loader import DomainPackLoader
 from services.learning_engine import LearningEngine
@@ -48,12 +49,30 @@ class DataProcessorAgent(BaseAgent):
                 context.user_input,
                 initial_summary,
             )
+            planning_engine = AnalyticalPlanningEngine()
+            context.analytical_execution_plan = planning_engine.build_execution_plan(
+                context.user_input,
+                df,
+            )
+            df, transformation_payload = planning_engine.transformation_executor.execute(
+                df,
+                {"transformations": context.analytical_execution_plan.get("transformations", [])},
+            )
+            context.applied_transformations = transformation_payload["applied_transformations"]
+            context.transformation_results = transformation_payload["transformation_results"]
+            context.transformed_columns = transformation_payload["transformed_columns"]
+            context.raw_data["dataframe"] = df
+            context.raw_data["applied_transformations"] = context.applied_transformations
+            context.raw_data["transformation_results"] = context.transformation_results
+            context.raw_data["transformed_columns"] = context.transformed_columns
+            context.semantic_columns = semantic_classifier.classify_dataframe(df)
             feature_engine = SemanticFeatureEngineeringEngine()
             context.semantic_feature_plan = feature_engine.build_feature_plan(
                 context.user_input,
                 df,
                 context.semantic_columns,
                 context.domain_pack_context,
+                context.analytical_execution_plan,
             )
             df_enriched, context.semantic_feature_results = feature_engine.apply_feature_plan(
                 df,
@@ -73,6 +92,34 @@ class DataProcessorAgent(BaseAgent):
                 "engineered_features",
                 [],
             )
+            gate_result = planning_engine.data_quality_gate.evaluate_metric(
+                df_enriched,
+                "TEMPO_ATTIVAZIONE_GIORNI",
+            )
+            context.quality_gate_results = gate_result.get("quality_gate_results", [])
+            context.data_quality_issues = gate_result.get("data_quality_issues", [])
+            context.metric_filtering_policy = gate_result.get("metric_filtering_policy", {})
+            df_enriched = planning_engine.data_quality_gate.apply_safe_policy(
+                df_enriched,
+                gate_result,
+            )
+            context.analytical_execution_plan["quality_gates"] = context.quality_gate_results
+            context.analytical_execution_plan["analysis_plan"] = {
+                **(context.analytical_execution_plan.get("analysis_plan") or {}),
+                "metric_filtering_policy": context.metric_filtering_policy,
+            }
+            time_axis_for_chart = None
+            for transformation in context.applied_transformations:
+                source_name = str(transformation.get("source_column") or "").replace("_", "").lower()
+                if "datasottoscrizione" in source_name or "sottoscrizione" in source_name:
+                    time_axis_for_chart = transformation.get("output_column")
+                    break
+            if time_axis_for_chart:
+                context.analytical_execution_plan["visualization_plan"] = planning_engine.visualization_planner.build(
+                    context.analytical_execution_plan.get("intent", {}),
+                    time_axis=time_axis_for_chart,
+                )
+            context.visualization_plan = context.analytical_execution_plan.get("visualization_plan", [])
             context.dataframe_enriched_metadata = summarize_dataframe(df_enriched)
             context.raw_data["dataframe"] = df_enriched
             df = df_enriched
@@ -293,6 +340,14 @@ class DataProcessorAgent(BaseAgent):
                 "learning_state": context.learning_state,
                 "learning_events": context.learning_events,
                 "semantic_columns": context.semantic_columns,
+                "analytical_execution_plan": context.analytical_execution_plan,
+                "applied_transformations": context.applied_transformations,
+                "transformation_results": context.transformation_results,
+                "transformed_columns": context.transformed_columns,
+                "quality_gate_results": context.quality_gate_results,
+                "data_quality_issues": context.data_quality_issues,
+                "metric_filtering_policy": context.metric_filtering_policy,
+                "visualization_plan": context.visualization_plan,
                 "semantic_feature_plan": context.semantic_feature_plan,
                 "semantic_feature_results": context.semantic_feature_results,
                 "engineered_features": context.engineered_features,
