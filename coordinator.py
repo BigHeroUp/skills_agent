@@ -10,6 +10,7 @@ from agents.data_validator import DataValidatorAgent
 from agents.data_processor import DataProcessorAgent
 from agents.analyst import AnalystAgent
 from agents.report_generator import ReportGeneratorAgent
+from agents.knowledge_graph_agent import KnowledgeGraphAgent
 from utils.context import AgentContext
 from utils.logging_config import get_logger
 from services.llm_gateway import reset_llm_gateway
@@ -41,7 +42,8 @@ class Coordinator:
             DataValidatorAgent(),
             DataProcessorAgent(),
             AnalystAgent(),
-            ReportGeneratorAgent()
+            ReportGeneratorAgent(),
+            KnowledgeGraphAgent()
         ]
         self.context: AgentContext = None
     
@@ -50,6 +52,7 @@ class Coordinator:
         directories = [
             Path("data"),
             Path("logs"),
+            Path("data/knowledge_graph"),
             Path("skills/query_suggestion"),
             Path("skills/oracle_sql"),
             Path("skills/email_writer"),
@@ -74,6 +77,7 @@ class Coordinator:
         4. Data Processor → elabora dati
         5. Analyst → genera insight
         6. Report Generator → crea report
+        7. Knowledge Graph → salva metadati e relazioni locali
         """
         
         safe_print("\n" + "="*60)
@@ -136,4 +140,3 @@ class Coordinator:
 {'='*40}
 """
         return summary
-

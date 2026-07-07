@@ -71,7 +71,13 @@ class AnalyticalIntentPlanner:
 
         time_axis = self._preferred_column(
             columns,
-            ["DATASOTTOSCRIZIONE", "DATA_SOTTOSCRIZIONE", "SOTTOSCRIZIONE"],
+            [
+                "DATASOTTOSCRIZIONE_ADJUSTED",
+                "DATA_SOTTOSCRIZIONE_ADJUSTED",
+                "DATASOTTOSCRIZIONE",
+                "DATA_SOTTOSCRIZIONE",
+                "SOTTOSCRIZIONE",
+            ],
             semantic,
             {"DATE", "DATETIME"},
         )
@@ -245,6 +251,8 @@ class AnalyticalIntentPlanner:
         message = str(user_message or "").lower()
         filter_terms = (
             "solo record che hanno",
+            "usando solo record con",
+            "solo record con",
             "filtra per",
             "limitati a",
             "solo quelli con",
@@ -326,8 +334,13 @@ class AnalyticalIntentPlanner:
     ) -> str | None:
         normalized = {str(column): self._normalize(str(column)) for column in columns}
         preferred = [self._normalize(name) for name in preferred_names]
+        for preferred_name in preferred:
+            for column, column_normalized in normalized.items():
+                if column_normalized == preferred_name or preferred_name in column_normalized:
+                    if not allowed_types or (semantic_columns.get(column) or {}).get("semantic_type") in allowed_types:
+                        return column
         for column, column_normalized in normalized.items():
-            if column_normalized in preferred or any(name in column_normalized for name in preferred):
+            if any(column_normalized in preferred_name for preferred_name in preferred):
                 if not allowed_types or (semantic_columns.get(column) or {}).get("semantic_type") in allowed_types:
                     return column
         return None

@@ -178,6 +178,89 @@ See:
 
 ---
 
+## Knowledge Graph Layer
+
+Skills Agent includes a first internal Knowledge Graph Layer designed to make
+analysis and code relationships explicit without introducing heavy external
+dependencies.
+
+The layer indexes:
+
+- Python files, classes, functions and imports through a static `ast` indexer;
+- analysis runs, datasets, dataframe columns, insights, anomalies, root causes
+  and generated reports through the pipeline context;
+- domain pack usage when a domain pack is detected.
+
+The graph is persisted as local JSON in:
+
+```text
+data/knowledge_graph/knowledge_graph.json
+```
+
+To index the repository code:
+
+```bash
+python scripts/index_knowledge_graph.py
+```
+
+The JSON structure stores explicit `nodes` and `edges`, with stable ids,
+properties and relationship names such as `CONTAINS`, `IMPORTS`,
+`USES_DATASET`, `HAS_COLUMN`, `DETECTED_ANOMALY` and
+`PROPOSED_ROOT_CAUSE`. This makes it Graphify-ready: the same snapshot can be
+loaded later into graph databases, visualization tools or semantic graph
+pipelines without changing the core analytical pipeline.
+
+No raw dataframe rows are stored. The analysis mapper only persists metadata
+such as shape, column names, dtypes and compact synthetic summaries.
+
+## Querying the Knowledge Graph
+
+The local graph can be queried deterministically without OpenAI through the
+Knowledge Graph Query Layer.
+
+Example commands:
+
+```bash
+python scripts/query_knowledge_graph.py "quali funzioni generano grafici?"
+python scripts/query_knowledge_graph.py "quali analisi hanno anomalie su response_time?"
+```
+
+The query layer supports:
+
+- node filters by type, label and properties;
+- edge filters by relationship, source and target;
+- neighbor lookup for incoming, outgoing or bidirectional relationships;
+- code search over Python files, classes, functions and imports;
+- analysis search over runs, datasets, columns, insights, anomalies, root causes
+  and reports;
+- first rule-based answers in Italian for questions about functions, classes,
+  files, imports, analyses, anomalies, root causes, columns, `response_time`,
+  charts, Excel, Oracle and reports.
+
+If `data/knowledge_graph/knowledge_graph.json` does not exist yet, the CLI
+returns a clear message and asks to run the indexing script first.
+
+## Knowledge Graph in Dash Chat
+
+The Dash follow-up chat can route Knowledge Graph questions to the deterministic
+query engine before using conversational fallbacks.
+
+Supported examples:
+
+```text
+quali funzioni generano grafici?
+quali classi usano Oracle?
+quali anomalie sono presenti nel grafo?
+quali colonne compaiono nelle analisi precedenti?
+```
+
+The chat response includes the deterministic answer, confidence score,
+execution type and up to 10 matching graph nodes with compact properties. If
+the local JSON graph has not been generated yet, the chat returns a readable
+message instead of failing.
+
+---
+
 # 🏗 Architecture
 
 The project follows a modular **Hub & Spoke Architecture**.

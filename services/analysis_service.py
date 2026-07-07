@@ -18,7 +18,9 @@ from agents.analyst import AnalystAgent
 from agents.data_processor import DataProcessorAgent
 from agents.report_generator import ReportGeneratorAgent
 from coordinator import Coordinator
+from services.analytical_planning_engine import FollowupComparisonPlanner
 from services.analytical_intent_planner import AnalyticalIntentPlanner
+from services.knowledge_graph.query_engine import KnowledgeGraphQueryEngine
 from utils.context import AgentContext
 from utils.pdf_generator import PDFGenerator
 
@@ -205,6 +207,88 @@ def find_status_column(df: pd.DataFrame):
     return low_cardinality[0] if low_cardinality else None
 
 
+def try_run_knowledge_graph_query(user_message: str) -> dict | None:
+    """Esegue una query deterministica sul Knowledge Graph quando richiesta."""
+    message = (user_message or "").strip()
+    if not _looks_like_knowledge_graph_query(message):
+        return None
+
+    try:
+        result = KnowledgeGraphQueryEngine().answer_question_deterministic(message)
+    except Exception as exc:
+        result = {
+            "question": message,
+            "answer": f"Knowledge Graph non disponibile: {exc}",
+            "matches": [],
+            "confidence": 0.0,
+            "execution_type": "deterministic_kg_query",
+        }
+    result["message"] = format_knowledge_graph_chat_response(result)
+    return result
+
+
+def _looks_like_knowledge_graph_query(user_message: str) -> bool:
+    message = (user_message or "").lower()
+    keywords = [
+        "knowledge graph",
+        "grafo",
+        "grafo conoscenza",
+        "codice",
+        "funzioni",
+        "funzione",
+        "classi",
+        "classe",
+        "file",
+        "import",
+        "anomalie",
+        "anomalia",
+        "root cause",
+        "cause radice",
+        "colonne",
+        "colonna",
+        "report",
+        "analisi precedenti",
+    ]
+    return any(keyword in message for keyword in keywords)
+
+
+def format_knowledge_graph_chat_response(result: dict[str, Any]) -> str:
+    """Formatta una risposta KG compatta e leggibile nella chat Dash."""
+    answer = result.get("answer") or "Nessuna risposta disponibile dal Knowledge Graph."
+    confidence = result.get("confidence", 0.0)
+    lines = [
+        answer,
+        f"Confidence: {confidence:.2f}" if isinstance(confidence, (int, float)) else f"Confidence: {confidence}",
+        f"Execution type: {result.get('execution_type', 'deterministic_kg_query')}",
+    ]
+
+    matches = result.get("matches") or []
+    if matches:
+        lines.append("Primi match:")
+        for index, match in enumerate(matches[:10], start=1):
+            node_type = match.get("type", "node")
+            label = match.get("label") or match.get("id", "")
+            properties = _format_match_properties(match.get("properties") or {})
+            suffix = f" | {properties}" if properties else ""
+            lines.append(f"{index}. [{node_type}] {label}{suffix}")
+    return "\n".join(lines)
+
+
+def _format_match_properties(properties: dict[str, Any]) -> str:
+    if not isinstance(properties, dict) or not properties:
+        return ""
+    parts = []
+    for key, value in list(properties.items())[:5]:
+        if isinstance(value, (dict, list, tuple, set)):
+            rendered = f"{type(value).__name__}({len(value)})"
+        else:
+            rendered = str(value)
+        if len(rendered) > 80:
+            rendered = rendered[:77] + "..."
+        parts.append(f"{key}={rendered}")
+    return ", ".join(parts)
+
+
 def try_run_followup_analysis(user_message: str, current_context):
     """Esegue analisi deterministiche richieste dalla chat quando possibile."""
     if current_context is None:
@@ -365,8 +449,21 @@ def try_run_filtered_reanalysis(user_message: str, current_context):
     context.processed_data["applied_filters"] = context.applied_filters
     context.processed_data["filtered_row_count"] = context.filtered_row_count
 
+    comparison = FollowupComparisonPlanner().compare(
+        df,
+        context.raw_data.get("dataframe"),
+        filter_spec,
+        "TEMPO_ATTIVAZIONE_GIORNI",
+    )
+    context.followup_comparison_results = comparison
+    context.processed_data["followup_comparison_results"] = comparison
+
+    comparison_message = format_followup_comparison_message(comparison)
+
     return {
         "message": (
+            f"Confronto con analisi precedente\n\n"
+            f"{comparison_message}\n\n"
             f"Ho rilanciato l'analisi sul subset filtrato: "
             f"{filter_spec['column']} == {filter_spec['value']}.\n\n"
             f"- Righe filtrate: {len(filtered_df)} su {len(df)}\n"
@@ -379,6 +476,32 @@ def try_run_filtered_reanalysis(user_message: str, current_context):
         "filtered_row_count": int(len(filtered_df)),
         "followup_execution_type": "filtered_reanalysis",
     }
+
+
+def format_followup_comparison_message(comparison: dict[str, Any]) -> str:
+    baseline = comparison.get("baseline") or {}
+    subset = comparison.get("subset") or {}
+    delta = comparison.get("delta") or {}
+    return "\n".join([
+        f"- Filtro: {comparison.get('filter', 'n/a')}",
+        f"- Righe baseline: {comparison.get('baseline_rows', 0)}",
+        f"- Righe subset: {comparison.get('subset_rows', 0)}",
+        (
+            f"- Mediana baseline/subset: {format_number_it(baseline.get('median'))} / "
+            f"{format_number_it(subset.get('median'))} giorni"
+        ),
+        (
+            f"- P95 baseline/subset: {format_number_it(baseline.get('p95'))} / "
+            f"{format_number_it(subset.get('p95'))} giorni"
+        ),
+        (
+            f"- Delta P95: {format_number_it(delta.get('p95_pct'))}%"
+        ),
+        (
+            f"- Delta quota outlier positivi: "
+            f"{format_number_it(delta.get('outlier_ratio_delta'))}"
+        ),
+    ])
 
 
 def run_ticket_overview_analysis(current_context):
@@ -509,3 +632,15 @@ def format_timedelta_it(delta: pd.Timedelta) -> str:
     if minutes or not parts:
         parts.append(f"{minutes} minuti")
     return ", ".join(parts)
+
+
+def format_number_it(value: Any) -> str:
+    """Formatta valori numerici opzionali per messaggi business leggibili."""
+    if value is None:
+        return "n/a"
+    try:
+        if pd.isna(value):
+            return "n/a"
+        return f"{float(value):.2f}"
+    except (TypeError, ValueError):
+        return str(value)

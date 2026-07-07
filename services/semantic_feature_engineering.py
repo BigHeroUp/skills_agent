@@ -42,13 +42,14 @@ class SemanticFeatureEngineeringEngine:
         df,
         semantic_columns: dict | list | None = None,
         domain_pack_context: dict | None = None,
+        analytical_execution_plan: dict | None = None,
     ) -> dict:
         requested = self.infer_requested_features(user_request, domain_pack_context)
         features = []
         warnings = []
         for feature in requested:
             logger.info("Feature requested: %s", feature.get("feature_name"))
-            mapping = self.map_source_columns(df, feature, semantic_columns)
+            mapping = self.map_source_columns(df, feature, semantic_columns, analytical_execution_plan)
             logger.info(
                 "Feature source columns mapped: feature=%s start=%s end=%s",
                 feature.get("feature_name"),
@@ -193,6 +194,7 @@ class SemanticFeatureEngineeringEngine:
         df,
         requested_feature: dict,
         semantic_columns: dict | list | None = None,
+        analytical_execution_plan: dict | None = None,
     ) -> dict:
         if not isinstance(df, pd.DataFrame) or df.empty:
             return {"start": None, "end": None}
@@ -203,7 +205,30 @@ class SemanticFeatureEngineeringEngine:
             start = self._date_column_by_keyword(df, ["sottoscrizione", "subscription", "start", "inizio"])
         if end is None:
             end = self._date_column_by_keyword(df, ["creazione", "antenna", "activation", "created", "end", "fine"])
+        adjusted_start = self._adjusted_source_column(start, analytical_execution_plan, columns)
+        if adjusted_start:
+            start = adjusted_start
         return {"start": start, "end": end}
+
+    def _adjusted_source_column(
+        self,
+        start: str | None,
+        analytical_execution_plan: dict | None,
+        columns: list,
+    ) -> str | None:
+        if not start or not isinstance(analytical_execution_plan, dict):
+            return None
+        feature_requirements = analytical_execution_plan.get("feature_requirements") or []
+        if not any(item.get("use_adjusted_source") for item in feature_requirements):
+            return None
+        for transformation in analytical_execution_plan.get("transformations") or []:
+            if transformation.get("source_column") != start:
+                continue
+            output = transformation.get("output_column")
+            if output in columns:
+                return output
+        candidate = f"{start}_ADJUSTED"
+        return candidate if candidate in columns else None
 
     def parse_datetime_series(self, series: pd.Series) -> pd.Series:
         if pd.api.types.is_datetime64_any_dtype(series):
