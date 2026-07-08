@@ -7,6 +7,18 @@ offline-first di Analytical Intelligence.
 
 ## Milestones
 
+### V2.1.1 - Kernel Architecture Foundation
+
+- Status: in progress
+- Focus:
+  - stabilize the target kernel-oriented direction;
+  - define capability-oriented architecture;
+  - define domain model and development governance;
+  - avoid runtime feature churn while architecture is being clarified.
+- Note:
+  this release does not introduce major runtime features; it formalizes the
+  architectural direction for the next platform evolution stage.
+
 ### Milestone 6 - Knowledge Reasoning Engine
 
 - Status: completed

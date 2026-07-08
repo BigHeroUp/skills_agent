@@ -37,6 +37,9 @@ V2 architecture documents:
 
 - [Vision](docs/VISION.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Veraxis Kernel Architecture](docs/VERAXIS_ARCHITECTURE.md)
+- [Veraxis Domain Model](docs/VERAXIS_DOMAIN_MODEL.md)
+- [Veraxis Development Guide](docs/VERAXIS_DEVELOPMENT_GUIDE.md)
 - [Offline-First Strategy](docs/OFFLINE_FIRST.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Architectural Decisions](docs/DECISIONS.md)
