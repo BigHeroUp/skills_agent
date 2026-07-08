@@ -27,6 +27,22 @@ Instead of simply describing data, Skills Agent builds an analytical strategy, s
 
 The long-term vision is to create an autonomous analytical platform capable of progressively reducing its dependency on external Large Language Models while maintaining professional-grade analytical capabilities.
 
+## Skills Agent V2
+
+The V2 foundation formalizes Skills Agent as an offline-first **Analytical
+Intelligence Platform** with deterministic reasoning at the core and optional
+LLM support only for narrative or explanatory layers.
+
+V2 architecture documents:
+
+- [Vision](docs/VISION.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Offline-First Strategy](docs/OFFLINE_FIRST.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Architectural Decisions](docs/DECISIONS.md)
+- [Milestones](docs/MILESTONES.md)
+- [V2 Product Model](docs/V2_PRODUCT_MODEL.md)
+
 ---
 
 # 🎯 Vision

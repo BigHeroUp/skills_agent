@@ -52,6 +52,19 @@ un chatbot che risponde genericamente. Deve:
 
 ## Stato attuale
 
+### V2 Architecture Foundation
+
+La V2 Architecture Foundation e stata avviata come formalizzazione del progetto
+in piattaforma offline-first di Analytical Intelligence.
+
+Punti chiave definiti:
+
+- strategia offline-first esplicita;
+- centralita del reasoning deterministico;
+- LLM opzionale e non obbligatorio;
+- separazione architetturale in macro-layer;
+- roadmap V2 e ADR iniziali.
+
 ### Validation Lab e Quality Gates
 
 Il progetto ora include `validation_lab/`, una struttura dedicata alla raccolta
