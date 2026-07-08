@@ -12,10 +12,12 @@ from .errors import (
 from .events import Event, EventBus
 from .kernel import VeraxisKernel
 from .memory import KernelMemory
+from .provider import CapabilityProvider
 from .registry import CapabilityRegistry
 
 __all__ = [
     "Capability",
+    "CapabilityProvider",
     "CapabilityExecutionError",
     "CapabilityNotFoundError",
     "CapabilityRegistry",

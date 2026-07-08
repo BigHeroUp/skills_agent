@@ -445,3 +445,32 @@ capabilities can follow:
 3. register it through kernel bootstrap;
 4. expose an isolated runtime entrypoint;
 5. validate lifecycle events and failure handling through dedicated tests.
+
+## V2.2.0 Analytical Experience Engine
+
+V2.2.0 introduces the first deterministic **Analytical Experience Engine** for
+Veraxis.
+
+Its role is different from the Knowledge Graph:
+
+- the Knowledge Graph stores structured analytical memory and lineage;
+- the Experience Engine derives reusable experience from repeated evidence
+  across multiple analysis runs;
+- the experience store persists only metadata, recurring patterns, and
+  recommended next steps, never raw dataframe rows.
+
+The V2.2.0 foundation includes:
+
+- local JSON persistence in `data/experience/experience_store.json`;
+- deterministic builders that derive experience from repeated metrics,
+  anomalies, and root causes;
+- deterministic relevance scoring and experience-based recommendations;
+- an experimental kernel capability `experience.query`;
+- offline-first CLI entrypoints for refresh and query.
+
+This release remains intentionally non-invasive:
+
+- Coordinator is unchanged;
+- dashboard behavior is unchanged;
+- no OpenAI dependency is introduced;
+- experience can evolve in parallel to the current production pipeline.

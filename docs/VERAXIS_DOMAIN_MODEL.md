@@ -205,6 +205,18 @@ classes.
 - Practical example:
   a known effective segmentation strategy for response-time investigations.
 
+### Experience Store
+
+- Responsibility:
+  persist deterministic analytical experience locally without raw data.
+- Main attributes:
+  `store_id`, `schema_version`, `experiences`, `last_refresh_at`, `privacy_policy`.
+- Relationships:
+  stores `Experience`, queried by `Experience Query`, refreshed from
+  `Knowledge Node` and `Analysis Run`.
+- Practical example:
+  a local JSON store with reusable patterns for recurring response-time issues.
+
 ### Domain Pack
 
 - Responsibility:
@@ -228,6 +240,8 @@ Kernel
   |         +--> Event
   |         |
   |         +--> Memory -------> Experience
+  |         |
+  |         +--> Experience Store ----> Experience
   |         |
   |         +--> Knowledge Node <---- Knowledge Edge ----> Knowledge Node
   |                                  |
@@ -257,6 +271,7 @@ Kernel
   analytical structure.
 - `Experience` is not the same as history; it is history interpreted into
   reusable analytical value.
+- `Experience Store` must remain metadata-only and must not persist raw rows.
 
 ## Status
 

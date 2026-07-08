@@ -7,6 +7,14 @@ offline-first di Analytical Intelligence.
 
 ## Milestones
 
+### V2.2.0 - Analytical Experience Engine
+
+- Status: completed
+- Focus:
+  - accumulate deterministic analytical experience from repeated analysis runs;
+  - expose privacy-safe local experience storage;
+  - add offline-first query and recommendation entrypoints over accumulated experience.
+
 ### V2.1.1 - Kernel Architecture Foundation
 
 - Status: in progress
@@ -36,7 +44,7 @@ offline-first di Analytical Intelligence.
 
 ### Milestone 8 - Experience Engine
 
-- Status: planned
+- Status: completed
 - Focus:
   - apprendimento deterministico dell'esperienza analitica;
   - ranking di strategie efficaci;

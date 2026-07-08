@@ -258,6 +258,34 @@ python3 scripts/kernel_query_knowledge_graph.py "quali funzioni generano grafici
 This is the first experimental kernel-based entrypoint and does not replace the
 current Coordinator-based pipeline.
 
+## Analytical Experience Engine
+
+Veraxis now includes a first deterministic **Analytical Experience Engine**
+that derives reusable experience from prior `analysis_run` objects already
+persisted in the local Knowledge Graph.
+
+The experience layer is distinct from Knowledge Memory:
+
+- Knowledge Memory stores structured analytical facts and lineage;
+- Experience stores reusable interpretations built from repeated evidence;
+- no raw dataframe rows are persisted in the experience store.
+
+Local store:
+
+```text
+data/experience/experience_store.json
+```
+
+CLI examples:
+
+```bash
+python3 scripts/refresh_experience.py --limit 20
+python3 scripts/query_experience.py "cosa abbiamo imparato sui response_time?"
+```
+
+The kernel also exposes the experimental offline-first capability
+`experience.query`.
+
 The query layer supports:
 
 - node filters by type, label and properties;
@@ -372,6 +400,9 @@ Kernel Runtime Foundation status:
 - experimental / parallel foundation available under `core/kernel/`;
 - main production pipeline still remains Coordinator-based;
 - no runtime migration from Coordinator to Kernel has been applied yet.
+- experimental capability discovery now includes `knowledge_graph.query` and
+  `experience.query`;
+- analytical experience remains deterministic, offline-first, and privacy-safe.
 
 ---
 
