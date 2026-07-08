@@ -73,15 +73,26 @@ class VeraxisKernel:
                 "capability_name": name,
                 "request_id": request.request_id,
             }
-            self.publish_event(
-                "capability.execution.completed",
-                payload={
-                    "capability_name": name,
-                    "request_id": request.request_id,
-                    "success": response.success,
-                },
-                metadata=response.metadata,
-            )
+            if response.success:
+                self.publish_event(
+                    "capability.execution.completed",
+                    payload={
+                        "capability_name": name,
+                        "request_id": request.request_id,
+                        "success": response.success,
+                    },
+                    metadata=response.metadata,
+                )
+            else:
+                self.publish_event(
+                    "capability.execution.failed",
+                    payload={
+                        "capability_name": name,
+                        "request_id": request.request_id,
+                        "error": "; ".join(response.errors) if response.errors else "Capability execution failed",
+                    },
+                    metadata=response.metadata,
+                )
             return response
         except Exception as exc:
             error = CapabilityExecutionError(

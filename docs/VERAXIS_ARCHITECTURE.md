@@ -412,3 +412,36 @@ The goal of V2.1.2 is not feature expansion.
 The goal is to establish a safe execution contract that future capabilities,
 memory adapters, reasoning modules, and decision flows can target without
 forcing an immediate migration of the current product.
+
+## V2.1.3 First Capability Migration
+
+V2.1.3 introduces the first real capability migrated into the experimental
+Veraxis Kernel: **Knowledge Graph Query Capability**.
+
+This is the first runtime step beyond health-check style infrastructure.
+
+The migrated capability exposes deterministic Knowledge Graph querying through a
+kernel-native contract:
+
+- capability name: `knowledge_graph.query`;
+- input: user question plus deterministic execution mode;
+- output: answer, matches, confidence, and execution type;
+- engine used: `KnowledgeGraphQueryEngine`;
+- execution model: local, deterministic, offline-first, no OpenAI.
+
+The migration remains intentionally scoped:
+
+- the main Coordinator pipeline is unchanged;
+- existing agents are unchanged;
+- dashboard behavior is unchanged;
+- the kernel capability is available as a parallel experimental entrypoint;
+- a first kernel-based CLI now exists for deterministic graph questions.
+
+This release demonstrates the migration pattern that future analytical
+capabilities can follow:
+
+1. keep the current production pipeline stable;
+2. wrap a deterministic engine behind a capability contract;
+3. register it through kernel bootstrap;
+4. expose an isolated runtime entrypoint;
+5. validate lifecycle events and failure handling through dedicated tests.
