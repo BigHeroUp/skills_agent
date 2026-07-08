@@ -64,6 +64,8 @@ class AgentContext:
     anomaly_detection_results: Dict[str, Any] = field(default_factory=dict)
     root_cause_results: Dict[str, Any] = field(default_factory=dict)
     domain_pack_context: Dict[str, Any] = field(default_factory=dict)
+    knowledge_reasoning_context: Dict[str, Any] = field(default_factory=dict)
+    recommended_analytical_steps: List[Dict[str, Any]] = field(default_factory=list)
 
     # Analisi autonoma multi-step della Milestone 4
     autonomous_analysis_plan: Dict[str, Any] = field(default_factory=dict)

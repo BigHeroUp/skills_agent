@@ -293,6 +293,9 @@ class KnowledgeGraphQueryEngine:
             matches = self.find_nodes(node_type="root_cause", limit=30)
             return self._answer(clean_question, "root cause individuate", matches, 0.85 if matches else 0.25)
 
+        if self._looks_like_reasoning_history_question(lowered):
+            return self._answer_reasoning_history_question(clean_question)
+
         if "analisi" in lowered and any(term in lowered for term in ("anomalia", "anomalie", "anomaly")):
             matches = self._find_analysis_runs_with_matching_anomalies(clean_question)
             return self._answer(clean_question, "analisi con anomalie coerenti con la domanda", matches, 0.86)
@@ -388,6 +391,68 @@ class KnowledgeGraphQueryEngine:
             "rispetto all’ultima analisi",
         ]
         return any(phrase in lowered_question for phrase in phrases)
+
+    def _looks_like_reasoning_history_question(self, lowered_question: str) -> bool:
+        phrases = [
+            "analisi simili",
+            "casi simili",
+            "casi analoghi",
+            "pattern ricorrenti",
+            "cosa abbiamo fatto in casi simili",
+            "cosa abbiamo fatto in casi analoghi",
+            "strategie ricorrenti",
+        ]
+        return any(phrase in lowered_question for phrase in phrases)
+
+    def _answer_reasoning_history_question(self, question: str) -> dict[str, Any]:
+        latest_runs = self.get_latest_analysis_runs(limit=10)
+        if len(latest_runs) < 2:
+            return {
+                "question": question,
+                "answer": (
+                    "Non ci sono dati sufficienti nel Knowledge Graph per rispondere su casi simili "
+                    "o pattern ricorrenti. Servono almeno due analysis_run archiviate."
+                ),
+                "matches": latest_runs,
+                "confidence": 0.2,
+                "execution_type": "deterministic_kg_query",
+            }
+
+        from services.knowledge_graph.reasoning_engine import KnowledgeReasoningEngine
+
+        run_ids = [item.get("id") for item in latest_runs if item.get("id")]
+        reusable_patterns = KnowledgeReasoningEngine(store=self.store).extract_reusable_patterns(run_ids)
+        pattern_payload = reusable_patterns.get("reusable_patterns") or {}
+        if not any(pattern_payload.values()):
+            return {
+                "question": question,
+                "answer": (
+                    "Nel Knowledge Graph sono presenti analisi storiche, ma non emergono ancora pattern "
+                    "ricorrenti abbastanza stabili da suggerire casi simili affidabili."
+                ),
+                "matches": latest_runs[:5],
+                "confidence": 0.25,
+                "execution_type": "deterministic_kg_query",
+                "reusable_patterns": reusable_patterns,
+            }
+
+        metrics = ", ".join((pattern_payload.get("metrics") or [])[:3]) or "non disponibili"
+        anomalies = ", ".join((pattern_payload.get("anomalies") or [])[:3]) or "non disponibili"
+        strategies = ", ".join((pattern_payload.get("strategies") or [])[:3]) or "non disponibili"
+        answer = (
+            "Ho trovato pattern ricorrenti nelle analisi storiche. "
+            f"Metriche frequenti: {metrics}. "
+            f"Anomalie frequenti: {anomalies}. "
+            f"Strategie ricorrenti: {strategies}."
+        )
+        return {
+            "question": question,
+            "answer": answer,
+            "matches": latest_runs[:5],
+            "confidence": round(max(0.3, min(0.85, reusable_patterns.get("confidence", 0.0))), 2),
+            "execution_type": "deterministic_kg_query",
+            "reusable_patterns": reusable_patterns,
+        }
 
     def _answer(
         self,

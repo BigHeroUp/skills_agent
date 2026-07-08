@@ -8,6 +8,7 @@ from agents.query_suggestion_agent import QuerySuggestionAgent
 from agents.data_extractor import DataExtractorAgent
 from agents.data_validator import DataValidatorAgent
 from agents.data_processor import DataProcessorAgent
+from agents.knowledge_reasoning_agent import KnowledgeReasoningAgent
 from agents.analyst import AnalystAgent
 from agents.report_generator import ReportGeneratorAgent
 from agents.knowledge_graph_agent import KnowledgeGraphAgent
@@ -41,6 +42,7 @@ class Coordinator:
             DataExtractorAgent(),
             DataValidatorAgent(),
             DataProcessorAgent(),
+            KnowledgeReasoningAgent(),
             AnalystAgent(),
             ReportGeneratorAgent(),
             KnowledgeGraphAgent()
@@ -75,9 +77,10 @@ class Coordinator:
         2. Data Extractor → estrae dati
         3. Data Validator → valida dati
         4. Data Processor → elabora dati
-        5. Analyst → genera insight
-        6. Report Generator → crea report
-        7. Knowledge Graph → salva metadati e relazioni locali
+        5. Knowledge Reasoning → arricchisce il context con memoria analitica
+        6. Analyst → genera insight
+        7. Report Generator → crea report
+        8. Knowledge Graph → salva metadati e relazioni locali
         """
         
         safe_print("\n" + "="*60)

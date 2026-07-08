@@ -30,8 +30,10 @@ def test_coordinator_pipeline():
         "DataExtractor",
         "DataValidator",
         "DataProcessor",
+        "KnowledgeReasoning",
         "Analyst",
         "ReportGenerator",
+        "KnowledgeGraph",
     ]
 
     assert agent_names == expected, f"Pipeline inattesa: {agent_names}"

@@ -275,8 +275,10 @@ def register_callbacks(app, state, logger):
             "DataExtractor",
             "DataValidator",
             "DataProcessor",
+            "KnowledgeReasoning",
             "Analyst",
-            "ReportGenerator"
+            "ReportGenerator",
+            "KnowledgeGraph",
         ]
         
         status = state.processing_status.get('status', 'idle')
