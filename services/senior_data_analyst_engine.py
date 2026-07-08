@@ -61,6 +61,8 @@ class SeniorDataAnalystEngine:
             "anomaly_detection_results": data.get("anomaly_detection_results") or {},
             "root_cause_results": data.get("root_cause_results") or {},
             "domain_pack_context": data.get("domain_pack_context") or {},
+            "knowledge_reasoning_context": data.get("knowledge_reasoning_context") or {},
+            "recommended_analytical_steps": data.get("recommended_analytical_steps") or [],
         }
         analysis["methodological_notes"] = self._build_methodological_notes(
             analysis["detected_patterns"]
@@ -157,6 +159,7 @@ class SeniorDataAnalystEngine:
             "## Raccomandazioni operative",
             self._numbered_list((analysis.get("operational_recommendations") or [])[:5]),
             "",
+            self._format_reasoning_section(analysis),
             "## Best practice metodologiche",
             self._bullet_list((analysis.get("methodological_notes") or [])[:3]),
             "",
@@ -199,10 +202,29 @@ class SeniorDataAnalystEngine:
             "## Visualizzazioni consigliate",
             self._format_visualization_plan(analysis.get("visualization_plan") or []),
             "",
+            self._format_reasoning_section(analysis),
             "## Raccomandazioni operative",
             self._numbered_list(self._activation_recommendations(analysis)),
         ]
         return "\n".join(sections)
+
+    def _format_reasoning_section(self, analysis: dict) -> str:
+        recommended_steps = analysis.get("recommended_analytical_steps") or []
+        if not recommended_steps:
+            return ""
+        lines = [
+            "## Raccomandazioni basate sulla memoria analitica",
+        ]
+        for item in recommended_steps[:5]:
+            if not isinstance(item, dict):
+                continue
+            step = item.get("step") or "Step suggerito"
+            reason = item.get("reason") or "Motivazione non disponibile."
+            source = item.get("source") or "knowledge_graph"
+            priority = item.get("priority") or "medium"
+            lines.append(f"- {step} ({priority}, fonte={source}): {reason}")
+        lines.append("")
+        return "\n".join(lines)
 
     def _format_activation_short_answer(self, analysis: dict) -> str:
         temporal = analysis.get("temporal_concentration_results") or {}

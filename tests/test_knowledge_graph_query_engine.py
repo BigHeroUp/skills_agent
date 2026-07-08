@@ -143,3 +143,67 @@ def test_missing_graph_returns_clear_message(tmp_path):
     assert result["matches"] == []
     assert result["confidence"] == 0.0
     assert "Knowledge Graph non trovato" in result["answer"]
+
+
+def test_reasoning_history_questions_require_sufficient_runs(tmp_path):
+    _build_store(tmp_path / "kg.json")
+    engine = KnowledgeGraphQueryEngine(path=tmp_path / "kg.json")
+
+    result = engine.answer_question_deterministic("cosa abbiamo fatto in casi simili?")
+
+    assert result["execution_type"] == "deterministic_kg_query"
+    assert result["confidence"] <= 0.25
+    assert "Non ci sono dati sufficienti" in result["answer"]
+
+
+def test_reasoning_history_questions_return_patterns_when_available(tmp_path):
+    store = KnowledgeGraphStore(tmp_path / "kg.json")
+    for index in range(2):
+        run_id = f"analysis_run:run-{index}"
+        dataset_id = f"dataset:run-{index}"
+        column_id = f"dataframe_column:run-{index}:response_time"
+        anomaly_id = f"anomaly:a{index}"
+        root_cause_id = f"root_cause:rc{index}"
+        store.upsert_node(KnowledgeNode(run_id, "analysis_run", f"Run {index}", {
+            "created_at": f"2026-01-0{index + 1}T10:00:00",
+            "primary_metric": "response_time",
+            "time_axis": "created_at",
+            "source_type": "excel",
+        }))
+        store.upsert_node(KnowledgeNode(dataset_id, "dataset", "performance.xlsx", {
+            "source_type": "excel",
+            "row_count": 100,
+            "column_count": 2,
+        }))
+        store.upsert_node(KnowledgeNode(column_id, "dataframe_column", "response_time", {
+            "dtype": "float64",
+            "is_primary_metric": True,
+        }))
+        store.upsert_node(KnowledgeNode(anomaly_id, "anomaly", "sla_violation", {
+            "affected_column": "response_time",
+        }))
+        store.upsert_node(KnowledgeNode(root_cause_id, "root_cause", "Backlog operativo", {
+            "affected_metrics": ["response_time"],
+        }))
+        store.upsert_edge(KnowledgeEdge(run_id, dataset_id, "USES_DATASET"))
+        store.upsert_edge(KnowledgeEdge(run_id, column_id, "HAS_COLUMN"))
+        store.upsert_edge(KnowledgeEdge(run_id, anomaly_id, "DETECTED_ANOMALY"))
+        store.upsert_edge(KnowledgeEdge(run_id, root_cause_id, "IDENTIFIED_ROOT_CAUSE"))
+    store.save()
+
+    engine = KnowledgeGraphQueryEngine(path=tmp_path / "kg.json")
+    result = engine.answer_question_deterministic("mostrami i pattern ricorrenti")
+
+    assert result["confidence"] >= 0.3
+    assert "pattern ricorrenti" in result["answer"].lower()
+    assert result["reusable_patterns"]["reusable_patterns"]["metrics"] == ["response_time"]
+
+
+def test_reasoning_history_intent_is_not_triggered_by_generic_analysis_query(tmp_path):
+    _build_store(tmp_path / "kg.json")
+    engine = KnowledgeGraphQueryEngine(path=tmp_path / "kg.json")
+
+    result = engine.answer_question_deterministic("fammi una analisi del dataset")
+
+    assert "dati sufficienti" not in result["answer"].lower()
+    assert result["matches"]
