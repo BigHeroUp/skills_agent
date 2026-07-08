@@ -1,206 +1,245 @@
-# Veraxis
+# VERAXIS
 
 ## Offline-first Analytical Intelligence Platform
 
+### Transform data into explainable decisions.
+
 **A deterministic Senior Data Analyst that learns from previous analyses without depending on LLMs.**
 
-![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-215%20passed-2E8B57?style=for-the-badge)
-![Offline First](https://img.shields.io/badge/Offline-First-1F4E79?style=for-the-badge)
-![Deterministic Reasoning](https://img.shields.io/badge/Deterministic-Reasoning-4B5563?style=for-the-badge)
-![Knowledge Graph](https://img.shields.io/badge/Knowledge-Graph-8B5CF6?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square)
+![Offline First](https://img.shields.io/badge/Offline-First-0F4C81?style=flat-square)
+![Deterministic Reasoning](https://img.shields.io/badge/Deterministic-Reasoning-334155?style=flat-square)
+![Knowledge Graph](https://img.shields.io/badge/Knowledge-Graph-7C3AED?style=flat-square)
+![Multi-Agent](https://img.shields.io/badge/Multi--Agent-Pipeline-065F46?style=flat-square)
+![Tests Passing](https://img.shields.io/badge/Tests-215%20passed-15803D?style=flat-square)
+![Version](https://img.shields.io/badge/V2-Architecture%20Foundation-111827?style=flat-square)
 
-Veraxis is the working product identity for the platform currently hosted in the
-`skills_agent` repository. It is designed as an enterprise-grade Analytical
-Intelligence system that turns raw datasets into repeatable analysis, explainable
-evidence, reusable analytical memory, and professional reporting.
+---
 
-## Product Positioning
+## What Is Veraxis
 
-Veraxis is not positioned as a generic assistant. It is an Analytical
-Intelligence Platform built to transform raw operational datasets into:
+Veraxis is an Analytical Intelligence Platform.
 
-- statistical analysis;
-- explainable insights;
-- anomaly detection;
-- root cause analysis;
-- professional reports;
-- analytical memory;
-- experience-based recommendations.
+It is not a chatbot.
 
-Its central thesis is simple: analytical decisions should come from
-deterministic reasoning, explicit statistical methods, and accumulated
-experience, not from opaque generative text alone.
+It is not a BI dashboard.
 
-## Why This Is Not a Simple Chatbot
+It is not a thin framework around prompts.
 
-| Capability | Traditional BI | Generic AI Chatbot | Veraxis |
+It is a deterministic system that turns raw datasets into statistical analysis,
+explainable insight, anomaly detection, root cause evidence, analytical memory,
+experience-aware recommendations, and professional reports.
+
+---
+
+## Product Pillars
+
+| Pillar | Purpose | Current Status | Future Evolution |
 | --- | --- | --- | --- |
-| Primary interaction model | Dashboard and static queries | Conversational prompting | Analytical workflow plus deterministic reasoning |
-| Statistical reasoning core | Usually delegated to analyst tooling | Usually absent or implicit | Built into the platform |
-| Knowledge Graph | Rarely central | Usually none | Native local analytical memory layer |
-| Analytical memory | Limited dashboards/history | Weak session memory | Persistent reusable analysis memory |
-| Offline-first operation | Partial | Rare | Core architectural principle |
-| LLM dependency | None | High | Optional and non-critical |
-| Critical analytical decisions | Human/manual | Often prompt-driven | Deterministic and auditable |
-| Root cause and anomaly evidence | External workflow | Often narrative only | Evidence-based pipeline output |
+| Knowledge | Persist analytical structure, lineage, code graph, and analysis memory | Knowledge Graph JSON, Query Engine, Code Indexer, Comparator | Governance, quality controls, schema evolution |
+| Reasoning | Reuse previous analyses to suggest better next steps | Deterministic Knowledge Reasoning Engine completed | Deeper experience-weighted reasoning |
+| Experience | Convert history into reusable analytical practice | Analytical memory and pattern foundations available | Dedicated Experience Engine |
+| Decision | Turn evidence into next analytical actions | Recommendation logic partially present in reasoning flows | Full Decision Intelligence Layer |
+| Learning | Improve confidence, pattern reuse, and reliability over time | Learning Engine and pattern knowledge foundation | Outcome-based recommendation learning |
 
-## Architecture V2
+---
 
-Veraxis V2 formalizes the platform into six macro-layers.
+## Why Veraxis
 
-### The Six Layers
+| Dimension | Traditional BI | LLM Chatbot | Veraxis |
+| --- | --- | --- | --- |
+| Knowledge | Static dashboards and reports | Session-local conversation | Persistent analytical knowledge layer |
+| Reasoning | Mostly manual analyst work | Mostly generative text | Deterministic analytical reasoning |
+| Memory | Limited history | Weak and non-auditable | Analytical memory with reusable patterns |
+| Explainability | KPI views, limited rationale | Often narrative without evidence | Evidence-backed and traceable |
+| Offline | Partial | Rare | Core design principle |
+| Deterministic | Query outputs only | Usually not | Required for critical analysis |
+| Recommendations | External analyst interpretation | Prompt-based suggestions | Experience-aware analytical next steps |
+| Decision Support | Dashboard-dependent | Narrative-dependent | Structured evidence and reasoning |
+| Learning | Mostly organizational, outside tool | Implicit and opaque | Local, explicit, and auditable |
 
-- **Core Platform**: orchestration, ingestion, shared context, runtime control, UI hooks.
-- **Knowledge Platform**: Knowledge Graph, query layer, lineage, comparison, graph indexing.
-- **Intelligence Platform**: planning, statistics, anomaly detection, root cause analysis, reasoning.
-- **Decision Platform**: next analytical steps, prioritization, confidence-driven actions.
-- **Learning Platform**: analytical memory, pattern reuse, confidence evolution, feedback learning.
-- **Experience Platform**: reports, dashboard interactions, chat surfaces, narrative enrichment.
+---
 
-### Readable Layer Diagram
+## Architecture
 
 ```text
-+-------------------------------------------------------------+
-| Experience Platform                                         |
-| Reports, Dash UI, follow-up chat, optional narrative layer  |
-+-------------------------------------------------------------+
-| Learning Platform                                           |
-| Analytical memory, pattern learning, confidence evolution   |
-+-------------------------------------------------------------+
-| Decision Platform                                           |
-| Recommendation logic, prioritization, next-step selection   |
-+-------------------------------------------------------------+
-| Intelligence Platform                                       |
-| Planning, statistics, anomaly, root cause, reasoning        |
-+-------------------------------------------------------------+
-| Knowledge Platform                                          |
-| Knowledge Graph, lineage, query engine, comparator, indexer |
-+-------------------------------------------------------------+
-| Core Platform                                               |
-| Pipeline, context, ingestion, validation, processing        |
-+-------------------------------------------------------------+
++------------------------------------------------------------------+
+| Core Platform                                                    |
+| Pipeline, ingestion, context, validation, processing, runtime    |
++------------------------------------------------------------------+
+                                |
+                                v
++------------------------------------------------------------------+
+| Knowledge Platform                                               |
+| Knowledge Graph, indexing, lineage, query engine, comparison     |
++------------------------------------------------------------------+
+                                |
+                                v
++------------------------------------------------------------------+
+| Intelligence Platform                                            |
+| Planning, statistics, anomaly detection, root cause, reasoning   |
++------------------------------------------------------------------+
+                                |
+                                v
++------------------------------------------------------------------+
+| Decision Platform                                                |
+| Prioritization, next analytical steps, decision support          |
++------------------------------------------------------------------+
+                                |
+                                v
++------------------------------------------------------------------+
+| Learning Platform                                                |
+| Pattern learning, confidence updates, analytical memory reuse    |
++------------------------------------------------------------------+
+                                |
+                                v
++------------------------------------------------------------------+
+| Experience Platform                                              |
+| Reports, dashboard, chat surfaces, optional narrative layer      |
++------------------------------------------------------------------+
 ```
 
-Detailed architecture documentation is available in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+| Layer | Role |
+| --- | --- |
+| Core Platform | Runs the product and moves data through the pipeline |
+| Knowledge Platform | Makes analytical structure explicit and queryable |
+| Intelligence Platform | Computes what the system should analyze and why |
+| Decision Platform | Converts evidence into prioritized actions |
+| Learning Platform | Accumulates reliability and reusable experience |
+| Experience Platform | Presents results as enterprise-grade outputs |
 
-## Implemented Capabilities
+---
 
-The repository already includes the following platform capabilities.
+## How Veraxis Thinks
 
-### Core Execution
+```text
+Dataset
+   |
+   v
+Planning
+   |
+   v
+Reasoning
+   |
+   v
+Statistics
+   |
+   v
+Knowledge
+   |
+   v
+Experience
+   |
+   v
+Decision
+   |
+   v
+Report
+```
 
-- Hub & Spoke multi-agent pipeline;
-- data source management;
-- CSV support;
-- Excel support;
-- Oracle read-only support;
-- data validation;
-- data processing;
-- dashboard-driven execution flow.
+Veraxis separates **language** from **analysis**.
 
-### Analytical Intelligence
+The product first decides how to analyze.
 
-- Analytical Planning Engine;
-- deterministic statistical analysis;
-- anomaly detection;
-- root cause analysis;
-- Senior Data Analyst Engine;
-- report generation;
-- analytical strategy and reasoning layers.
+Only then does it decide how to explain.
 
-### Knowledge and Memory
+---
 
-- Knowledge Graph persisted as local JSON;
-- Python code indexer;
-- deterministic Knowledge Graph Query Engine;
-- Dash chat integration with the Knowledge Graph;
-- analytical memory and pattern reuse;
-- analysis comparator;
-- Knowledge Reasoning Engine;
-- local learning engine and pattern knowledge foundation.
+## Implemented Modules
 
-### Tooling and Quality
+| Module | Description | Status |
+| --- | --- | --- |
+| Coordinator | Hub & Spoke multi-agent orchestration | Implemented |
+| Knowledge Graph | Local JSON graph for code and analysis lineage | Implemented |
+| Reasoning Engine | Deterministic reuse of previous analytical experience | Implemented |
+| Query Engine | Deterministic graph querying and rule-based answers | Implemented |
+| Analytical Planning | Strategy and execution planning before statistics | Implemented |
+| Dash | Local product UI and operator workflow | Implemented |
+| Report Generator | Professional report assembly with local-first fallback | Implemented |
+| Experience Memory | Analytical memory, patterns, confidence, session history | Foundation implemented |
+| Analysis Comparator | Comparison of recent analysis runs | Implemented |
+| Validation Lab | Evidence-driven validation structure and quality gates | Implemented |
+| Knowledge Reasoning | Similar analysis detection and recommendation layer | Implemented |
 
-- CLI utilities for indexing, querying, comparing and reviewing analysis memory;
-- Validation Lab with test cases, quality gates, review templates and benchmarks.
+---
 
-## Offline-first Philosophy
+## Offline First
 
-Veraxis is built around an offline-first analytical core.
+Veraxis does **not** require OpenAI to run its analytical core.
 
-### What Works Without OpenAI
+### Core Guarantees
 
-- Knowledge Graph persistence and querying;
-- deterministic reasoning over previous analyses;
-- Analytical Planning Engine;
-- statistical analysis;
-- anomaly detection;
-- root cause analysis;
-- report facts and core analytical conclusions;
-- analytical memory and comparison flows.
+- the platform can ingest, process, analyze, compare, and reason locally;
+- critical analytical decisions are deterministic;
+- Knowledge Graph reasoning is local;
+- anomaly and root cause logic are not delegated to a language model.
 
-### What LLMs Are Allowed To Do
+### LLM Role
 
-LLMs are optional and can be used only as a narrative or explanation layer for:
+LLMs are optional and should be used only as:
 
-- natural-language explanations;
-- narrative report polishing;
-- executive summaries;
-- language reformulation;
-- advanced chat assistance.
+- Narrative Layer
+- Executive Summary
+- Natural Language Explanation
 
-### Hard Rule
+Never as the primary decision engine.
 
-Critical analytical decisions must be deterministic. An LLM must not be the
-sole source of truth for:
+This is a product rule, not a temporary implementation detail.
 
-- KPI selection;
-- anomaly declaration;
-- root cause evidence;
-- confidence ranking;
-- analytical recommendations.
-
-See the formal policy in [docs/OFFLINE_FIRST.md](docs/OFFLINE_FIRST.md).
+---
 
 ## Knowledge Graph
 
-The Knowledge Graph makes code and analytical history explicit without requiring
-an external graph database.
+```text
+Dataset
+   |
+   v
+Analysis
+   |
+   v
+Insights
+   |
+   v
+Anomalies
+   |
+   v
+Root Causes
+   |
+   v
+Recommendations
+   |
+   v
+Experience
+```
 
 ### What It Indexes
 
-- Python files, classes, functions and imports;
-- analysis runs;
-- datasets;
-- dataframe columns;
-- insights;
-- anomalies;
-- root causes;
-- reports;
-- domain pack usage.
+- Python files, classes, functions, and imports
+- analysis runs
+- datasets
+- dataframe columns
+- insights
+- anomalies
+- root causes
+- reports
+- domain pack usage
 
 ### What It Stores
 
-The local graph stores:
-
-- stable node ids;
-- edge relationships;
-- dataset shape;
-- column names;
-- dtypes;
-- compact analytical metadata;
-- synthetic properties required for comparison and reasoning.
+- stable node ids
+- relationship edges
+- dataset shape
+- column names
+- dtypes
+- compact synthetic metadata
+- traceable analysis lineage
 
 ### What It Does Not Store
 
-For privacy and reproducibility reasons, it does **not** store:
-
-- raw dataframe rows;
-- bulk column values;
-- large raw payload dumps;
-- operational secrets.
+- raw dataframe rows
+- massive column value dumps
+- secrets
+- opaque binary memory blobs
 
 ### Storage Location
 
@@ -208,7 +247,7 @@ For privacy and reproducibility reasons, it does **not** store:
 data/knowledge_graph/knowledge_graph.json
 ```
 
-### Query and Inspection Commands
+### Query It
 
 ```bash
 python3 scripts/index_knowledge_graph.py
@@ -217,53 +256,82 @@ python3 scripts/show_latest_analyses.py --limit 10
 python3 scripts/compare_latest_analyses.py
 ```
 
-## Knowledge Reasoning Engine
+---
 
-The Knowledge Reasoning Engine turns the Knowledge Graph from a queryable memory
-store into a deterministic reasoning layer for analytical reuse.
+## Experience Engine
 
-### Current Scope
+Veraxis does not simply store analyses.
 
-- dataset profile extraction from `AgentContext`;
-- similar analysis detection;
-- reusable pattern extraction;
-- analytical recommendation generation;
-- deterministic scoring and ranking;
-- no OpenAI dependency.
+It accumulates experience.
 
-### How It Works
+### What That Means
 
-The engine builds a compact synthetic profile using:
+- if a metric was repeatedly useful, Veraxis can reuse that signal;
+- if anomalies looked similar in previous runs, Veraxis can surface that memory;
+- if specific segmentations or strategies proved useful, Veraxis can recommend them again;
+- if root cause patterns recur, Veraxis can treat them as reusable analytical evidence.
 
-- column names;
-- dtypes;
-- row and column counts;
-- primary metric;
-- time axis;
-- source type;
-- semantic roles;
-- compact keywords.
+### Current State
 
-It then compares this profile with stored analysis runs to:
+The experience model already has foundations in:
 
-- find similar analyses;
-- extract recurring metrics, anomalies, root causes and strategies;
-- recommend next analytical steps.
+- analytical memory;
+- pattern knowledge;
+- learning state;
+- analysis comparison;
+- Knowledge Reasoning Engine.
 
-### CLI Operator Contract
+### Next Step
 
-The deterministic reasoning engine is already available through the Python
-service layer and pipeline integration. The thin operator-facing CLI wrapper is
-not yet present in the repository; the intended command shape is:
+The dedicated Experience Engine is the next architectural layer that will turn
+these foundations into a first-class deterministic learning capability.
+
+---
+
+## CLI
+
+### Index
+
+```bash
+python3 scripts/index_knowledge_graph.py
+```
+
+### Query
+
+```bash
+python3 scripts/query_knowledge_graph.py "quali funzioni generano grafici?"
+```
+
+### Compare
+
+```bash
+python3 scripts/compare_latest_analyses.py
+```
+
+### Latest Analyses
+
+```bash
+python3 scripts/show_latest_analyses.py --limit 10
+```
+
+### Reasoning
+
+The deterministic reasoning engine is already available through the service
+layer and the multi-agent pipeline. The operator-facing CLI contract planned for
+this capability is:
 
 ```bash
 python3 scripts/reason_about_dataset.py --columns response_time created_at status channel --primary-metric response_time --time-axis created_at --source-type csv --row-count 100000
 ```
 
-This command shape documents the V2 product contract without renaming runtime
-packages or inventing a released script.
+This command shape documents the product direction without renaming runtime
+packages or claiming a released script that is not yet present in the repository.
+
+---
 
 ## Quick Start
+
+### Linux / macOS
 
 ```bash
 git clone https://github.com/BigHeroUp/skills_agent.git
@@ -275,52 +343,97 @@ python3 -m pytest -q
 python3 main.py
 ```
 
-Windows activation:
+### Windows
 
 ```powershell
+git clone https://github.com/BigHeroUp/skills_agent.git
+cd skills_agent
+python3 -m venv .venv
 .venv\Scripts\activate
+pip install -r requirements.txt
+python3 -m pytest -q
+python3 main.py
 ```
 
-## Project Status
+---
 
-- V2 Architecture Foundation: completed
-- Milestone 6 Knowledge Reasoning Engine: completed
-- Current test suite: 215 passed
-- Next planned milestone: Knowledge Graph Governance & Quality or Analytical
-  Experience Engine; the roadmap may be refined as governance and product
-  priorities evolve
+## Roadmap
 
-## Documentation Map
+- [x] Milestone 1 - Multi-agent platform foundation
+- [x] Milestone 2 - Deterministic analysis foundation
+- [x] Milestone 3 - Analytical planning and local reasoning foundation
+- [x] Milestone 4 - Analytical memory and session progression foundation
+- [x] Milestone 5 - Pattern knowledge and learning foundation
+- [x] Milestone 6 - Knowledge Reasoning Engine
+- [ ] Milestone 7 - Knowledge Graph Governance & Quality
+- [ ] Milestone 8 - Experience Engine
+- [ ] Milestone 9 - Recommendation Engine
+- [ ] Milestone 10 - Decision Intelligence Layer
+- [ ] Milestone 11 - Domain Intelligence Packs / Marketplace direction
+- [ ] Milestone 12 - Optional LLM Narrative Layer
 
-- [Vision](docs/VISION.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Architectural Decisions](docs/DECISIONS.md)
-- [Milestones](docs/MILESTONES.md)
-- [Offline-First Strategy](docs/OFFLINE_FIRST.md)
-- [V2 Product Model](docs/V2_PRODUCT_MODEL.md)
-- [Validation Lab](validation_lab/README.md)
+---
 
-## Roadmap Snapshot
+## Documentation
 
-- Analytical Experience Engine
-- Knowledge Graph Governance & Quality
-- Recommendation Engine
-- Decision Intelligence Layer
-- Domain Intelligence Packs
-- Optional LLM Narrative Layer
+| Document | Description |
+| --- | --- |
+| [docs/VISION.md](docs/VISION.md) | Product thesis and long-term positioning |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | V2 six-layer architecture |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Planned V2 milestone trajectory |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Architecture Decision Records |
+| [docs/MILESTONES.md](docs/MILESTONES.md) | Milestone-level goals, status, and expected tests |
+| [docs/OFFLINE_FIRST.md](docs/OFFLINE_FIRST.md) | Offline-first operating rule |
+| [docs/V2_PRODUCT_MODEL.md](docs/V2_PRODUCT_MODEL.md) | Target users, use cases, and product model |
+| [validation_lab/README.md](validation_lab/README.md) | Validation Lab operating model |
 
-## Development Philosophy
+---
 
-- Every milestone must leave the project releasable
-- Offline-first
-- Deterministic before generative
-- Explainability
-- No raw data persistence
-- Test-first hardening
-- Architecture before features
+## Development Principles
 
-## Repository Naming Note
+- **Architecture before Features**
+- **Offline First**
+- **Deterministic before Generative**
+- **No Raw Data Persistence**
+- **Explainability**
+- **Test First**
+- **Enterprise Quality**
 
-Veraxis is currently the working product name. The repository is still named
-`skills_agent` until branding due diligence is completed.
+---
+
+## Product Status
+
+```text
+Core        ██████████
+Knowledge   ██████████
+Reasoning   █████████░
+Experience  ██████░░░░
+Decision    ████░░░░░░
+Learning    ████░░░░░░
+```
+
+---
+
+## Footer
+
+### Working Name Notice
+
+Veraxis is currently the working product name.
+
+### Repository Notice
+
+The repository remains named `skills_agent` until branding due diligence is completed.
+
+### License
+
+No repository license file is currently declared at the root level.
+
+### Contribution
+
+Contributions should preserve the core product principles:
+
+- deterministic analytical decisions;
+- offline-first behavior;
+- explainable outputs;
+- no raw data persistence;
+- releasable milestones.
