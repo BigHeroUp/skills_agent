@@ -33,6 +33,11 @@ The V2 foundation formalizes Skills Agent as an offline-first **Analytical
 Intelligence Platform** with deterministic reasoning at the core and optional
 LLM support only for narrative or explanatory layers.
 
+The main production pipeline remains **Coordinator-based**.
+
+The Veraxis Kernel runtime is introduced only as an **experimental / parallel
+foundation** and does not replace the current orchestration flow yet.
+
 V2 architecture documents:
 
 - [Vision](docs/VISION.md)
@@ -352,6 +357,12 @@ The project follows a modular **Hub & Spoke Architecture**.
 ```
 
 Each component is independent, making the platform scalable and easy to extend.
+
+Kernel Runtime Foundation status:
+
+- experimental / parallel foundation available under `core/kernel/`;
+- main production pipeline still remains Coordinator-based;
+- no runtime migration from Coordinator to Kernel has been applied yet.
 
 ---
 
