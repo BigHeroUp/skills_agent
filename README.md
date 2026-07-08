@@ -249,6 +249,15 @@ python scripts/query_knowledge_graph.py "quali funzioni generano grafici?"
 python scripts/query_knowledge_graph.py "quali analisi hanno anomalie su response_time?"
 ```
 
+Kernel-based experimental entrypoint:
+
+```bash
+python3 scripts/kernel_query_knowledge_graph.py "quali funzioni generano grafici?"
+```
+
+This is the first experimental kernel-based entrypoint and does not replace the
+current Coordinator-based pipeline.
+
 The query layer supports:
 
 - node filters by type, label and properties;

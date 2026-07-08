@@ -100,6 +100,23 @@ Test:
 - dedicated kernel runtime tests added;
 - full regression suite passed with `224 passed` via `python3 -m pytest -q`.
 
+### V2.1.3 First Kernel Capability Migration
+
+Objective:
+
+- migrate the first real deterministic capability into the Veraxis Kernel;
+- expose Knowledge Graph querying through a kernel-native contract;
+- keep Coordinator, agents, and dashboard behavior unchanged.
+
+Status:
+
+- completed
+
+Test:
+
+- dedicated capability, bootstrap, and CLI-oriented tests added;
+- full regression suite passed with `232 passed` via `python3 -m pytest -q`.
+
 ### Validation Lab e Quality Gates
 
 Il progetto ora include `validation_lab/`, una struttura dedicata alla raccolta

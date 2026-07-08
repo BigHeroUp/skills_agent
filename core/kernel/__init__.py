@@ -1,6 +1,7 @@
 """Kernel runtime foundation for Veraxis."""
 
 from .builtin_capabilities import HealthCheckCapability
+from .bootstrap import create_default_kernel
 from .capability import Capability, CapabilityRequest, CapabilityResponse
 from .errors import (
     CapabilityExecutionError,
@@ -20,6 +21,7 @@ __all__ = [
     "CapabilityRegistry",
     "CapabilityRequest",
     "CapabilityResponse",
+    "create_default_kernel",
     "DuplicateCapabilityError",
     "Event",
     "EventBus",
