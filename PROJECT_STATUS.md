@@ -65,6 +65,24 @@ Punti chiave definiti:
 - separazione architetturale in macro-layer;
 - roadmap V2 e ADR iniziali.
 
+### V2.1.1 Kernel Architecture Foundation
+
+Objective:
+
+- define the future Kernel-Oriented Veraxis architecture;
+- formalize the capability-oriented evolution path;
+- document the conceptual domain model;
+- define development governance for architecture-first growth.
+
+Status:
+
+- in progress
+
+Test:
+
+- no runtime feature changes introduced;
+- regression verification required through `python3 -m pytest -q`.
+
 ### Validation Lab e Quality Gates
 
 Il progetto ora include `validation_lab/`, una struttura dedicata alla raccolta

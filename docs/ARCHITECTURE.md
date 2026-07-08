@@ -257,9 +257,25 @@ senza compromettere auditabilita e riproducibilita.
 
 Gli LLM possono arricchire spiegazione, tono, chiarezza e presentazione, ma non
 devono sostituire:
-
 - reasoning core;
 - scoring analitico;
 - selezione delle analisi;
 - evidenze statistiche;
+- decisioni critiche.
+
+## Target Architecture: Kernel-Oriented Veraxis
+
+The current document describes the V2 layer model already used to organize the
+platform direction.
+
+The next architectural step is a **Kernel-Oriented Veraxis** target model that
+separates kernel orchestration, capabilities, events, memory, knowledge,
+reasoning, inference, decision, learning, domain specialization, and interface
+surfaces more explicitly.
+
+Reference documents:
+
+- [Veraxis Kernel-Oriented Architecture](VERAXIS_ARCHITECTURE.md)
+- [Veraxis Domain Model](VERAXIS_DOMAIN_MODEL.md)
+- [Veraxis Development Guide](VERAXIS_DEVELOPMENT_GUIDE.md)
 - decisioni critiche.
