@@ -83,6 +83,23 @@ Test:
 - no runtime feature changes introduced;
 - regression verification required through `python3 -m pytest -q`.
 
+### V2.1.2 Kernel Runtime Foundation
+
+Objective:
+
+- introduce the first parallel runtime base for the Veraxis Kernel;
+- formalize capabilities, registry, events, memory, and kernel errors;
+- keep the current Coordinator pipeline unchanged and stable.
+
+Status:
+
+- completed
+
+Test:
+
+- dedicated kernel runtime tests added;
+- full regression suite passed with `224 passed` via `python3 -m pytest -q`.
+
 ### Validation Lab e Quality Gates
 
 Il progetto ora include `validation_lab/`, una struttura dedicata alla raccolta

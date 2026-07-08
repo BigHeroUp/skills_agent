@@ -376,3 +376,39 @@ This document defines the **target architecture**.
 
 It does not claim that the kernel runtime is already implemented in the current
 repository.
+
+## V2.1.2 Kernel Runtime Foundation
+
+V2.1.2 introduces the first runtime base of the Veraxis Kernel as an
+**experimental, parallel foundation**.
+
+This release does **not** replace the current `Coordinator` pipeline.
+
+It adds a minimal kernel runtime that exists alongside the current execution
+model so the architecture can evolve safely without destabilizing production
+behavior.
+
+The runtime foundation currently includes:
+
+- a `VeraxisKernel` orchestration object;
+- a deterministic `Capability` contract with structured requests and responses;
+- a `CapabilityRegistry` for controlled capability registration;
+- a minimal in-memory `EventBus` for lifecycle signals;
+- an in-memory `KernelMemory` with no disk persistence;
+- custom kernel errors for missing, duplicate, and failed capability execution;
+- a built-in `HealthCheckCapability` for deterministic runtime inspection.
+
+This runtime layer is intentionally non-invasive:
+
+- the main pipeline remains Coordinator-based;
+- existing agents are unchanged;
+- dashboard behavior is unchanged;
+- no external dependencies are introduced;
+- no OpenAI dependency is added to the kernel runtime;
+- no kernel memory is persisted to disk in this release.
+
+The goal of V2.1.2 is not feature expansion.
+
+The goal is to establish a safe execution contract that future capabilities,
+memory adapters, reasoning modules, and decision flows can target without
+forcing an immediate migration of the current product.
