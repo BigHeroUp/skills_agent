@@ -117,6 +117,23 @@ Test:
 - dedicated capability, bootstrap, and CLI-oriented tests added;
 - full regression suite passed with `232 passed` via `python3 -m pytest -q`.
 
+### V2.2.0 Analytical Experience Engine
+
+Objective:
+
+- accumulate deterministic analytical experience from prior analysis runs;
+- persist reusable experience locally without storing raw dataframe rows;
+- expose offline-first experience refresh and querying through CLI and kernel capability.
+
+Status:
+
+- completed
+
+Test:
+
+- dedicated experience store, builder, engine, query, and kernel capability tests added;
+- full regression suite passed with `239 passed` via `python3 -m pytest -q`.
+
 ### Validation Lab e Quality Gates
 
 Il progetto ora include `validation_lab/`, una struttura dedicata alla raccolta
