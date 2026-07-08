@@ -59,3 +59,34 @@ def test_store_does_not_persist_raw_dataframe_rows(tmp_path):
 
     assert "120.0" not in payload
     assert "135.0" not in payload
+
+
+def test_store_handles_corrupted_json_and_duplicate_prevention_and_confidence_clamp(tmp_path):
+    path = tmp_path / "experience_store.json"
+    path.write_text("{invalid", encoding="utf-8")
+    store = ExperienceStore(path)
+
+    assert store.load() == []
+
+    first = AnalyticalExperience(
+        id="experience.metric.response_time",
+        title="Esperienza response_time",
+        description="A",
+        source_analysis_run_ids=["analysis_run:1"],
+        metrics=["response_time"],
+        confidence=1.7,
+    )
+    duplicate = AnalyticalExperience(
+        id="experience.metric.response_time.v2",
+        title="Esperienza response_time aggiornata",
+        description="B",
+        source_analysis_run_ids=["analysis_run:2"],
+        metrics=["response_time"],
+        confidence=-0.5,
+    )
+    store.upsert_experience(first)
+    store.upsert_experience(duplicate)
+
+    assert len(store.list_experiences()) == 1
+    assert store.list_experiences()[0].id == "experience.metric.response_time.v2"
+    assert store.list_experiences()[0].confidence == 0.0

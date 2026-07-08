@@ -22,11 +22,15 @@ def main(argv: list[str] | None = None) -> int:
         print('Uso: python3 scripts/query_experience.py "cosa abbiamo imparato sui response_time?"')
         return 1
 
-    engine = AnalyticalExperienceEngine(
-        experience_path=REPOSITORY_ROOT / ExperienceStore.DEFAULT_PATH,
-        kg_path=REPOSITORY_ROOT / KnowledgeGraphStore.DEFAULT_PATH,
-    )
-    result = query_experience(" ".join(args).strip(), engine=engine)
+    try:
+        engine = AnalyticalExperienceEngine(
+            experience_path=REPOSITORY_ROOT / ExperienceStore.DEFAULT_PATH,
+            kg_path=REPOSITORY_ROOT / KnowledgeGraphStore.DEFAULT_PATH,
+        )
+        result = query_experience(" ".join(args).strip(), engine=engine)
+    except Exception as exc:
+        print(f"Errore query experience: {exc}")
+        return 1
 
     print(result["answer"])
     print(f"Confidenza: {result['confidence']:.2f}")

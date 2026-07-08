@@ -16,6 +16,7 @@ class ExperienceStore:
 
     def __init__(self, path: str | Path | None = None):
         self.path = Path(path) if path is not None else self.DEFAULT_PATH
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         self._experiences: dict[str, AnalyticalExperience] = {}
 
     def load(self) -> list[AnalyticalExperience]:
@@ -23,15 +24,17 @@ class ExperienceStore:
         if not self.path.exists():
             return self.list_experiences()
 
-        with self.path.open("r", encoding="utf-8") as file:
-            payload = json.load(file)
+        try:
+            with self.path.open("r", encoding="utf-8") as file:
+                payload = json.load(file)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            return self.list_experiences()
 
         experiences = payload.get("experiences", []) if isinstance(payload, dict) else []
         for item in experiences or []:
             if isinstance(item, dict):
                 experience = AnalyticalExperience.from_dict(item)
-                if experience.id:
-                    self._experiences[experience.id] = experience
+                self.upsert_experience(experience)
         return self.list_experiences()
 
     def save(self) -> list[AnalyticalExperience]:
@@ -47,7 +50,11 @@ class ExperienceStore:
     def upsert_experience(self, experience: AnalyticalExperience) -> None:
         if not experience.id:
             return
-        self._experiences[experience.id] = experience
+        sanitized = AnalyticalExperience.from_dict(experience.to_dict())
+        duplicate_id = self._find_duplicate_id(sanitized)
+        if duplicate_id and duplicate_id != sanitized.id:
+            self._experiences.pop(duplicate_id, None)
+        self._experiences[sanitized.id] = sanitized
 
     def list_experiences(self) -> list[AnalyticalExperience]:
         return [self._experiences[key] for key in sorted(self._experiences)]
@@ -59,6 +66,24 @@ class ExperienceStore:
         self._experiences = {}
         if self.path.exists():
             self.path.unlink()
+
+    def _find_duplicate_id(self, candidate: AnalyticalExperience) -> str | None:
+        candidate_signature = self._signature(candidate)
+        for experience_id, experience in self._experiences.items():
+            if experience_id == candidate.id:
+                continue
+            if self._signature(experience) == candidate_signature:
+                return experience_id
+        return None
+
+    def _signature(self, experience: AnalyticalExperience) -> tuple[str, tuple[str, ...]]:
+        if experience.metrics and not experience.anomalies and not experience.root_causes:
+            return ("metric", tuple(sorted(item.lower() for item in experience.metrics)))
+        if experience.anomalies:
+            return ("anomaly", tuple(sorted(item.lower() for item in experience.anomalies)))
+        if experience.root_causes:
+            return ("root_cause", tuple(sorted(item.lower() for item in experience.root_causes)))
+        return ("id", (experience.id.lower(),))
 
     def find_by_metric(self, metric: str) -> list[AnalyticalExperience]:
         expected = str(metric or "").strip().lower()

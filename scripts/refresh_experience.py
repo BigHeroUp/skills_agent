@@ -21,19 +21,25 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--limit", type=int, default=20, help="Maximum number of analysis runs to scan")
     args = parser.parse_args(argv)
 
-    engine = AnalyticalExperienceEngine(
-        experience_path=REPOSITORY_ROOT / ExperienceStore.DEFAULT_PATH,
-        kg_path=REPOSITORY_ROOT / KnowledgeGraphStore.DEFAULT_PATH,
-    )
-    result = engine.refresh_experience_from_kg(limit=max(0, args.limit))
+    try:
+        engine = AnalyticalExperienceEngine(
+            experience_path=REPOSITORY_ROOT / ExperienceStore.DEFAULT_PATH,
+            kg_path=REPOSITORY_ROOT / KnowledgeGraphStore.DEFAULT_PATH,
+        )
+        result = engine.refresh_experience_from_kg(limit=max(0, args.limit))
+    except Exception as exc:
+        print(f"Errore refresh experience: {exc}")
+        return 1
 
-    print(f"Experience refresh completato. Esperienze create: {result['experience_count']}")
+    print(f"Experience refresh completato. Esperienze create: {result.get('experience_count', 0)}")
     if result.get("experience_ids"):
         print("Experience IDs:")
         for experience_id in result["experience_ids"][:10]:
             print(f"- {experience_id}")
+    if result.get("message"):
+        print(result["message"])
     print(f"Tipo esecuzione: {result['execution_type']}")
-    return 0
+    return 0 if result.get("status") == "ok" else 1
 
 
 if __name__ == "__main__":

@@ -87,3 +87,18 @@ def test_engine_recommendations_are_ordered_by_priority_and_confidence(tmp_path)
             item["step"],
         ),
     )
+
+
+def test_engine_handles_empty_profile_and_empty_summary(tmp_path):
+    engine = AnalyticalExperienceEngine(
+        experience_path=tmp_path / "experience_store.json",
+        kg_path=tmp_path / "kg.json",
+    )
+
+    relevant = engine.find_relevant_experiences({})
+    summary = engine.get_experience_summary()
+
+    assert relevant["status"] == "insufficient_profile"
+    assert relevant["experiences"] == []
+    assert summary["status"] == "empty"
+    assert "Nessuna esperienza" in summary["message"]

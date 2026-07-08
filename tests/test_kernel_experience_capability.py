@@ -1,4 +1,5 @@
 from core.kernel.bootstrap import create_default_kernel
+from core.capabilities.experience_query import ExperienceQueryCapability
 from services.experience import AnalyticalExperienceEngine
 from services.knowledge_graph.models import KnowledgeEdge, KnowledgeNode
 from services.knowledge_graph.store import KnowledgeGraphStore
@@ -60,3 +61,38 @@ def test_experience_query_capability_works_via_kernel_and_bootstrap(tmp_path):
     assert response.success is True
     assert response.result["execution_type"] == "deterministic_experience_query"
     assert response.result["confidence"] >= 0.0
+
+
+def test_experience_query_capability_error_path_and_metadata(tmp_path):
+    kernel = create_default_kernel(
+        path=tmp_path / "kg.json",
+        experience_path=tmp_path / "experience_store.json",
+    )
+    response = kernel.execute_capability(
+        "experience.query",
+        payload={"mode": "deterministic"},
+    )
+    failed_events = kernel.event_bus.get_events(event_type="capability.execution.failed", limit=10)
+    capability = ExperienceQueryCapability()
+
+    assert response.success is False
+    assert failed_events
+    assert capability.category == "experience"
+    assert capability.tags == ["experience", "memory", "recommendation", "deterministic", "offline"]
+
+
+def test_experience_query_capability_rejects_non_deterministic_mode(tmp_path):
+    kernel = create_default_kernel(
+        path=tmp_path / "kg.json",
+        experience_path=tmp_path / "experience_store.json",
+    )
+    response = kernel.execute_capability(
+        "experience.query",
+        payload={
+            "question": "casi simili su response_time",
+            "mode": "llm",
+        },
+    )
+
+    assert response.success is False
+    assert "deterministic" in response.errors[0]

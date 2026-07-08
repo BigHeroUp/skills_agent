@@ -35,6 +35,16 @@ STOPWORDS = {
     "la",
     "i",
 }
+INTENT_MARKERS = (
+    "esperienze",
+    "casi simili",
+    "cosa abbiamo imparato",
+    "pattern ricorrenti",
+    "raccomandazioni dall'esperienza",
+    "metriche ricorrenti",
+    "root cause ricorrenti",
+    "anomalie ricorrenti",
+)
 
 
 def query_experience(
@@ -74,6 +84,7 @@ def query_experience(
 
     lowered = clean_question.lower()
     profile = _profile_from_question(clean_question)
+    metric_filters = profile["metrics"]
 
     if "raccomandazioni dall'esperienza" in lowered:
         recommendations = resolved_engine.recommend_from_experience(profile, limit=limit)
@@ -95,7 +106,7 @@ def query_experience(
         }
 
     if "metriche ricorrenti" in lowered:
-        metrics = summary.get("top_metrics", [])
+        metrics = _filter_strings(summary.get("top_metrics", []), metric_filters)
         return {
             "success": True,
             "question": clean_question,
@@ -111,7 +122,7 @@ def query_experience(
         }
 
     if "root cause ricorrenti" in lowered:
-        root_causes = summary.get("top_root_causes", [])
+        root_causes = _filter_strings(summary.get("top_root_causes", []), metric_filters)
         return {
             "success": True,
             "question": clean_question,
@@ -127,7 +138,7 @@ def query_experience(
         }
 
     if "anomalie ricorrenti" in lowered:
-        anomalies = summary.get("top_anomalies", [])
+        anomalies = _filter_strings(summary.get("top_anomalies", []), metric_filters)
         return {
             "success": True,
             "question": clean_question,
@@ -142,17 +153,15 @@ def query_experience(
             "execution_type": "deterministic_experience_query",
         }
 
-    if any(
-        phrase in lowered
-        for phrase in (
-            "esperienze",
-            "casi simili",
-            "cosa abbiamo imparato",
-            "pattern ricorrenti",
-        )
-    ):
+    if any(phrase in lowered for phrase in INTENT_MARKERS):
         relevant = resolved_engine.find_relevant_experiences(profile, limit=limit)
         matches = relevant.get("experiences", [])
+        if metric_filters:
+            matches = [
+                item
+                for item in matches
+                if any(metric in {entry.lower() for entry in item.get("metrics", [])} for metric in metric_filters)
+            ] or matches
         recommendations = resolved_engine.recommend_from_experience(profile, limit=limit).get("recommendations", [])
         if matches:
             answer = (
@@ -202,3 +211,15 @@ def _profile_from_question(question: str) -> dict[str, Any]:
         "root_causes": tokens,
         "tags": tokens,
     }
+
+
+def _filter_strings(values: list[str], filters: list[str]) -> list[str]:
+    if not filters:
+        return list(values or [])
+    lowered_filters = {item.lower() for item in filters}
+    filtered = [
+        value
+        for value in values or []
+        if any(filter_item in str(value).lower() for filter_item in lowered_filters)
+    ]
+    return filtered or list(values or [])

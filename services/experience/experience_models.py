@@ -6,6 +6,23 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 
+def _clamp_confidence(value: Any) -> float:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        numeric = 0.0
+    return round(min(max(numeric, 0.0), 1.0), 4)
+
+
+def _dedupe_strings(values: list[Any] | None) -> list[str]:
+    result: list[str] = []
+    for value in values or []:
+        clean_value = str(value or "").strip()
+        if clean_value and clean_value not in result:
+            result.append(clean_value)
+    return result
+
+
 @dataclass
 class AnalyticalExperience:
     """Reusable analytical knowledge derived from one or more analysis runs."""
@@ -24,6 +41,17 @@ class AnalyticalExperience:
     created_at: str = ""
     updated_at: str = ""
     tags: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.source_analysis_run_ids = _dedupe_strings(self.source_analysis_run_ids)
+        self.metrics = _dedupe_strings(self.metrics)
+        self.columns = _dedupe_strings(self.columns)
+        self.anomalies = _dedupe_strings(self.anomalies)
+        self.root_causes = _dedupe_strings(self.root_causes)
+        self.recommended_steps = _dedupe_strings(self.recommended_steps)
+        self.tags = _dedupe_strings(self.tags)
+        self.confidence = _clamp_confidence(self.confidence)
+        self.evidence_count = max(int(self.evidence_count or 0), 0)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -60,6 +88,11 @@ class ExperiencePattern:
     evidence_ids: list[str] = field(default_factory=list)
     properties: dict[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        self.confidence = _clamp_confidence(self.confidence)
+        self.frequency = max(int(self.frequency or 0), 0)
+        self.evidence_ids = _dedupe_strings(self.evidence_ids)
+
 
 @dataclass
 class ExperienceRecommendation:
@@ -70,3 +103,9 @@ class ExperienceRecommendation:
     priority: str
     confidence: float
     source_experience_ids: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if self.priority not in {"high", "medium", "low"}:
+            self.priority = "low"
+        self.confidence = _clamp_confidence(self.confidence)
+        self.source_experience_ids = _dedupe_strings(self.source_experience_ids)

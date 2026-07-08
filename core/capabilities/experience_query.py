@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from core.kernel.capability import Capability, CapabilityRequest, CapabilityResponse
+from services.experience.experience_engine import AnalyticalExperienceEngine
 from services.experience.experience_query import query_experience
 from services.experience.experience_store import ExperienceStore
 from services.knowledge_graph.store import KnowledgeGraphStore
@@ -52,11 +53,11 @@ class ExperienceQueryCapability(Capability):
                 metadata={"error_type": "ValidationError", "mode": mode},
             )
 
-        result = query_experience(
-            question,
-            engine=None,
-            limit=5,
+        engine = AnalyticalExperienceEngine(
+            experience_path=self.experience_path,
+            kg_path=self.kg_path,
         )
+        result = query_experience(question, engine=engine, limit=5)
 
         return CapabilityResponse(
             success=bool(result.get("success", True)),
@@ -73,5 +74,11 @@ class ExperienceQueryCapability(Capability):
                 "kg_path": str(self.kg_path),
                 "experience_path": str(self.experience_path),
                 "mode": mode,
+                "category": self.category,
+                "tags": list(self.tags),
+                "deterministic": self.deterministic,
+                "offline": self.offline,
+                "experimental": self.experimental,
+                "owner": self.owner,
             },
         )

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections import Counter, defaultdict
+from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
@@ -34,11 +34,16 @@ class ExperienceBuilder:
 
     def build_from_analysis_runs(self, run_ids: list[str]) -> list[AnalyticalExperience]:
         run_summaries = [summary for summary in self._collect_run_summaries(run_ids) if summary["run_id"]]
-        experiences: list[AnalyticalExperience] = []
+        experiences_by_id: dict[str, AnalyticalExperience] = {}
 
-        experiences.extend(self._build_metric_experiences(run_summaries))
-        experiences.extend(self._build_anomaly_experiences(run_summaries))
-        experiences.extend(self._build_root_cause_experiences(run_summaries))
+        for experience in self._build_metric_experiences(run_summaries):
+            experiences_by_id[experience.id] = experience
+        for experience in self._build_anomaly_experiences(run_summaries):
+            experiences_by_id[experience.id] = experience
+        for experience in self._build_root_cause_experiences(run_summaries):
+            experiences_by_id[experience.id] = experience
+
+        experiences = list(experiences_by_id.values())
         experiences.sort(key=lambda item: (item.id, item.title))
         return experiences
 
@@ -116,6 +121,7 @@ class ExperienceBuilder:
                 time_axis=time_axis,
                 anomalies=anomalies,
                 root_causes=root_causes,
+                evidence_count=len(items),
             )
             timestamp = self._resolve_timestamp(items)
             experiences.append(
@@ -160,6 +166,7 @@ class ExperienceBuilder:
                 time_axis=next((item["time_axis"] for item in unique_runs if item["time_axis"]), ""),
                 anomalies=[anomaly],
                 root_causes=root_causes,
+                evidence_count=len(unique_runs),
             )
             timestamp = self._resolve_timestamp(unique_runs)
             experiences.append(
@@ -204,6 +211,7 @@ class ExperienceBuilder:
                 time_axis=next((item["time_axis"] for item in unique_runs if item["time_axis"]), ""),
                 anomalies=anomalies,
                 root_causes=[root_cause],
+                evidence_count=len(unique_runs),
             )
             timestamp = self._resolve_timestamp(unique_runs)
             experiences.append(
@@ -235,6 +243,7 @@ class ExperienceBuilder:
         time_axis: str,
         anomalies: list[str],
         root_causes: list[str],
+        evidence_count: int,
     ) -> list[str]:
         steps: list[str] = []
         if metric and time_axis:
@@ -244,6 +253,8 @@ class ExperienceBuilder:
                     f"Calcolare percentili e distribuzione di {metric}",
                 ]
             )
+        elif metric:
+            steps.append(f"Calcolare percentili e distribuzione di {metric}")
         if anomalies:
             steps.extend(
                 [
@@ -253,6 +264,8 @@ class ExperienceBuilder:
             )
         if any(self._classify_root_cause(cause) == "infrastructure" for cause in root_causes):
             steps.append("Eseguire una verifica infrastrutturale mirata")
+        if evidence_count >= 2 and not steps:
+            steps.append("Confrontare distribuzione, segmentazione e segnali ricorrenti emersi nelle analisi")
         return self._dedupe(steps)
 
     def _resolve_timestamp(self, items: list[dict[str, Any]]) -> str:

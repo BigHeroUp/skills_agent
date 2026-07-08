@@ -54,3 +54,20 @@ def test_builder_creates_experience_from_simulated_analysis_runs(tmp_path):
     metric_experience = next(item for item in experiences if item.id == "experience.metric.response_time")
     assert "Analizzare il trend temporale di response_time su created_at" in metric_experience.recommended_steps
     assert "Calcolare percentili e distribuzione di response_time" in metric_experience.recommended_steps
+
+
+def test_builder_handles_empty_graph_and_runs_without_metric(tmp_path):
+    empty_builder = ExperienceBuilder(query_engine=KnowledgeGraphQueryEngine(path=tmp_path / "empty.json"))
+    assert empty_builder.build_from_latest_analyses(limit=20) == []
+
+    store = KnowledgeGraphStore(tmp_path / "kg_without_metric.json")
+    store.upsert_node(KnowledgeNode("analysis_run:run-1", "analysis_run", "Run 1", {
+        "created_at": "2026-01-01T10:00:00",
+        "source_type": "excel",
+    }))
+    store.save()
+
+    builder = ExperienceBuilder(query_engine=KnowledgeGraphQueryEngine(path=store.path))
+    experiences = builder.build_from_latest_analyses(limit=20)
+
+    assert experiences == []
