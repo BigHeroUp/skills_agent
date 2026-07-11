@@ -33,23 +33,42 @@ offline-first di Analytical Intelligence.
 - Outcome: reasoning deterministico basato su casi simili, pattern riusabili e
   raccomandazioni analitiche.
 
-### Milestone 7 - Knowledge Graph Governance & Quality
+### Milestone 7A - Lossless Structural Validation
+
+- Status: in progress
+- Focus:
+  - lettura lossless del documento JSON raw;
+  - validazione strutturale deterministica e non distruttiva;
+  - report qualitativo JSON-safe;
+  - modalita permissive e strict;
+  - CLI locale read-only.
+
+### Milestone 7B - Knowledge Graph Governance
 
 - Status: planned
 - Focus:
-  - validazione quality del grafo;
-  - deduplicazione nodi;
-  - policy di naming e relazioni;
-  - controlli di coerenza e coverage.
+  - lifecycle completo di schema e governance policy;
+  - cardinalita e deprecazioni;
+  - estensioni controllate dai Domain Pack;
+  - adozione read-only da parte dei consumer esistenti.
 
-### Milestone 8 - Experience Engine
+### Milestone 7C - Graph Lifecycle Foundation
 
-- Status: completed
+- Status: planned
 - Focus:
-  - apprendimento deterministico dell'esperienza analitica;
-  - ranking di strategie efficaci;
-  - memoria delle spiegazioni piu utili;
-  - calibrazione dei suggerimenti in base ai risultati storici.
+  - versionamento e migration registry;
+  - repair esplicita, dry-run e auditabile;
+  - persistence ports e compatibility facade;
+  - write safety e backup espliciti.
+
+### Milestone 8 - Knowledge Consistency
+
+- Status: planned
+- Focus:
+  - regole semantiche deterministiche ed estendibili;
+  - coerenza di metriche, confidence, periodi ed evidenze;
+  - regole core e regole additive dei Domain Pack;
+  - integrazione sicura con Experience e Recommendation.
 
 ### Milestone 9 - Recommendation Engine
 
