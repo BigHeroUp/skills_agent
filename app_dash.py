@@ -30,6 +30,15 @@ app.index_string = DASH_INDEX_STRING
 app.layout = create_layout(runtime_state.processing_status)
 register_callbacks(app, runtime_state, logger)
 
+
+@app.server.after_request
+def add_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return response
+
 # Compatibilita con test e script che importano queste variabili da app_dash.
 current_context = None
 

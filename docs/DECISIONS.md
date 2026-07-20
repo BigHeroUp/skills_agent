@@ -343,3 +343,35 @@
   - la contesa diventa un errore osservabile ma non blocca l'analisi principale;
   - i limiti possono essere adattati per ambiente senza cambiare codice;
   - le deadline sono soft e non cancellano thread durante operazioni locali.
+
+## ADR-022: Multi-method anomaly evidence maps to one observed event
+
+- Status: accepted
+- Decision:
+  Deduplicare per tipo, colonna, periodo, valore osservato e record, aggregando
+  i detector in `detection_methods` invece di contare IQR, Z-score e MAD come
+  anomalie distinte.
+
+## ADR-023: Tenant identity is part of every production persistence query
+
+- Status: accepted
+- Decision:
+  Rendere `tenant_id` obbligatorio per create/read/update delle analisi e usare
+  path Knowledge Graph/Experience separati. SQLite resta il default offline;
+  PostgreSQL è il backend production tramite la stessa repository.
+
+## ADR-024: The API uses signed short-lived identity and explicit RBAC
+
+- Status: accepted
+- Decision:
+  Hash password con PBKDF2, token HMAC con scadenza e ruoli admin/analyst/viewer.
+  Un id risorsa non autorizza mai una lettura senza il tenant del token.
+
+## ADR-025: Product deployment separates API and dashboard processes
+
+- Status: accepted
+- Decision:
+  Eseguire API e dashboard con Gunicorn separati dietro Nginx. Il dashboard usa
+  un solo processo threaded finché lo stato callback non è esternalizzato; i
+  job API restano bounded e process-local finché non viene adottata una queue
+  durevole per lo scaling orizzontale.

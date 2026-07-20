@@ -552,18 +552,30 @@ class AnomalyDetectionEngine:
 
     def _deduplicate_anomalies(self, anomalies: list[dict]) -> list[dict]:
         output = []
-        seen = set()
+        positions = {}
         for item in anomalies:
             key = (
                 item.get("anomaly_type"),
                 item.get("affected_column"),
                 json.dumps(item.get("affected_period"), sort_keys=True, default=str),
                 json.dumps(item.get("observed_value"), sort_keys=True, default=str),
-                item.get("method"),
+                json.dumps((item.get("evidence") or {}).get("row_index"), sort_keys=True, default=str),
             )
-            if key in seen:
+            if key in positions:
+                existing = output[positions[key]]
+                methods = list(existing.get("detection_methods") or [existing.get("method")])
+                if item.get("method") not in methods:
+                    methods.append(item.get("method"))
+                existing["detection_methods"] = [method for method in methods if method]
+                existing["detection_count"] = len(existing["detection_methods"])
+                if float(item.get("confidence_score") or 0) > float(existing.get("confidence_score") or 0):
+                    existing["confidence_score"] = item.get("confidence_score")
+                    existing["severity"] = item.get("severity")
                 continue
-            seen.add(key)
+            item = dict(item)
+            item["detection_methods"] = [item.get("method")] if item.get("method") else []
+            item["detection_count"] = len(item["detection_methods"])
+            positions[key] = len(output)
             output.append(item)
         return output
 

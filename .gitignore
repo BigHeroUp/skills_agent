@@ -1,4 +1,7 @@
 .env
+.env.production
+secrets/
+backups/
 __pycache__/
 *.pyc
 .venv/

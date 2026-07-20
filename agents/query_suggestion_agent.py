@@ -102,9 +102,11 @@ FETCH FIRST 5 ROWS ONLY;
         try:
             # Estrai tipo sorgente dal metadata
             source_type = context.metadata.get("source_type", "oracle")
+            history_path = context.metadata.get("query_history_path")
+            history_manager = QueryHistoryManager(history_path) if history_path else self.history_manager
             
             # 1️⃣ Consulta history per query simili
-            similar_queries = self.history_manager.find_similar_queries(
+            similar_queries = history_manager.find_similar_queries(
                 description=context.user_input,
                 source_type=source_type,
                 similarity_threshold=0.6
@@ -127,7 +129,7 @@ FETCH FIRST 5 ROWS ONLY;
             else:
                 # 2️⃣ Genera nuova query con LLM
                 self.log("Nessuna query storica simile trovata, genero una nuova...")
-                suggestion = self._generate_new_query(context, source_type)
+                suggestion = self._generate_new_query(context, source_type, history_manager)
             
             # 3️⃣ Salva il suggerimento nel context
             context.raw_data["extraction_suggestion"] = suggestion
@@ -141,7 +143,12 @@ FETCH FIRST 5 ROWS ONLY;
         
         return context
     
-    def _generate_new_query(self, context: AgentContext, source_type: str) -> dict:
+    def _generate_new_query(
+        self,
+        context: AgentContext,
+        source_type: str,
+        history_manager: QueryHistoryManager | None = None,
+    ) -> dict:
         """
         Genera una nuova query usando LLM.
         Ritorna dict con query e metadata.
@@ -175,7 +182,7 @@ FETCH FIRST 5 ROWS ONLY;
             try:
                 query_text = suggestion.get("query", "")
                 if query_text:
-                    query_id = self.history_manager.add_query(
+                    query_id = (history_manager or self.history_manager).add_query(
                         description=context.user_input,
                         query_text=query_text,
                         source_type=source_type,
@@ -195,7 +202,8 @@ FETCH FIRST 5 ROWS ONLY;
     def _build_local_suggestion(self, context: AgentContext, source_type: str) -> dict:
         """Fallback locale per evitare chiamate LLM non necessarie."""
         dataframe = context.raw_data.get("dataframe")
-        columns = list(getattr(dataframe, "columns", []) or [])
+        raw_columns = getattr(dataframe, "columns", None)
+        columns = list(raw_columns) if raw_columns is not None else []
         numeric_columns = []
         datetime_columns = []
         if dataframe is not None and hasattr(dataframe, "select_dtypes"):

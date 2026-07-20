@@ -39,7 +39,13 @@ class DataProcessorAgent(BaseAgent):
             
             df = context.raw_data.get("dataframe")
             initial_summary = summarize_dataframe(df)
-            analysis_engine = AnalysisEngine(history_manager=AnalysisHistoryManager())
+            history_path = (context.metadata or {}).get("analysis_history_path")
+            history_manager = (
+                AnalysisHistoryManager(db_path=history_path)
+                if history_path
+                else AnalysisHistoryManager()
+            )
+            analysis_engine = AnalysisEngine(history_manager=history_manager)
             autonomous_analyst = AutonomousAnalyst()
             domain_pack_loader = DomainPackLoader()
             semantic_classifier = SemanticColumnClassifier()

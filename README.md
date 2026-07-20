@@ -57,6 +57,7 @@ V2 architecture documents:
 - [Milestones](docs/MILESTONES.md)
 - [V2 Product Model](docs/V2_PRODUCT_MODEL.md)
 - [Production Hardening and Observability](docs/PRODUCTION_HARDENING.md)
+- [Platform Productization (Milestones 15–18)](docs/PLATFORM_PRODUCTIZATION.md)
 
 ---
 
@@ -316,6 +317,14 @@ timings into both rotating logs and the product payload. GitHub Actions now
 compiles the code, builds the dashboard in a smoke test, and runs the full
 offline regression suite. Operational details and configuration are documented
 in [Production Hardening and Observability](docs/PRODUCTION_HARDENING.md).
+
+Milestones 15–18 turn that runtime into a deployable multi-user product. The
+dashboard now renders Markdown reports and decision cards; anomalies detected
+by multiple statistical methods are presented once with full provenance. A
+tenant-isolated REST API adds signed authentication, RBAC, asynchronous jobs,
+SQLite/PostgreSQL persistence, health endpoints and metrics. Docker Compose
+ships PostgreSQL, Gunicorn API/dashboard services and an Nginx gateway. See
+[Platform Productization](docs/PLATFORM_PRODUCTIZATION.md).
 
 ## Querying the Knowledge Graph
 
@@ -612,6 +621,9 @@ Only a new Domain Intelligence Pack.
 - Offline Domain Pack Marketplace
 - Integrated Product Intelligence Flow
 - Optional LLM Narrative Layer
+- Multi-tenant SQLite/PostgreSQL persistence
+- Authenticated REST API with asynchronous analysis jobs
+- Docker/Gunicorn/Nginx production deployment
 
 ---
 
@@ -619,10 +631,10 @@ Only a new Domain Intelligence Pack.
 
 - Predictive Analytics
 - Kernel promotion from experimental runtime to production orchestrator
-- API and SDK surfaces for Product Intelligence
+- SDK surfaces for Product Intelligence
 - concrete Knowledge Graph v2 migrations
 - Domain Pack update, disable, and removal lifecycle
-- production CI, performance benchmarks, and observability
+- distributed durable job queue and horizontal dashboard state
 
 ---
 

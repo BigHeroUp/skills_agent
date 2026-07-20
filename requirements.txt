@@ -10,3 +10,6 @@ reportlab>=4.0.0
 kaleido>=0.2.1
 python-json-logger>=2.0.0
 pytest>=8.0.0
+Flask>=3.0.0
+gunicorn>=22.0.0
+psycopg[binary]>=3.2.0

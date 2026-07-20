@@ -1,0 +1,11 @@
+.git
+.github
+.env
+.env.production
+.pytest_cache
+__pycache__
+*.pyc
+logs/*
+data/*
+secrets/*
+validation_lab/*
