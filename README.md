@@ -286,6 +286,10 @@ Competing analytical actions can be arbitrated by the deterministic
 [Decision Intelligence Layer](docs/DECISION_INTELLIGENCE.md), which links every
 selection to scored evidence and can explicitly abstain.
 
+Domain Packs can be cataloged, compatibility-checked, bundled, verified, and
+installed without network access through the
+[Offline Domain Pack Marketplace](docs/DOMAIN_PACK_MARKETPLACE.md).
+
 ## Querying the Knowledge Graph
 
 The local graph can be queried deterministically without OpenAI through the

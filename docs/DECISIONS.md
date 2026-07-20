@@ -275,3 +275,20 @@
   - evidenze mancanti riducono il punteggio e restano visibili;
   - opzioni non supportate vengono rifiutate;
   - selezione ed esecuzione dell'azione restano responsabilità separate.
+
+## ADR-018: Domain Pack distribution is local, verified, and non-overwriting
+
+- Status: accepted
+- Context:
+  I Domain Pack devono essere distribuibili in ambienti offline senza affidarsi
+  a un marketplace remoto o a installazioni non verificabili.
+- Decision:
+  Distribuire bundle locali con inventario e checksum SHA-256. Verificare
+  compatibilità e path safety prima dell'installazione, validare in staging e
+  spostare atomicamente solo con conferma esplicita. Non sovrascrivere pack già
+  installati.
+- Consequences:
+  - catalogo e distribuzione funzionano senza rete;
+  - bundle corrotti o con path traversal vengono rifiutati;
+  - install, update e remove restano lifecycle distinti;
+  - la provenienza del bundle è verificabile tramite checksum complessivo.

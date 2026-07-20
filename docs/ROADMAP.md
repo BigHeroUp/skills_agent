@@ -88,7 +88,7 @@ offline-first di Analytical Intelligence.
 
 ### Milestone 11 - Domain Pack Marketplace
 
-- Status: planned
+- Status: completed
 - Focus:
   - catalogo pack;
   - lifecycle dei pack;
