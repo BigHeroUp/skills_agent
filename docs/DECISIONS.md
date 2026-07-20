@@ -259,3 +259,19 @@
   - Experience è una fonte di candidati, non l'autorità finale;
   - azioni fuori dominio o troppo rischiose vengono registrate come rifiutate;
   - nessun LLM decide priorità o ammissibilità.
+
+## ADR-017: Decision arbitration must be evidence-addressable
+
+- Status: accepted
+- Context:
+  Strategie, anomalie, root cause e recommendation possono proporre azioni in
+  competizione con confidence e rischi differenti.
+- Decision:
+  Ogni opzione decisionale deve riferire evidence id espliciti. Il Decision Core
+  applica una policy versionata a confidence, completezza delle evidenze,
+  priorità della fonte e rischio, selezionando o astenendosi.
+- Consequences:
+  - ogni decisione è riproducibile e collegata alle evidenze usate;
+  - evidenze mancanti riducono il punteggio e restano visibili;
+  - opzioni non supportate vengono rifiutate;
+  - selezione ed esecuzione dell'azione restano responsabilità separate.

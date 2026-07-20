@@ -80,7 +80,7 @@ offline-first di Analytical Intelligence.
 
 ### Milestone 10 - Decision Intelligence Layer
 
-- Status: planned
+- Status: completed
 - Focus:
   - formalizzazione del decision core;
   - scoring evidenze;
