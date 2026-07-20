@@ -176,6 +176,30 @@ DASH_INDEX_STRING = '''
                 cursor: pointer;
             }
 
+            .pi-card-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                gap: 12px;
+                margin: 4px 0 22px 0;
+            }
+            .pi-card {
+                padding: 14px;
+                border: 1px solid rgba(82, 178, 255, 0.28);
+                border-radius: 10px;
+                background: rgba(37, 99, 145, 0.16);
+            }
+            .pi-card-value { font-size: 1.15rem; font-weight: 700; color: #9ed8ff; }
+            .pi-card-label { color: #aab8c5; font-size: 0.8rem; text-transform: uppercase; }
+            .pi-action-card { grid-column: 1 / -1; border-color: rgba(255, 174, 66, 0.45); }
+            .pi-action-value { font-size: 1.05rem; font-weight: 700; margin: 7px 0; }
+            .pi-action-meta { color: #ffbf69; font-size: 0.85rem; }
+            .business-report-markdown table { width: 100%; border-collapse: collapse; }
+            .business-report-markdown th, .business-report-markdown td {
+                border: 1px solid rgba(255,255,255,0.14);
+                padding: 8px 10px;
+                text-align: left;
+            }
+
             button:disabled {
                 opacity: 0.5;
                 cursor: not-allowed;

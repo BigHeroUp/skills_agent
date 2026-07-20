@@ -21,8 +21,14 @@ class KnowledgeReasoningAgent(BaseAgent):
         self.log("Reasoning su knowledge graph in corso...")
         initial_validity = context.is_valid
         try:
+            graph_path = (context.metadata or {}).get("knowledge_graph_path")
+            reasoning_engine = (
+                KnowledgeReasoningEngine(path=str(graph_path))
+                if graph_path
+                else self.reasoning_engine
+            )
             current_profile = build_dataset_profile_from_context(context)
-            reasoning_context = self.reasoning_engine.build_reasoning_context_for_analysis(
+            reasoning_context = reasoning_engine.build_reasoning_context_for_analysis(
                 current_profile
             )
             context.knowledge_reasoning_context = reasoning_context

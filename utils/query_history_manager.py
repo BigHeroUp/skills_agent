@@ -20,8 +20,9 @@ class QueryHistoryManager:
     
     DB_PATH = Path("data") / "query_history.db"
     
-    def __init__(self):
+    def __init__(self, db_path: str | Path | None = None):
         """Inizializza il database se non esiste"""
+        self.DB_PATH = Path(db_path) if db_path else self.DB_PATH
         # Crea cartella data se non esiste
         self.DB_PATH.parent.mkdir(exist_ok=True)
         self._init_db()

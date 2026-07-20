@@ -52,6 +52,42 @@ def should_process_followup_request(
     return int(n_clicks) > int(last_processed_n_clicks or 0) and request_id != last_followup_request_id
 
 
+def build_product_intelligence_cards(context):
+    """Build compact decision cards while keeping the report authoritative."""
+    payload = getattr(context, "product_intelligence", {}) or {}
+    if payload.get("status") in {None, "disabled", "error"}:
+        return []
+    consistency = payload.get("consistency") or {}
+    recommendation = payload.get("recommendation") or {}
+    decision = payload.get("decision") or {}
+    selected = decision.get("selected") or {}
+    telemetry = payload.get("observability") or {}
+    items = [
+        ("Flow", payload.get("status", "n/a")),
+        ("Consistency", consistency.get("status", "n/a")),
+        ("Recommendations", len(recommendation.get("recommendations") or [])),
+        ("Decision", decision.get("status", "n/a")),
+        ("Duration", f"{telemetry.get('total_duration_ms', 0)} ms"),
+    ]
+    cards = [
+        html.Div([
+            html.Div(str(value), className="pi-card-value"),
+            html.Div(label, className="pi-card-label"),
+        ], className="pi-card")
+        for label, value in items
+    ]
+    if selected.get("action"):
+        cards.append(html.Div([
+            html.Div("Next best action", className="pi-card-label"),
+            html.Div(selected["action"], className="pi-action-value"),
+            html.Div(
+                f"Evidence {selected.get('evidence_score', 'n/a')} · Risk {selected.get('risk', 'n/a')}",
+                className="pi-action-meta",
+            ),
+        ], className="pi-card pi-action-card"))
+    return cards
+
+
 def register_callbacks(app, state, logger):
     """Registra tutte le callback Dash sull'applicazione passata."""
     @app.callback(
@@ -401,8 +437,15 @@ def register_callbacks(app, state, logger):
             }
             state.cached_results_view = result
             state.results_rendered = True
+            report_children = [
+                html.Div(
+                    build_product_intelligence_cards(state.current_context),
+                    className="pi-card-grid",
+                ),
+                dcc.Markdown(result["report_text"], className="business-report-markdown"),
+            ]
             return (
-                result["report_text"],
+                report_children,
                 result["report_style"],
                 result["charts_html"],
                 result["results_style"],

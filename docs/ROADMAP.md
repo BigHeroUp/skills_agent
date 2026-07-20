@@ -124,6 +124,42 @@ offline-first di Analytical Intelligence.
   - persistenza atomica e transazioni locali sugli store JSON;
   - health check operativo e documentazione di produzione.
 
+### Milestone 15 - Analysis Quality and Dashboard UX
+
+- Status: completed
+- Focus:
+  - pipeline CSV senza errori di suggestion;
+  - anomalie uniche con provenance multi-metodo;
+  - report Markdown e tabelle leggibili;
+  - card KPI/Product Intelligence e test end-to-end.
+
+### Milestone 16 - Multi-user Data Foundation
+
+- Status: completed
+- Focus:
+  - schema versionato per tenant, utenti e analisi;
+  - SQLite offline e PostgreSQL production;
+  - isolamento di risultati, Knowledge Graph ed Experience per tenant;
+  - backup locale e strategia `pg_dump`.
+
+### Milestone 17 - API, Authentication and Security
+
+- Status: completed
+- Focus:
+  - REST API versionata e job asincroni bounded;
+  - token firmati, password PBKDF2 e ruoli;
+  - autorizzazione e isolamento tenant;
+  - limiti request/record e security headers.
+
+### Milestone 18 - Production Deployment
+
+- Status: completed
+- Focus:
+  - container non-root;
+  - PostgreSQL, API e dashboard con Gunicorn;
+  - gateway Nginx, health check e metriche;
+  - secrets esterni, backup e guida operativa.
+
 ## Planning Rule
 
 Ogni milestone futura deve rispettare tre vincoli:

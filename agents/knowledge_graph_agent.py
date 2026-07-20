@@ -18,18 +18,20 @@ class KnowledgeGraphAgent(BaseAgent):
     def process(self, context: AgentContext) -> AgentContext:
         self.log("Aggiornamento knowledge graph locale...")
         try:
-            with self.store.transaction():
-                self.store.load()
+            graph_path = (context.metadata or {}).get("knowledge_graph_path")
+            store = KnowledgeGraphStore(graph_path) if graph_path else self.store
+            with store.transaction():
+                store.load()
                 snapshot = map_analysis_context(context)
                 for node in snapshot.nodes:
-                    self.store.upsert_node(node)
+                    store.upsert_node(node)
                 for edge in snapshot.edges:
-                    self.store.upsert_edge(edge)
-                saved = self.store.save()
+                    store.upsert_edge(edge)
+                saved = store.save()
             if not isinstance(context.metadata, dict):
                 context.metadata = {}
             context.metadata["knowledge_graph"] = {
-                "path": str(self.store.path),
+                "path": str(store.path),
                 "node_count": len(saved.nodes),
                 "edge_count": len(saved.edges),
             }
