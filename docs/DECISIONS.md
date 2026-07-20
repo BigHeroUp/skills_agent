@@ -211,3 +211,19 @@
     esplicito e incrementale;
   - lo stato qualitativo diventa osservabile senza introdurre scritture;
   - l'enforcement può essere attivato solo dopo aver misurato i grafi esistenti.
+
+## ADR-014: Dry-run-first graph lifecycle with optimistic locking
+
+- Status: accepted
+- Context:
+  Migration e repair modificano la memoria strutturata e devono evitare sia
+  scritture accidentali sia la perdita di aggiornamenti concorrenti.
+- Decision:
+  Separare sempre pianificazione ed esecuzione. Un piano conserva il fingerprint
+  raw di origine; l'esecuzione richiede conferma esplicita, backup obbligatorio e
+  confronto ottimistico del fingerprint prima di una sostituzione atomica.
+- Consequences:
+  - validation e consumer non possono attivare write lifecycle;
+  - ogni trasformazione applicata ha un id auditabile;
+  - modifiche intervenute dopo il dry-run bloccano l'esecuzione;
+  - i downgrade restano vietati e nessuna migration viene auto-registrata.

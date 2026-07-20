@@ -54,7 +54,7 @@ offline-first di Analytical Intelligence.
 
 ### Milestone 7C - Graph Lifecycle Foundation
 
-- Status: planned
+- Status: completed
 - Focus:
   - versionamento e migration registry;
   - repair esplicita, dry-run e auditabile;
