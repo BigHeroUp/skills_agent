@@ -97,7 +97,7 @@ offline-first di Analytical Intelligence.
 
 ### Milestone 12 - Optional LLM Narrative Layer
 
-- Status: planned
+- Status: completed
 - Focus:
   - sintesi executive;
   - riformulazione professionale;

@@ -290,6 +290,11 @@ Domain Packs can be cataloged, compatibility-checked, bundled, verified, and
 installed without network access through the
 [Offline Domain Pack Marketplace](docs/DOMAIN_PACK_MARKETPLACE.md).
 
+Executive summaries, professional rewrites, and natural explanations can be
+added through the disabled-by-default
+[Optional LLM Narrative Layer](docs/OPTIONAL_NARRATIVE_LAYER.md), while the
+deterministic content remains authoritative and available offline.
+
 ## Querying the Knowledge Graph
 
 The local graph can be queried deterministically without OpenAI through the
