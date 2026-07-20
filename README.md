@@ -278,6 +278,10 @@ Semantic checks run separately through the deterministic Knowledge Consistency
 service. Its explicit admission gates protect Experience and Recommendation
 from inconsistent evidence. See [Knowledge Consistency](docs/KNOWLEDGE_CONSISTENCY.md).
 
+Evidence-backed analytical actions can be prioritized through the deterministic
+[Recommendation Engine](docs/RECOMMENDATION_ENGINE.md), with explicit context,
+domain, confidence, provenance, and risk admission policies.
+
 ## Querying the Knowledge Graph
 
 The local graph can be queried deterministically without OpenAI through the
