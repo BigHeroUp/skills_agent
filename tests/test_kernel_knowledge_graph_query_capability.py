@@ -152,6 +152,42 @@ def test_capability_handles_missing_graph_without_crashing(tmp_path):
     assert "Knowledge Graph non trovato" in response.result["answer"]
 
 
+def test_capability_observe_mode_exposes_quality_status(tmp_path):
+    path = tmp_path / "kg.json"
+    _build_store(path)
+    capability = KnowledgeGraphQueryCapability(path=path)
+
+    response = capability.execute(CapabilityRequest(
+        capability_name="knowledge_graph.query",
+        payload={
+            "question": "quali funzioni generano grafici?",
+            "mode": "deterministic",
+            "governance": "observe",
+        },
+    ))
+
+    assert response.success is True
+    assert response.metadata["governance"] == "observe"
+    assert response.metadata["quality_status"] == "invalid"
+
+
+def test_capability_enforce_mode_blocks_missing_graph(tmp_path):
+    capability = KnowledgeGraphQueryCapability(path=tmp_path / "missing.json")
+
+    response = capability.execute(CapabilityRequest(
+        capability_name="knowledge_graph.query",
+        payload={
+            "question": "quali file?",
+            "mode": "deterministic",
+            "governance": "enforce",
+        },
+    ))
+
+    assert response.success is False
+    assert response.metadata["error_type"] == "GraphConsumptionBlocked"
+    assert response.metadata["quality_status"] == "unreadable"
+
+
 def test_cli_main_is_testable_without_subprocess(tmp_path, monkeypatch, capsys):
     path = tmp_path / "kg.json"
     _build_store(path)

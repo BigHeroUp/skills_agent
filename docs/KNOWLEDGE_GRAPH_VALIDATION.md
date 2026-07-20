@@ -155,3 +155,18 @@ are composed before document validation. They cannot override core contracts:
 
 Schema composition creates a new immutable `GraphSchema`; it does not mutate
 the core v1 schema, load Domain Packs implicitly, or write graph files.
+
+## Read-only consumer adoption
+
+`GovernedGraphReader` exposes three explicit modes:
+
+- `legacy`: load through `KnowledgeGraphStore` without validation;
+- `observe`: validate in permissive mode, expose the report, and preserve the
+  legacy normalized snapshot;
+- `enforce`: validate in strict mode, block inadmissible documents, and build an
+  in-memory snapshot only from accepted records.
+
+`KnowledgeGraphQueryEngine` defaults to `legacy`, so current callers keep their
+behavior. Reasoning and Experience constructors forward the same opt-in mode.
+The Kernel query capability accepts `governance` in its payload and returns the
+quality status in response metadata. None of these paths writes the graph.

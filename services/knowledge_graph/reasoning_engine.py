@@ -8,6 +8,8 @@ from collections import Counter
 from typing import Any
 
 from services.knowledge_graph.query_engine import KnowledgeGraphQueryEngine
+from services.knowledge_graph.consumption import ConsumerGovernanceMode
+from services.knowledge_graph.governance import GOVERNANCE_POLICY_V1, GovernancePolicy
 from services.knowledge_graph.store import KnowledgeGraphStore
 from utils.context import AgentContext
 
@@ -142,12 +144,16 @@ class KnowledgeReasoningEngine:
         query_engine: KnowledgeGraphQueryEngine | None = None,
         store: KnowledgeGraphStore | None = None,
         path: str | None = None,
+        governance_mode: ConsumerGovernanceMode | str = ConsumerGovernanceMode.LEGACY,
+        governance_policy: GovernancePolicy = GOVERNANCE_POLICY_V1,
     ):
         resolved_store = store or getattr(query_engine, "store", None) or KnowledgeGraphStore(path)
         self.store = resolved_store
         self.query_engine = query_engine or KnowledgeGraphQueryEngine(
             store=self.store,
             path=getattr(self.store, "path", path),
+            governance_mode=governance_mode,
+            governance_policy=governance_policy,
         )
         self.snapshot = self.query_engine.snapshot
 

@@ -7,6 +7,8 @@ from dataclasses import asdict
 from typing import Any
 
 from services.knowledge_graph.query_engine import KnowledgeGraphQueryEngine
+from services.knowledge_graph.consumption import ConsumerGovernanceMode
+from services.knowledge_graph.governance import GOVERNANCE_POLICY_V1, GovernancePolicy
 from services.knowledge_graph.store import KnowledgeGraphStore
 
 from .experience_builder import ExperienceBuilder
@@ -27,16 +29,22 @@ class AnalyticalExperienceEngine:
         query_engine: KnowledgeGraphQueryEngine | None = None,
         kg_store: KnowledgeGraphStore | None = None,
         kg_path: str | None = None,
+        governance_mode: ConsumerGovernanceMode | str = ConsumerGovernanceMode.LEGACY,
+        governance_policy: GovernancePolicy = GOVERNANCE_POLICY_V1,
     ) -> None:
         self.experience_store = experience_store or ExperienceStore(experience_path)
         self.query_engine = query_engine or KnowledgeGraphQueryEngine(
             store=kg_store or KnowledgeGraphStore(kg_path),
             path=kg_path,
+            governance_mode=governance_mode,
+            governance_policy=governance_policy,
         )
         self.builder = ExperienceBuilder(
             query_engine=self.query_engine,
             store=getattr(self.query_engine, "store", None),
             path=kg_path,
+            governance_mode=governance_mode,
+            governance_policy=governance_policy,
         )
         self.experience_store.load()
 

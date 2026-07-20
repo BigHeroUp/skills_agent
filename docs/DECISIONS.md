@@ -193,3 +193,21 @@
   - la provenienza delle estensioni è esplicita e deterministica;
   - più Domain Pack possono essere composti in ordine stabile;
   - rimozione, migration e repair restano operazioni future ed esplicite.
+
+## ADR-013: Opt-in read-only governance adoption
+
+- Status: accepted
+- Context:
+  I consumer esistenti usano lo store normalizzato e non possono essere migrati
+  tutti insieme senza rischiare regressioni o blocchi su snapshot legacy.
+- Decision:
+  Introdurre una facade read-only con tre modalità: `legacy` mantiene il
+  comportamento corrente senza validazione; `observe` valida e allega il report
+  ma conserva lo snapshot legacy; `enforce` usa esclusivamente record accettati
+  e blocca il consumo quando la policy strict non lo consente.
+- Consequences:
+  - il default resta retrocompatibile;
+  - query, reasoning, experience e Kernel possono adottare governance in modo
+    esplicito e incrementale;
+  - lo stato qualitativo diventa osservabile senza introdurre scritture;
+  - l'enforcement può essere attivato solo dopo aver misurato i grafi esistenti.

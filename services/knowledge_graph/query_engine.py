@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from services.knowledge_graph.models import KnowledgeEdge, KnowledgeNode
+from services.knowledge_graph.consumption import ConsumerGovernanceMode, GovernedGraphReader
+from services.knowledge_graph.governance import GOVERNANCE_POLICY_V1, GovernancePolicy
 from services.knowledge_graph.store import KnowledgeGraphStore
 
 
@@ -75,10 +77,23 @@ class KnowledgeGraphQueryEngine:
         "usa",
     }
 
-    def __init__(self, store: KnowledgeGraphStore | None = None, path: str | Path | None = None):
+    def __init__(
+        self,
+        store: KnowledgeGraphStore | None = None,
+        path: str | Path | None = None,
+        *,
+        governance_mode: ConsumerGovernanceMode | str = ConsumerGovernanceMode.LEGACY,
+        governance_policy: GovernancePolicy = GOVERNANCE_POLICY_V1,
+    ):
         self.store = store or KnowledgeGraphStore(path)
         self.graph_exists = self.store.path.exists()
-        self.snapshot = self.store.load()
+        governed = GovernedGraphReader(
+            self.store,
+            policy=governance_policy,
+        ).load(governance_mode)
+        self.governance_mode = governed.mode
+        self.validation_result = governed.validation
+        self.snapshot = governed.snapshot
         self._nodes = {node.id: node for node in self.snapshot.nodes}
 
     def find_nodes(
