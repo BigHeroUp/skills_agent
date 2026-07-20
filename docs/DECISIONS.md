@@ -292,3 +292,19 @@
   - bundle corrotti o con path traversal vengono rifiutati;
   - install, update e remove restano lifecycle distinti;
   - la provenienza del bundle è verificabile tramite checksum complessivo.
+
+## ADR-019: LLM narrative never becomes an analytical authority
+
+- Status: accepted
+- Context:
+  Sintesi e riformulazione naturale migliorano l'esperienza, ma non devono
+  alterare fatti, ranking o decisioni prodotte dal core deterministico.
+- Decision:
+  Il layer narrativo è disabilitato per default, riceve solo contenuto e fatti
+  espliciti, mantiene sempre il testo deterministico come fonte autoritativa e
+  blocca usi critici. Ogni errore restituisce il fallback esatto.
+- Consequences:
+  - il prodotto resta pienamente utile offline;
+  - l'uso del modello e la sua provenienza sono visibili;
+  - dati raw comuni vengono esclusi prima della chiamata;
+  - LLM non valida, raccomanda, arbitra o esegue azioni.
