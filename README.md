@@ -282,6 +282,10 @@ Evidence-backed analytical actions can be prioritized through the deterministic
 [Recommendation Engine](docs/RECOMMENDATION_ENGINE.md), with explicit context,
 domain, confidence, provenance, and risk admission policies.
 
+Competing analytical actions can be arbitrated by the deterministic
+[Decision Intelligence Layer](docs/DECISION_INTELLIGENCE.md), which links every
+selection to scored evidence and can explicitly abstain.
+
 ## Querying the Knowledge Graph
 
 The local graph can be queried deterministically without OpenAI through the
