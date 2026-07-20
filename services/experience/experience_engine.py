@@ -66,10 +66,7 @@ class AnalyticalExperienceEngine:
             }
         try:
             experiences = self.builder.build_from_latest_analyses(limit=max(0, limit))
-            self.experience_store.clear()
-            for experience in experiences:
-                self.experience_store.upsert_experience(experience)
-            self.experience_store.save()
+            self.experience_store.replace_experiences(experiences)
         except Exception as exc:
             return {
                 "status": "error",

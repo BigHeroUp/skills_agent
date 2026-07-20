@@ -326,3 +326,20 @@
   - gate e provenienza restano visibili end-to-end;
   - la dashboard espone la decisione senza eseguirla;
   - il Coordinator resta il production boundary finché il Kernel è sperimentale.
+
+## ADR-021: Local production state uses bounded atomic execution
+
+- Status: accepted
+- Context:
+  La dashboard può avviare analisi concorrenti e gli store JSON locali non
+  devono perdere aggiornamenti, lasciare file parziali o crescere senza limite.
+- Decision:
+  Serializzare per path i cicli read-modify-write, persistere tramite temporary
+  file e atomic replace, limitare dimensioni e workload da configurazione e
+  ammettere un solo Product Intelligence flow per grafo con attesa bounded.
+  Pubblicare metriche di stage nel payload oltre che nei log.
+- Consequences:
+  - un errore di scrittura preserva lo snapshot precedente;
+  - la contesa diventa un errore osservabile ma non blocca l'analisi principale;
+  - i limiti possono essere adattati per ambiente senza cambiare codice;
+  - le deadline sono soft e non cancellano thread durante operazioni locali.

@@ -136,3 +136,20 @@ Ogni milestone documenta:
   - decisione e provenance esposte;
   - report finale invariato;
   - disabilitazione per singola analisi.
+
+## Milestone 14 - Production Hardening and Observability
+
+- Obiettivo:
+  rendere il flusso integrato operabile e protetto in esecuzioni concorrenti.
+- Status: completed
+- Criteri completamento:
+  - CI riproducibile su GitHub Actions;
+  - metriche per stage incluse nel payload e nei log rotanti;
+  - limiti configurabili per input, candidati, storico e persistenza;
+  - write atomiche e read-modify-write serializzato per path;
+  - health check CLI e dashboard smoke test.
+- Test attesi:
+  - timeout e lock contention osservabili;
+  - snapshot precedente preservato quando un limite viene superato;
+  - dashboard costruibile senza avviare il server;
+  - regressione offline completa.

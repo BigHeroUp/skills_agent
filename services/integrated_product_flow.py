@@ -23,6 +23,9 @@ from services.narrative import (
     NarrativeRequest,
     OptionalNarrativeService,
 )
+from services.production.limits import ProductFlowLimits
+from services.production.observability import ProductFlowTelemetry
+from services.production.runtime_guard import product_flow_guard
 from services.recommendation import (
     ActionRisk,
     NextBestActionEngine,
@@ -44,6 +47,7 @@ class IntegratedProductFlow:
         recommendation_engine: NextBestActionEngine | None = None,
         decision_engine: DecisionIntelligenceEngine | None = None,
         narrative_service: OptionalNarrativeService | None = None,
+        limits: ProductFlowLimits | None = None,
     ) -> None:
         self.kg_path = Path(kg_path)
         self.experience_engine = experience_engine or AnalyticalExperienceEngine(
@@ -53,33 +57,66 @@ class IntegratedProductFlow:
         self.recommendation_engine = recommendation_engine or NextBestActionEngine()
         self.decision_engine = decision_engine or DecisionIntelligenceEngine()
         self.narrative_service = narrative_service
+        self.limits = limits or ProductFlowLimits.from_environment()
+        self.last_telemetry: ProductFlowTelemetry | None = None
 
     def run(self, context: AgentContext) -> dict[str, Any]:
-        validation = validate_graph(self.kg_path)
-        consistency = evaluate_consistency(validation)
-        profile = build_dataset_profile_from_context(context)
-        experience_refresh = self.experience_engine.refresh_experience_from_kg(
-            consistency_report=consistency,
+        telemetry = ProductFlowTelemetry(
+            self._run_id(context),
+            stage_timeout_seconds=self.limits.stage_timeout_seconds,
         )
-        experience_recommendations = self.experience_engine.recommend_from_experience(
-            profile,
-            limit=10,
-            consistency_report=consistency,
-        )
-        candidates = self._collect_candidates(context, experience_recommendations)
-        domain = str((context.domain_pack_context or {}).get("pack_id") or "general")
-        recommendation_result = self.recommendation_engine.recommend(
-            candidates,
-            RecommendationContext(
-                domain=domain,
-                context="analysis",
-                maximum_risk=ActionRisk.HIGH,
-            ),
-            consistency_report=consistency,
-            limit=5,
-        )
-        decision_result = self._decide(recommendation_result, candidates, consistency)
-        narrative = self._narrate(context, consistency, recommendation_result, decision_result)
+        self.last_telemetry = telemetry
+        with product_flow_guard(
+            self.kg_path,
+            timeout_seconds=self.limits.lock_timeout_seconds,
+        ):
+            telemetry.run("preflight", self._preflight)
+            validation = telemetry.run("structural_validation", lambda: validate_graph(self.kg_path))
+            consistency = telemetry.run("semantic_consistency", lambda: evaluate_consistency(validation))
+            profile = build_dataset_profile_from_context(context)
+            experience_refresh = telemetry.run(
+                "experience_refresh",
+                lambda: self.experience_engine.refresh_experience_from_kg(
+                    limit=self.limits.max_experience_runs,
+                    consistency_report=consistency,
+                ),
+            )
+            experience_recommendations = telemetry.run(
+                "experience_recommendation",
+                lambda: self.experience_engine.recommend_from_experience(
+                    profile,
+                    limit=min(10, self.limits.max_candidates),
+                    consistency_report=consistency,
+                ),
+            )
+            candidates = telemetry.run(
+                "candidate_collection",
+                lambda: self._collect_candidates(context, experience_recommendations),
+            )
+            domain = str((context.domain_pack_context or {}).get("pack_id") or "general")
+            recommendation_result = telemetry.run(
+                "recommendation_ranking",
+                lambda: self.recommendation_engine.recommend(
+                    candidates,
+                    RecommendationContext(
+                        domain=domain,
+                        context="analysis",
+                        maximum_risk=ActionRisk.HIGH,
+                    ),
+                    consistency_report=consistency,
+                    limit=min(5, self.limits.max_candidates),
+                ),
+            )
+            decision_result = telemetry.run(
+                "decision_arbitration",
+                lambda: self._decide(recommendation_result, candidates, consistency),
+            )
+            narrative = telemetry.run(
+                "narrative",
+                lambda: self._narrate(
+                    context, consistency, recommendation_result, decision_result
+                ),
+            )
         return {
             "status": self._status(validation, consistency, decision_result.status),
             "knowledge_graph": {
@@ -95,7 +132,28 @@ class IntegratedProductFlow:
             "decision": decision_result.to_dict(),
             "narrative": narrative.to_dict(),
             "execution_type": "integrated_product_intelligence",
+            "limits": self.limits.to_dict(),
+            "observability": telemetry.to_dict(),
         }
+
+    def _preflight(self) -> None:
+        if not self.kg_path.exists():
+            raise FileNotFoundError(f"Knowledge graph not found: {self.kg_path}")
+        size = self.kg_path.stat().st_size
+        if size > self.limits.max_graph_bytes:
+            raise ValueError(
+                f"Knowledge graph size {size} exceeds product flow limit "
+                f"{self.limits.max_graph_bytes}"
+            )
+
+    @staticmethod
+    def _run_id(context: AgentContext) -> str:
+        material = "|".join((
+            str(getattr(context, "created_at", "")),
+            str(getattr(context, "user_input", "")),
+            str((context.metadata or {}).get("dataset_name") or ""),
+        ))
+        return hashlib.sha256(material.encode("utf-8")).hexdigest()[:16]
 
     def _collect_candidates(self, context, experience_payload):
         candidates = list(
@@ -157,7 +215,8 @@ class IntegratedProductFlow:
                 risk=ActionRisk.MEDIUM,
             )
         unique = {item.candidate_id: item for item in candidates if item.action}
-        return tuple(unique[key] for key in sorted(unique))
+        ordered = tuple(unique[key] for key in sorted(unique))
+        return ordered[: self.limits.max_candidates]
 
     def _append_candidate(
         self,

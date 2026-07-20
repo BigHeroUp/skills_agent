@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
+from config import get_knowledge_graph_max_bytes
+from services.production.store_safety import atomic_write_json, locked_path
 from services.knowledge_graph.models import (
     KnowledgeEdge,
     KnowledgeGraphSnapshot,
@@ -25,30 +28,38 @@ class KnowledgeGraphStore:
 
     def load(self) -> KnowledgeGraphSnapshot:
         """Carica lo snapshot da disco, se presente."""
-        self._nodes = {}
-        self._edges = {}
-        if not self.path.exists():
+        with locked_path(self.path):
+            self._nodes = {}
+            self._edges = {}
+            if not self.path.exists():
+                return self.get_snapshot()
+            with self.path.open("r", encoding="utf-8") as file:
+                payload = json.load(file)
+            snapshot = KnowledgeGraphSnapshot.from_dict(payload if isinstance(payload, dict) else {})
+            for node in snapshot.nodes:
+                self.upsert_node(node)
+            for edge in snapshot.edges:
+                self.upsert_edge(edge)
             return self.get_snapshot()
-
-        with self.path.open("r", encoding="utf-8") as file:
-            payload = json.load(file)
-
-        snapshot = KnowledgeGraphSnapshot.from_dict(payload if isinstance(payload, dict) else {})
-        for node in snapshot.nodes:
-            self.upsert_node(node)
-        for edge in snapshot.edges:
-            self.upsert_edge(edge)
-        return self.get_snapshot()
 
     def save(self, snapshot: KnowledgeGraphSnapshot | None = None) -> KnowledgeGraphSnapshot:
         """Salva lo snapshot corrente o quello passato come argomento."""
         if snapshot is not None:
             self._replace(snapshot)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        current = self.get_snapshot()
-        with self.path.open("w", encoding="utf-8") as file:
-            json.dump(self._json_safe(current.to_dict()), file, ensure_ascii=False, indent=2, sort_keys=True)
-        return current
+        with locked_path(self.path):
+            current = self.get_snapshot()
+            atomic_write_json(
+                self.path,
+                self._json_safe(current.to_dict()),
+                max_bytes=get_knowledge_graph_max_bytes(),
+            )
+            return current
+
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        """Serialize a complete read-modify-write cycle for this path."""
+        with locked_path(self.path):
+            yield
 
     def upsert_node(self, node: KnowledgeNode) -> None:
         """Inserisce o aggiorna un nodo per id."""
@@ -83,10 +94,11 @@ class KnowledgeGraphStore:
 
     def clear(self) -> None:
         """Svuota lo store in memoria e rimuove il file JSON locale."""
-        self._nodes = {}
-        self._edges = {}
-        if self.path.exists():
-            self.path.unlink()
+        with locked_path(self.path):
+            self._nodes = {}
+            self._edges = {}
+            if self.path.exists():
+                self.path.unlink()
 
     def _replace(self, snapshot: KnowledgeGraphSnapshot) -> None:
         self._nodes = {}
