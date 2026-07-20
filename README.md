@@ -264,6 +264,11 @@ Stable exit codes are:
 See [Knowledge Graph Validation](docs/KNOWLEDGE_GRAPH_VALIDATION.md) for the
 contracts, status precedence, privacy guarantees, and current scope.
 
+Consumers can adopt governance incrementally through
+`ConsumerGovernanceMode.LEGACY`, `OBSERVE`, or `ENFORCE`. The default remains
+`LEGACY`; observe mode reports quality without changing the loaded snapshot,
+while enforce mode blocks strict-invalid documents before normalization.
+
 ## Querying the Knowledge Graph
 
 The local graph can be queried deterministically without OpenAI through the

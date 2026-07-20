@@ -1,5 +1,11 @@
 """Knowledge Graph Layer interno e Graphify-ready."""
 
+from services.knowledge_graph.consumption import (
+    ConsumerGovernanceMode,
+    GovernedGraphLoad,
+    GovernedGraphReader,
+    GraphConsumptionBlocked,
+)
 from services.knowledge_graph.models import (
     KnowledgeEdge,
     KnowledgeGraphSnapshot,
@@ -13,6 +19,10 @@ from services.knowledge_graph.reasoning_engine import (
 from services.knowledge_graph.store import KnowledgeGraphStore
 
 __all__ = [
+    "ConsumerGovernanceMode",
+    "GovernedGraphLoad",
+    "GovernedGraphReader",
+    "GraphConsumptionBlocked",
     "KnowledgeEdge",
     "KnowledgeGraphSnapshot",
     "KnowledgeGraphQueryEngine",

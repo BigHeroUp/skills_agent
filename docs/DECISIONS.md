@@ -176,3 +176,38 @@
   - no current query or Coordinator behavior changes in Milestone 7A;
   - invalid data is quarantined explicitly rather than silently corrected;
   - migration, repair, and consistency remain out of scope until later milestones.
+
+## ADR-012: Additive and namespaced Domain Pack graph extensions
+
+- Status: accepted
+- Context:
+  I Domain Pack devono poter descrivere concetti specifici senza modificare o
+  sovrascrivere silenziosamente lo schema core del Knowledge Graph.
+- Decision:
+  Le estensioni di schema sono additive, immutabili e associate a un solo
+  `pack_id`. I node type usano il prefisso `<pack_id>__`; le relationship usano
+  `<PACK_ID>__`. Collisioni, pack duplicati e riferimenti a node type sconosciuti
+  rendono invalida la composizione della policy prima della validazione dati.
+- Consequences:
+  - lo schema core resta autoritativo e non viene mutato;
+  - la provenienza delle estensioni è esplicita e deterministica;
+  - più Domain Pack possono essere composti in ordine stabile;
+  - rimozione, migration e repair restano operazioni future ed esplicite.
+
+## ADR-013: Opt-in read-only governance adoption
+
+- Status: accepted
+- Context:
+  I consumer esistenti usano lo store normalizzato e non possono essere migrati
+  tutti insieme senza rischiare regressioni o blocchi su snapshot legacy.
+- Decision:
+  Introdurre una facade read-only con tre modalità: `legacy` mantiene il
+  comportamento corrente senza validazione; `observe` valida e allega il report
+  ma conserva lo snapshot legacy; `enforce` usa esclusivamente record accettati
+  e blocca il consumo quando la policy strict non lo consente.
+- Consequences:
+  - il default resta retrocompatibile;
+  - query, reasoning, experience e Kernel possono adottare governance in modo
+    esplicito e incrementale;
+  - lo stato qualitativo diventa osservabile senza introdurre scritture;
+  - l'enforcement può essere attivato solo dopo aver misurato i grafi esistenti.

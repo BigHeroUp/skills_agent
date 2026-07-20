@@ -6,6 +6,7 @@ from pathlib import Path
 
 from core.kernel.capability import Capability, CapabilityRequest, CapabilityResponse
 from services.knowledge_graph.query_engine import KnowledgeGraphQueryEngine
+from services.knowledge_graph.consumption import ConsumerGovernanceMode, GraphConsumptionBlocked
 from services.knowledge_graph.store import KnowledgeGraphStore
 
 
@@ -26,6 +27,7 @@ class KnowledgeGraphQueryCapability(Capability):
         payload = request.payload if isinstance(request.payload, dict) else {}
         question = str(payload.get("question", "") or "").strip()
         mode = str(payload.get("mode", "deterministic") or "").strip().lower()
+        governance_mode = str(payload.get("governance", "legacy") or "").strip().lower()
 
         if not question:
             return CapabilityResponse(
@@ -48,7 +50,35 @@ class KnowledgeGraphQueryCapability(Capability):
                 },
             )
 
-        engine = KnowledgeGraphQueryEngine(path=self.path)
+        try:
+            resolved_governance = ConsumerGovernanceMode(governance_mode)
+        except ValueError:
+            return CapabilityResponse(
+                success=False,
+                errors=["governance deve essere 'legacy', 'observe' oppure 'enforce'."],
+                metadata={
+                    "error_type": "ValidationError",
+                    "graph_path": str(self.path),
+                    "governance": governance_mode,
+                },
+            )
+
+        try:
+            engine = KnowledgeGraphQueryEngine(
+                path=self.path,
+                governance_mode=resolved_governance,
+            )
+        except GraphConsumptionBlocked as exc:
+            return CapabilityResponse(
+                success=False,
+                errors=[str(exc)],
+                metadata={
+                    "error_type": "GraphConsumptionBlocked",
+                    "graph_path": str(self.path),
+                    "governance": governance_mode,
+                    "quality_status": exc.result.report.status.value,
+                },
+            )
         result = engine.answer_question_deterministic(question)
 
         return CapabilityResponse(
@@ -66,5 +96,11 @@ class KnowledgeGraphQueryCapability(Capability):
             metadata={
                 "graph_path": str(self.path),
                 "mode": mode,
+                "governance": governance_mode,
+                "quality_status": (
+                    engine.validation_result.report.status.value
+                    if engine.validation_result
+                    else None
+                ),
             },
         )
