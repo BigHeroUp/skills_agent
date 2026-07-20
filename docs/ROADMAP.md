@@ -35,7 +35,7 @@ offline-first di Analytical Intelligence.
 
 ### Milestone 7A - Lossless Structural Validation
 
-- Status: in progress
+- Status: completed
 - Focus:
   - lettura lossless del documento JSON raw;
   - validazione strutturale deterministica e non distruttiva;
