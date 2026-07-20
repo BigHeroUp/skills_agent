@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from .contracts import GraphSchema, NodeTypeSpec, PropertySpec, RelationshipSpec
+from .contracts import (
+    CardinalitySpec,
+    DeprecationSpec,
+    GraphSchema,
+    NodeTypeSpec,
+    PropertySpec,
+    RelationshipSpec,
+)
 
 
 def _properties(*, required: tuple[str, ...] = (), recommended: tuple[str, ...] = ()) -> tuple[PropertySpec, ...]:
@@ -63,12 +70,19 @@ def _relationship(
     targets: tuple[str, ...],
     *,
     canonical_name: str | None = None,
+    max_per_source: int | None = None,
 ) -> RelationshipSpec:
     return RelationshipSpec(
         name=name,
         source_types=frozenset(sources),
         target_types=frozenset(targets),
         canonical_name=canonical_name,
+        cardinality=CardinalitySpec(max_per_source=max_per_source),
+        deprecation=(
+            DeprecationSpec(since="1.0.0", replacement=canonical_name)
+            if canonical_name
+            else None
+        ),
     )
 
 
@@ -79,12 +93,15 @@ RELATIONSHIPS = {
         ("python_class", "python_function"),
     ),
     "IMPORTS": _relationship("IMPORTS", ("python_file",), ("python_import",)),
-    "ANALYZED_DATASET": _relationship("ANALYZED_DATASET", ("analysis_run",), ("dataset",)),
+    "ANALYZED_DATASET": _relationship(
+        "ANALYZED_DATASET", ("analysis_run",), ("dataset",), max_per_source=1
+    ),
     "USES_DATASET": _relationship(
         "USES_DATASET",
         ("analysis_run",),
         ("dataset",),
         canonical_name="ANALYZED_DATASET",
+        max_per_source=1,
     ),
     "PRODUCED_INSIGHT": _relationship("PRODUCED_INSIGHT", ("analysis_run",), ("insight",)),
     "GENERATED_INSIGHT": _relationship(
@@ -112,8 +129,12 @@ RELATIONSHIPS = {
     "DETECTED_ANOMALY": _relationship("DETECTED_ANOMALY", ("analysis_run",), ("anomaly",)),
     "OBSERVED_IN_DATASET": _relationship("OBSERVED_IN_DATASET", ("anomaly",), ("dataset",)),
     "EXPLAINS_ANOMALY": _relationship("EXPLAINS_ANOMALY", ("root_cause",), ("anomaly",)),
-    "GENERATED_REPORT": _relationship("GENERATED_REPORT", ("analysis_run",), ("report",)),
-    "USED_DOMAIN_PACK": _relationship("USED_DOMAIN_PACK", ("analysis_run",), ("domain_pack",)),
+    "GENERATED_REPORT": _relationship(
+        "GENERATED_REPORT", ("analysis_run",), ("report",), max_per_source=1
+    ),
+    "USED_DOMAIN_PACK": _relationship(
+        "USED_DOMAIN_PACK", ("analysis_run",), ("domain_pack",), max_per_source=1
+    ),
 }
 
 

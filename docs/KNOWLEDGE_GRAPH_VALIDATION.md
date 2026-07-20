@@ -126,3 +126,32 @@ Exit codes:
 The JSON output contains privacy-safe structural summaries for accepted and
 quarantined records. Arbitrary property values are not repeated in the output.
 The raw text remains available only on the in-memory `RawGraphDocument`.
+
+## Governance contracts (Milestone 7B)
+
+Milestone 7B extends the same read-only validation path with explicit lifecycle
+metadata. Schema contracts can now declare:
+
+- deprecation metadata (`since`, optional replacement and removal version) for
+  node types, node properties and relationships;
+- maximum relationship cardinality per source or per target;
+- additive Domain Pack schema extensions.
+
+Deprecations produce actionable warnings and never rewrite a document.
+Cardinality violations produce deterministic errors; permissive mode can still
+expose otherwise accepted records, while strict mode blocks consumption. When a
+legacy alias and its canonical relationship connect the same endpoints, they
+count as one semantic connection. This preserves compatibility with snapshots
+that deliberately emit both forms during staged adoption.
+
+Domain Pack extensions must be passed explicitly in a `GovernancePolicy` and
+are composed before document validation. They cannot override core contracts:
+
+- pack ids use `lower_snake_case`;
+- node types start with `<pack_id>__`;
+- relationships start with `<PACK_ID>__`;
+- duplicate pack contributions, name collisions and unknown endpoint types are
+  rejected before any graph record is evaluated.
+
+Schema composition creates a new immutable `GraphSchema`; it does not mutate
+the core v1 schema, load Domain Packs implicitly, or write graph files.

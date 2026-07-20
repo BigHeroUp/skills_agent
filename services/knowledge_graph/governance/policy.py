@@ -8,7 +8,12 @@ from types import MappingProxyType
 from typing import Mapping
 
 from services.knowledge_graph.domain.issues import IssueSeverity
-from services.knowledge_graph.schema import GRAPH_SCHEMA_V1, GraphSchema
+from services.knowledge_graph.schema import (
+    GRAPH_SCHEMA_V1,
+    DomainPackSchemaExtension,
+    GraphSchema,
+    extend_schema,
+)
 
 
 class ValidationMode(str, Enum):
@@ -27,6 +32,7 @@ class GovernancePolicy:
     missing_label_severity: IssueSeverity = IssueSeverity.WARNING
     missing_properties_severity: IssueSeverity = IssueSeverity.WARNING
     issue_severity_overrides: Mapping[str, IssueSeverity] = field(default_factory=dict)
+    extensions: tuple[DomainPackSchemaExtension, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -34,6 +40,10 @@ class GovernancePolicy:
             "issue_severity_overrides",
             MappingProxyType(dict(sorted(self.issue_severity_overrides.items()))),
         )
+        ordered_extensions = tuple(sorted(self.extensions, key=lambda item: item.pack_id))
+        object.__setattr__(self, "extensions", ordered_extensions)
+        if ordered_extensions:
+            object.__setattr__(self, "schema", extend_schema(self.schema, ordered_extensions))
 
     def severity_for(self, code: str, default: IssueSeverity) -> IssueSeverity:
         return self.issue_severity_overrides.get(code, default)

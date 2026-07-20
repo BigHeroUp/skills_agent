@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from typing import Any, Mapping
 
@@ -193,6 +193,7 @@ class GraphValidator:
                 )
                 issues.extend(edge_issues)
                 quarantined.extend(edge_quarantine)
+                issues.extend(self._cardinality_issues(accepted_edges, policy))
                 issues.extend(self._orphan_issues(accepted_nodes, accepted_edges, policy))
 
         unsupported = unsupported or any(issue.code == "schema.future_version" for issue in issues)
@@ -407,6 +408,13 @@ class GraphValidator:
                     evidence={"type": node_type},
                     suggestion="Registrare il tipo in una policy futura o verificare il payload.",
                 ))
+            elif node_spec and node_spec.deprecation:
+                issues.append(self._deprecation_issue(
+                    "schema.deprecated_node_type",
+                    f"{location}/type",
+                    str(node_type),
+                    node_spec.deprecation,
+                ))
 
             label = record.get("label")
             if "label" not in record or not isinstance(label, str) or not label.strip():
@@ -445,8 +453,11 @@ class GraphValidator:
 
             issues.extend(self._property_issues(properties, f"{location}/properties"))
             if node_spec:
-                for name in node_spec.required_properties:
+                for property_spec in node_spec.properties:
+                    name = property_spec.name
                     if name not in properties:
+                        if not property_spec.required:
+                            continue
                         issues.append(self._issue(
                             "property.required_node_property_missing",
                             IssueSeverity.ERROR,
@@ -457,6 +468,13 @@ class GraphValidator:
                             suggestion="Aggiungere la proprietà da una fonte verificabile.",
                         ))
                         reason_codes.append("property.required_node_property_missing")
+                    elif property_spec.deprecation:
+                        issues.append(self._deprecation_issue(
+                            "schema.deprecated_node_property",
+                            f"{location}/properties/{name}",
+                            f"{node_type}.{name}",
+                            property_spec.deprecation,
+                        ))
                 for name in node_spec.recommended_properties:
                     if name not in properties:
                         issues.append(self._issue(
@@ -598,6 +616,13 @@ class GraphValidator:
                     },
                     suggestion="Continuare a leggerla; convertirla solo tramite migration esplicita.",
                 ))
+            elif relationship_spec and relationship_spec.deprecation:
+                issues.append(self._deprecation_issue(
+                    "schema.deprecated_relationship",
+                    f"{location}/relationship",
+                    relationship,
+                    relationship_spec.deprecation,
+                ))
 
             if source and source not in nodes_by_id:
                 issues.append(self._issue(
@@ -693,6 +718,86 @@ class GraphValidator:
             else:
                 accepted.append(record)
         return accepted, quarantined, issues
+
+    def _cardinality_issues(
+        self,
+        edges: list[Mapping[str, Any]],
+        policy: GovernancePolicy,
+    ) -> list[GraphIssue]:
+        by_source: dict[tuple[str, str], set[str]] = defaultdict(set)
+        by_target: dict[tuple[str, str], set[str]] = defaultdict(set)
+        specs = {}
+        for edge in edges:
+            relationship = str(edge.get("relationship") or "")
+            spec = policy.schema.relationship_spec(relationship)
+            if not spec:
+                continue
+            canonical = spec.canonical_name or relationship
+            specs[canonical] = spec
+            source = str(edge.get("source") or "")
+            target = str(edge.get("target") or "")
+            by_source[(canonical, source)].add(target)
+            by_target[(canonical, target)].add(source)
+
+        issues: list[GraphIssue] = []
+        for (relationship, source), targets in sorted(by_source.items()):
+            count = len(targets)
+            maximum = specs[relationship].cardinality.max_per_source
+            if maximum is not None and count > maximum:
+                issues.append(self._issue(
+                    "cardinality.max_per_source_exceeded",
+                    IssueSeverity.ERROR,
+                    "referential_integrity",
+                    f"/nodes[id={source}]",
+                    "Il numero di archi in uscita supera la cardinalità consentita.",
+                    evidence={
+                        "actual": count,
+                        "maximum": maximum,
+                        "relationship": relationship,
+                        "source": source,
+                    },
+                    suggestion="Risolvere l'ambiguità tramite una modifica esplicita e auditabile.",
+                ))
+        for (relationship, target), sources in sorted(by_target.items()):
+            count = len(sources)
+            maximum = specs[relationship].cardinality.max_per_target
+            if maximum is not None and count > maximum:
+                issues.append(self._issue(
+                    "cardinality.max_per_target_exceeded",
+                    IssueSeverity.ERROR,
+                    "referential_integrity",
+                    f"/nodes[id={target}]",
+                    "Il numero di archi in ingresso supera la cardinalità consentita.",
+                    evidence={
+                        "actual": count,
+                        "maximum": maximum,
+                        "relationship": relationship,
+                        "target": target,
+                    },
+                    suggestion="Risolvere l'ambiguità tramite una modifica esplicita e auditabile.",
+                ))
+        return issues
+
+    def _deprecation_issue(self, code, location, name, deprecation) -> GraphIssue:
+        evidence = {"name": name, "since": deprecation.since}
+        if deprecation.replacement:
+            evidence["replacement"] = deprecation.replacement
+        if deprecation.removal_version is not None:
+            evidence["removal_version"] = deprecation.removal_version
+        return self._issue(
+            code,
+            IssueSeverity.WARNING,
+            "schema_compatibility",
+            location,
+            f"'{name}' è deprecato dalla versione {deprecation.since}.",
+            evidence=evidence,
+            suggestion=(
+                f"Preferire '{deprecation.replacement}' nei nuovi documenti; "
+                "migrare i documenti esistenti solo esplicitamente."
+                if deprecation.replacement
+                else "Non usarlo nei nuovi documenti; migrare quelli esistenti solo esplicitamente."
+            ),
+        )
 
     def _property_issues(self, properties: Mapping[str, Any], location: str) -> list[GraphIssue]:
         issues = []

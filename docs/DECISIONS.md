@@ -176,3 +176,20 @@
   - no current query or Coordinator behavior changes in Milestone 7A;
   - invalid data is quarantined explicitly rather than silently corrected;
   - migration, repair, and consistency remain out of scope until later milestones.
+
+## ADR-012: Additive and namespaced Domain Pack graph extensions
+
+- Status: accepted
+- Context:
+  I Domain Pack devono poter descrivere concetti specifici senza modificare o
+  sovrascrivere silenziosamente lo schema core del Knowledge Graph.
+- Decision:
+  Le estensioni di schema sono additive, immutabili e associate a un solo
+  `pack_id`. I node type usano il prefisso `<pack_id>__`; le relationship usano
+  `<PACK_ID>__`. Collisioni, pack duplicati e riferimenti a node type sconosciuti
+  rendono invalida la composizione della policy prima della validazione dati.
+- Consequences:
+  - lo schema core resta autoritativo e non viene mutato;
+  - la provenienza delle estensioni è esplicita e deterministica;
+  - più Domain Pack possono essere composti in ordine stabile;
+  - rimozione, migration e repair restano operazioni future ed esplicite.

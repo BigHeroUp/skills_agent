@@ -45,7 +45,7 @@ offline-first di Analytical Intelligence.
 
 ### Milestone 7B - Knowledge Graph Governance
 
-- Status: planned
+- Status: in progress
 - Focus:
   - lifecycle completo di schema e governance policy;
   - cardinalita e deprecazioni;
