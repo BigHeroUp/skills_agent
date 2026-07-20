@@ -269,6 +269,11 @@ Consumers can adopt governance incrementally through
 `LEGACY`; observe mode reports quality without changing the loaded snapshot,
 while enforce mode blocks strict-invalid documents before normalization.
 
+Lifecycle mutations use a separate dry-run-first foundation with deterministic
+migration registration, explicit repair plans, optimistic fingerprint locking,
+mandatory backups, and atomic filesystem writes. See
+[Knowledge Graph Lifecycle](docs/KNOWLEDGE_GRAPH_LIFECYCLE.md).
+
 ## Querying the Knowledge Graph
 
 The local graph can be queried deterministically without OpenAI through the
