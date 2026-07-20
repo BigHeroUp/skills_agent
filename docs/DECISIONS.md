@@ -138,3 +138,41 @@
   - cleaner orchestration boundaries;
   - easier testing and staged migration;
   - requirement to invest in interface design before heavy feature expansion.
+
+## ADR-010: Raw graph document before normalized snapshot
+
+- Status: accepted
+- Context:
+  `KnowledgeGraphStore.load()` converts JSON records into dictionaries keyed by
+  node id and edge triple. This is useful for queries but hides duplicate ids,
+  duplicate edges, malformed records, and incomplete fields before governance
+  can inspect them.
+- Decision:
+  Structural validation must start from an immutable `RawGraphDocument` that
+  preserves the original text, a SHA-256 fingerprint, parsing findings, and the
+  raw record order. Normalized snapshots remain a downstream concern and are
+  not introduced by Milestone 7A.
+- Consequences:
+  - duplicate and partial records remain observable;
+  - future schema versions can be preserved without down-version writes;
+  - validation can be read-only and fingerprint-addressable;
+  - the legacy store remains available while adoption proceeds incrementally;
+  - raw text must be retained in memory during validation.
+
+## ADR-011: Separate structural validation, knowledge consistency, and repair
+
+- Status: accepted
+- Context:
+  Graph syntax and referential integrity, analytical truth constraints, and
+  corrective mutations have different risk and lifecycle requirements.
+- Decision:
+  Treat structural validation, future knowledge consistency, and future repair
+  as separate services. Validation reports findings only. Repair is never run
+  during read, load, validation, query, or reasoning and will require an
+  explicit dry-run-first workflow in a later milestone.
+- Consequences:
+  - validation remains deterministic and non-destructive;
+  - semantic rules can evolve without making the structural validator monolithic;
+  - no current query or Coordinator behavior changes in Milestone 7A;
+  - invalid data is quarantined explicitly rather than silently corrected;
+  - migration, repair, and consistency remain out of scope until later milestones.

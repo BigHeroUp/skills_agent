@@ -237,6 +237,33 @@ pipelines without changing the core analytical pipeline.
 No raw dataframe rows are stored. The analysis mapper only persists metadata
 such as shape, column names, dtypes and compact synthetic summaries.
 
+## Validating the Knowledge Graph
+
+Milestone 7A introduces a lossless, read-only structural validator that inspects
+the original JSON before the legacy store can normalize or deduplicate it.
+
+```bash
+python3 scripts/validate_knowledge_graph.py
+python3 scripts/validate_knowledge_graph.py --mode strict --format json
+python3 scripts/validate_knowledge_graph.py --path path/to/graph.json
+```
+
+The default mode is `permissive`. Both modes produce the same deterministic
+issues; strict mode refuses consumption when any error exists. Validation never
+creates, rewrites, repairs, migrates, or backs up the graph file. Reports are
+strict-JSON-safe and contain qualitative dimensions, not a numeric quality
+score.
+
+Stable exit codes are:
+
+- `0`: valid, degraded, or empty document without blocking status;
+- `1`: structurally invalid document;
+- `2`: missing, empty-file, unreadable, or corrupt document;
+- `3`: unsupported future schema version.
+
+See [Knowledge Graph Validation](docs/KNOWLEDGE_GRAPH_VALIDATION.md) for the
+contracts, status precedence, privacy guarantees, and current scope.
+
 ## Querying the Knowledge Graph
 
 The local graph can be queried deterministically without OpenAI through the
