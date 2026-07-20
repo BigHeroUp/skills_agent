@@ -63,7 +63,7 @@ offline-first di Analytical Intelligence.
 
 ### Milestone 8 - Knowledge Consistency
 
-- Status: planned
+- Status: completed
 - Focus:
   - regole semantiche deterministiche ed estendibili;
   - coerenza di metriche, confidence, periodi ed evidenze;
