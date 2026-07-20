@@ -227,3 +227,19 @@
   - ogni trasformazione applicata ha un id auditabile;
   - modifiche intervenute dopo il dry-run bloccano l'esecuzione;
   - i downgrade restano vietati e nessuna migration viene auto-registrata.
+
+## ADR-015: Semantic consistency runs after structural admission
+
+- Status: accepted
+- Context:
+  Un grafo strutturalmente valido può contenere confidence fuori scala,
+  timestamp incoerenti o root cause prive di evidenza.
+- Decision:
+  Eseguire regole semantiche deterministiche solo sui record strutturalmente
+  accettati. Le regole core e quelle additive dei Domain Pack hanno id unici;
+  gli errori chiudono esplicitamente i gate verso Experience e Recommendation.
+- Consequences:
+  - struttura e verità analitica restano responsabilità separate;
+  - grafi non consumabili non vengono valutati semanticamente;
+  - warning semantici restano osservabili ma non bloccanti;
+  - nessuna regola di consistency modifica o ripara il grafo.

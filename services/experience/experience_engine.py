@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import asdict
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from services.knowledge_graph.query_engine import KnowledgeGraphQueryEngine
 from services.knowledge_graph.consumption import ConsumerGovernanceMode
@@ -14,6 +14,9 @@ from services.knowledge_graph.store import KnowledgeGraphStore
 from .experience_builder import ExperienceBuilder
 from .experience_models import AnalyticalExperience, ExperiencePattern, ExperienceRecommendation
 from .experience_store import ExperienceStore
+
+if TYPE_CHECKING:
+    from services.knowledge_graph.consistency import ConsistencyReport
 
 
 PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
@@ -48,7 +51,19 @@ class AnalyticalExperienceEngine:
         )
         self.experience_store.load()
 
-    def refresh_experience_from_kg(self, limit: int = 20) -> dict[str, Any]:
+    def refresh_experience_from_kg(
+        self,
+        limit: int = 20,
+        consistency_report: "ConsistencyReport | None" = None,
+    ) -> dict[str, Any]:
+        if consistency_report is not None and not consistency_report.can_inform_experience:
+            return {
+                "status": "blocked_by_consistency",
+                "experience_count": 0,
+                "experience_ids": [],
+                "quality_status": consistency_report.status.value,
+                "execution_type": "deterministic_experience_refresh",
+            }
         try:
             experiences = self.builder.build_from_latest_analyses(limit=max(0, limit))
             self.experience_store.clear()
@@ -127,7 +142,19 @@ class AnalyticalExperienceEngine:
                 "experiences": [],
             }
 
-    def recommend_from_experience(self, current_profile: dict, limit: int = 5) -> dict[str, Any]:
+    def recommend_from_experience(
+        self,
+        current_profile: dict,
+        limit: int = 5,
+        consistency_report: "ConsistencyReport | None" = None,
+    ) -> dict[str, Any]:
+        if consistency_report is not None and not consistency_report.can_inform_recommendations:
+            return {
+                "execution_type": "deterministic_experience_engine",
+                "status": "blocked_by_consistency",
+                "quality_status": consistency_report.status.value,
+                "recommendations": [],
+            }
         try:
             relevant = self.find_relevant_experiences(current_profile, limit=max(5, limit * 2))
             aggregated: dict[str, ExperienceRecommendation] = {}

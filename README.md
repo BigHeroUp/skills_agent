@@ -274,6 +274,10 @@ migration registration, explicit repair plans, optimistic fingerprint locking,
 mandatory backups, and atomic filesystem writes. See
 [Knowledge Graph Lifecycle](docs/KNOWLEDGE_GRAPH_LIFECYCLE.md).
 
+Semantic checks run separately through the deterministic Knowledge Consistency
+service. Its explicit admission gates protect Experience and Recommendation
+from inconsistent evidence. See [Knowledge Consistency](docs/KNOWLEDGE_CONSISTENCY.md).
+
 ## Querying the Knowledge Graph
 
 The local graph can be queried deterministically without OpenAI through the
