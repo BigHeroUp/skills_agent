@@ -5,6 +5,13 @@ import os
 
 DEFAULT_OPENAI_MODEL = "gpt-5.5"
 DEFAULT_OPENAI_MAX_CALLS_PER_ANALYSIS = 2
+DEFAULT_PRODUCT_FLOW_STAGE_TIMEOUT_SECONDS = 30
+DEFAULT_PRODUCT_FLOW_LOCK_TIMEOUT_SECONDS = 5
+DEFAULT_PRODUCT_FLOW_MAX_GRAPH_BYTES = 25 * 1024 * 1024
+DEFAULT_PRODUCT_FLOW_MAX_CANDIDATES = 100
+DEFAULT_PRODUCT_FLOW_MAX_EXPERIENCE_RUNS = 50
+DEFAULT_KNOWLEDGE_GRAPH_MAX_BYTES = 50 * 1024 * 1024
+DEFAULT_EXPERIENCE_STORE_MAX_BYTES = 10 * 1024 * 1024
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -44,6 +51,43 @@ def get_openai_max_calls_per_analysis() -> int:
 def is_openai_cache_enabled() -> bool:
     """Indica se la cache in memoria delle chiamate LLM è attiva."""
     return _env_bool("OPENAI_CACHE_ENABLED", True)
+
+
+def get_product_flow_stage_timeout_seconds() -> int:
+    return max(1, _env_int(
+        "PRODUCT_FLOW_STAGE_TIMEOUT_SECONDS",
+        DEFAULT_PRODUCT_FLOW_STAGE_TIMEOUT_SECONDS,
+    ))
+
+
+def get_product_flow_lock_timeout_seconds() -> int:
+    return max(0, _env_int(
+        "PRODUCT_FLOW_LOCK_TIMEOUT_SECONDS",
+        DEFAULT_PRODUCT_FLOW_LOCK_TIMEOUT_SECONDS,
+    ))
+
+
+def get_product_flow_max_graph_bytes() -> int:
+    return max(1, _env_int("PRODUCT_FLOW_MAX_GRAPH_BYTES", DEFAULT_PRODUCT_FLOW_MAX_GRAPH_BYTES))
+
+
+def get_product_flow_max_candidates() -> int:
+    return max(1, _env_int("PRODUCT_FLOW_MAX_CANDIDATES", DEFAULT_PRODUCT_FLOW_MAX_CANDIDATES))
+
+
+def get_product_flow_max_experience_runs() -> int:
+    return max(1, _env_int(
+        "PRODUCT_FLOW_MAX_EXPERIENCE_RUNS",
+        DEFAULT_PRODUCT_FLOW_MAX_EXPERIENCE_RUNS,
+    ))
+
+
+def get_knowledge_graph_max_bytes() -> int:
+    return max(1, _env_int("KNOWLEDGE_GRAPH_MAX_BYTES", DEFAULT_KNOWLEDGE_GRAPH_MAX_BYTES))
+
+
+def get_experience_store_max_bytes() -> int:
+    return max(1, _env_int("EXPERIENCE_STORE_MAX_BYTES", DEFAULT_EXPERIENCE_STORE_MAX_BYTES))
 
 
 OPENAI_API_KEY = get_openai_api_key()

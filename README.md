@@ -12,6 +12,7 @@ Transform raw datasets into professional, explainable analyses through autonomou
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Active%20Development-orange?style=for-the-badge)
 ![Architecture](https://img.shields.io/badge/Architecture-Hub%20%26%20Spoke-blue?style=for-the-badge)
+[![CI](https://github.com/BigHeroUp/skills_agent/actions/workflows/ci.yml/badge.svg)](https://github.com/BigHeroUp/skills_agent/actions/workflows/ci.yml)
 
 </div>
 
@@ -55,6 +56,7 @@ V2 architecture documents:
 - [Architectural Decisions](docs/DECISIONS.md)
 - [Milestones](docs/MILESTONES.md)
 - [V2 Product Model](docs/V2_PRODUCT_MODEL.md)
+- [Production Hardening and Observability](docs/PRODUCTION_HARDENING.md)
 
 ---
 
@@ -306,6 +308,14 @@ Coordinator analysis publishes a single `AgentContext.product_intelligence`
 payload and the dashboard exposes its consistency status and selected next best
 action. Use `metadata.integrated_product_flow=false` to disable the stage for a
 run; Narrative remains opt-in through `metadata.enable_narrative=true`.
+
+Milestone 14 makes this flow production-safe: JSON state is persisted
+atomically, concurrent runs are bounded per Knowledge Graph, workload and store
+growth have environment-configurable limits, and every stage emits structured
+timings into both rotating logs and the product payload. GitHub Actions now
+compiles the code, builds the dashboard in a smoke test, and runs the full
+offline regression suite. Operational details and configuration are documented
+in [Production Hardening and Observability](docs/PRODUCTION_HARDENING.md).
 
 ## Querying the Knowledge Graph
 

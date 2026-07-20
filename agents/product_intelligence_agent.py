@@ -36,9 +36,11 @@ class ProductIntelligenceAgent(BaseAgent):
             context.processed_data["product_intelligence"] = context.product_intelligence
         except Exception as exc:
             self.logger.warning("Integrated product intelligence unavailable: %s", exc)
+            telemetry = getattr(locals().get("flow"), "last_telemetry", None)
             context.product_intelligence = {
                 "status": "error",
                 "message": str(exc),
                 "execution_type": "integrated_product_intelligence",
+                "observability": telemetry.to_dict() if telemetry is not None else None,
             }
         return context

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable, Iterator
 
+from config import get_experience_store_max_bytes
+from services.production.store_safety import atomic_write_json, locked_path
 from .experience_models import AnalyticalExperience
 
 
@@ -20,32 +23,48 @@ class ExperienceStore:
         self._experiences: dict[str, AnalyticalExperience] = {}
 
     def load(self) -> list[AnalyticalExperience]:
-        self._experiences = {}
-        if not self.path.exists():
+        with locked_path(self.path):
+            self._experiences = {}
+            if not self.path.exists():
+                return self.list_experiences()
+            try:
+                with self.path.open("r", encoding="utf-8") as file:
+                    payload = json.load(file)
+            except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                return self.list_experiences()
+            experiences = payload.get("experiences", []) if isinstance(payload, dict) else []
+            for item in experiences or []:
+                if isinstance(item, dict):
+                    self.upsert_experience(AnalyticalExperience.from_dict(item))
             return self.list_experiences()
-
-        try:
-            with self.path.open("r", encoding="utf-8") as file:
-                payload = json.load(file)
-        except (OSError, json.JSONDecodeError, TypeError, ValueError):
-            return self.list_experiences()
-
-        experiences = payload.get("experiences", []) if isinstance(payload, dict) else []
-        for item in experiences or []:
-            if isinstance(item, dict):
-                experience = AnalyticalExperience.from_dict(item)
-                self.upsert_experience(experience)
-        return self.list_experiences()
 
     def save(self) -> list[AnalyticalExperience]:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "schema_version": 1,
-            "experiences": [experience.to_dict() for experience in self.list_experiences()],
-        }
-        with self.path.open("w", encoding="utf-8") as file:
-            json.dump(self._json_safe(payload), file, ensure_ascii=False, indent=2, sort_keys=True)
-        return self.list_experiences()
+        with locked_path(self.path):
+            payload = {
+                "schema_version": 1,
+                "experiences": [experience.to_dict() for experience in self.list_experiences()],
+            }
+            atomic_write_json(
+                self.path,
+                self._json_safe(payload),
+                max_bytes=get_experience_store_max_bytes(),
+            )
+            return self.list_experiences()
+
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        with locked_path(self.path):
+            yield
+
+    def replace_experiences(
+        self, experiences: Iterable[AnalyticalExperience]
+    ) -> list[AnalyticalExperience]:
+        """Replace the complete collection with one atomic persisted snapshot."""
+        with self.transaction():
+            self._experiences = {}
+            for experience in experiences:
+                self.upsert_experience(experience)
+            return self.save()
 
     def upsert_experience(self, experience: AnalyticalExperience) -> None:
         if not experience.id:
@@ -63,9 +82,10 @@ class ExperienceStore:
         return self._experiences.get(id)
 
     def clear(self) -> None:
-        self._experiences = {}
-        if self.path.exists():
-            self.path.unlink()
+        with locked_path(self.path):
+            self._experiences = {}
+            if self.path.exists():
+                self.path.unlink()
 
     def _find_duplicate_id(self, candidate: AnalyticalExperience) -> str | None:
         candidate_signature = self._signature(candidate)

@@ -114,6 +114,16 @@ offline-first di Analytical Intelligence.
   - payload unico su AgentContext e visibilità nella dashboard;
   - fallback non bloccante e test del Coordinator completo.
 
+### Milestone 14 - Production Hardening and Observability
+
+- Status: completed
+- Focus:
+  - CI GitHub obbligatoria per compilazione, dashboard smoke e test offline;
+  - telemetria strutturata per ogni stage di Product Intelligence;
+  - deadline, limiti di crescita e bounded concurrency configurabili;
+  - persistenza atomica e transazioni locali sugli store JSON;
+  - health check operativo e documentazione di produzione.
+
 ## Planning Rule
 
 Ogni milestone futura deve rispettare tre vincoli:
