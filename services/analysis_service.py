@@ -124,6 +124,31 @@ def run_analysis_pipeline(
     )
 
 
+def format_product_intelligence_summary(context: AgentContext) -> str:
+    """Render a compact deterministic summary for dashboard and exports."""
+    payload = getattr(context, "product_intelligence", {}) or {}
+    if payload.get("status") in {None, "disabled", "error"}:
+        return ""
+    consistency = payload.get("consistency") or {}
+    recommendation = payload.get("recommendation") or {}
+    decision = payload.get("decision") or {}
+    selected = decision.get("selected") or {}
+    lines = [
+        "## Product Intelligence",
+        f"- Stato flusso: {payload.get('status')}",
+        f"- Knowledge consistency: {consistency.get('status', 'n/a')}",
+        f"- Raccomandazioni ammissibili: {len(recommendation.get('recommendations') or [])}",
+        f"- Stato decisione: {decision.get('status', 'n/a')}",
+    ]
+    if selected.get("action"):
+        lines.extend([
+            f"- Next best action: {selected['action']}",
+            f"- Evidence score: {selected.get('evidence_score', 'n/a')}",
+            f"- Rischio: {selected.get('risk', 'n/a')}",
+        ])
+    return "\n".join(lines)
+
+
 def try_generate_followup_chart(user_message: str, current_context):
     """Genera grafici deterministici richiesti in chat quando possibile."""
     if current_context is None:

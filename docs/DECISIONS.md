@@ -308,3 +308,21 @@
   - l'uso del modello e la sua provenienza sono visibili;
   - dati raw comuni vengono esclusi prima della chiamata;
   - LLM non valida, raccomanda, arbitra o esegue azioni.
+
+## ADR-020: Product intelligence is a non-blocking post-analysis stage
+
+- Status: accepted
+- Context:
+  Governance, consistency, experience, recommendation, decision e narrative
+  esistevano come servizi modulari ma non formavano ancora un unico percorso di
+  prodotto visibile nella pipeline e nella dashboard.
+- Decision:
+  Eseguire un `ProductIntelligenceAgent` dopo la persistenza del Knowledge Graph.
+  L'agente orchestra i servizi in ordine, pubblica un solo payload su
+  `AgentContext` e non sostituisce report o risultati deterministici. Errori del
+  layer restano non bloccanti per l'analisi principale.
+- Consequences:
+  - ogni analisi completa attraversa lo stesso flusso di intelligence;
+  - gate e provenienza restano visibili end-to-end;
+  - la dashboard espone la decisione senza eseguirla;
+  - il Coordinator resta il production boundary finché il Kernel è sperimentale.

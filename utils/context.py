@@ -66,6 +66,7 @@ class AgentContext:
     domain_pack_context: Dict[str, Any] = field(default_factory=dict)
     knowledge_reasoning_context: Dict[str, Any] = field(default_factory=dict)
     recommended_analytical_steps: List[Dict[str, Any]] = field(default_factory=list)
+    product_intelligence: Dict[str, Any] = field(default_factory=dict)
 
     # Analisi autonoma multi-step della Milestone 4
     autonomous_analysis_plan: Dict[str, Any] = field(default_factory=dict)
