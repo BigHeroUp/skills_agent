@@ -243,3 +243,19 @@
   - grafi non consumabili non vengono valutati semanticamente;
   - warning semantici restano osservabili ma non bloccanti;
   - nessuna regola di consistency modifica o ripara il grafo.
+
+## ADR-016: Recommendations rank explicit evidence-backed candidates
+
+- Status: accepted
+- Context:
+  Le next best action devono essere riproducibili e filtrate per rischio,
+  dominio e contesto prima di influenzare decisioni analitiche.
+- Decision:
+  Il Recommendation Engine riceve candidati espliciti con provenienza e applica
+  prima admission policy, poi ranking pesato e penalità di rischio. Un gate di
+  consistency chiuso impedisce ogni raccomandazione.
+- Consequences:
+  - il ranking è stabile, versionato e spiegabile;
+  - Experience è una fonte di candidati, non l'autorità finale;
+  - azioni fuori dominio o troppo rischiose vengono registrate come rifiutate;
+  - nessun LLM decide priorità o ammissibilità.

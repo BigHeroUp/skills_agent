@@ -72,7 +72,7 @@ offline-first di Analytical Intelligence.
 
 ### Milestone 9 - Recommendation Engine
 
-- Status: planned
+- Status: completed
 - Focus:
   - next best analytical action;
   - prioritizzazione raccomandazioni;
