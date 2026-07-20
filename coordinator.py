@@ -12,6 +12,7 @@ from agents.knowledge_reasoning_agent import KnowledgeReasoningAgent
 from agents.analyst import AnalystAgent
 from agents.report_generator import ReportGeneratorAgent
 from agents.knowledge_graph_agent import KnowledgeGraphAgent
+from agents.product_intelligence_agent import ProductIntelligenceAgent
 from utils.context import AgentContext
 from utils.logging_config import get_logger
 from services.llm_gateway import reset_llm_gateway
@@ -45,7 +46,8 @@ class Coordinator:
             KnowledgeReasoningAgent(),
             AnalystAgent(),
             ReportGeneratorAgent(),
-            KnowledgeGraphAgent()
+            KnowledgeGraphAgent(),
+            ProductIntelligenceAgent(),
         ]
         self.context: AgentContext = None
     
@@ -81,6 +83,8 @@ class Coordinator:
         6. Analyst → genera insight
         7. Report Generator → crea report
         8. Knowledge Graph → salva metadati e relazioni locali
+        9. Product Intelligence → consistency, experience, recommendation,
+           decision e narrativa opzionale
         """
         
         safe_print("\n" + "="*60)

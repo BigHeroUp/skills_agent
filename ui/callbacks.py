@@ -9,6 +9,7 @@ from dash import Input, Output, State, ctx, dcc, html, no_update
 
 from agents.conversation_agent import ConversationAgent
 from services.analysis_service import (
+    format_product_intelligence_summary,
     parse_uploaded_dataframe,
     run_analysis_pipeline,
     try_generate_followup_chart,
@@ -279,6 +280,7 @@ def register_callbacks(app, state, logger):
             "Analyst",
             "ReportGenerator",
             "KnowledgeGraph",
+            "ProductIntelligence",
         ]
         
         status = state.processing_status.get('status', 'idle')
@@ -352,6 +354,9 @@ def register_callbacks(app, state, logger):
         try:
             # Mostra il report
             report_text = state.current_context.final_report if state.current_context.final_report else "Analisi completata"
+            product_summary = format_product_intelligence_summary(state.current_context)
+            if product_summary:
+                report_text = f"{report_text}\n\n{product_summary}"
             
             # Genera grafici se ci sono dati
             charts_html = []

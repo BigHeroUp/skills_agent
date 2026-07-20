@@ -35,6 +35,11 @@ LLM support only for narrative or explanatory layers.
 
 The main production pipeline remains **Coordinator-based**.
 
+The Coordinator now includes an integrated post-analysis Product Intelligence
+stage that connects Knowledge Graph governance, semantic consistency,
+Experience, Recommendation, Decision, and optional Narrative into one product
+flow.
+
 The Veraxis Kernel runtime is introduced only as an **experimental / parallel
 foundation** and does not replace the current orchestration flow yet.
 
@@ -295,6 +300,13 @@ added through the disabled-by-default
 [Optional LLM Narrative Layer](docs/OPTIONAL_NARRATIVE_LAYER.md), while the
 deterministic content remains authoritative and available offline.
 
+These services are connected end-to-end by the
+[Integrated Product Intelligence Flow](docs/INTEGRATED_PRODUCT_FLOW.md). Every
+Coordinator analysis publishes a single `AgentContext.product_intelligence`
+payload and the dashboard exposes its consistency status and selected next best
+action. Use `metadata.integrated_product_flow=false` to disable the stage for a
+run; Narrative remains opt-in through `metadata.enable_narrative=true`.
+
 ## Querying the Knowledge Graph
 
 The local graph can be queried deterministically without OpenAI through the
@@ -449,6 +461,14 @@ The project follows a modular **Hub & Spoke Architecture**.
           │
           ▼
  Domain Intelligence Packs
+          │
+          ▼
+ Knowledge Graph Persistence
+          │
+          ▼
+ Product Intelligence
+ (Governance → Consistency → Experience
+  → Recommendation → Decision → Narrative)
 ```
 
 Each component is independent, making the platform scalable and easy to extend.
@@ -524,6 +544,18 @@ Explainability
         ▼
 
 Professional Report
+
+        │
+
+        ▼
+
+Knowledge Graph Persistence
+
+        │
+
+        ▼
+
+Product Intelligence and Next Best Action
 ```
 
 ---
@@ -563,17 +595,24 @@ Only a new Domain Intelligence Pack.
 - Anomaly Detection Engine
 - Domain Intelligence Packs Architecture
 - Root Cause Analysis Engine
+- Knowledge Graph Governance and Consistency
+- Analytical Experience Engine
+- Recommendation Engine
+- Decision Intelligence Layer
+- Offline Domain Pack Marketplace
+- Integrated Product Intelligence Flow
+- Optional LLM Narrative Layer
 
 ---
 
-## 🚧 In Progress
+## 🚧 Remaining Product Evolution
 
-- Explainability Engine
 - Predictive Analytics
-- Automated Visualization Engine
-- Local Knowledge Base
-- Multi-domain Intelligence Packs
-- Autonomous Insight Generation
+- Kernel promotion from experimental runtime to production orchestrator
+- API and SDK surfaces for Product Intelligence
+- concrete Knowledge Graph v2 migrations
+- Domain Pack update, disable, and removal lifecycle
+- production CI, performance benchmarks, and observability
 
 ---
 

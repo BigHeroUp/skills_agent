@@ -104,6 +104,16 @@ offline-first di Analytical Intelligence.
   - spiegazioni naturali avanzate;
   - assistenza conversazionale non critica.
 
+### Milestone 13 - Integrated Product Intelligence Flow
+
+- Status: completed
+- Focus:
+  - orchestrazione post-analisi di governance, consistency ed experience;
+  - ranking recommendation e arbitration decisionale end-to-end;
+  - narrativa opzionale con report deterministico autoritativo;
+  - payload unico su AgentContext e visibilità nella dashboard;
+  - fallback non bloccante e test del Coordinator completo.
+
 ## Planning Rule
 
 Ogni milestone futura deve rispettare tre vincoli:

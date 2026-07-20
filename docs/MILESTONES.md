@@ -34,7 +34,7 @@ Ogni milestone documenta:
 
 - Obiettivo:
   migliorare qualita, consistenza e governance del grafo locale.
-- Status: planned
+- Status: completed
 - Criteri completamento:
   - deduplicazione controllata;
   - naming convention relazioni;
@@ -45,16 +45,16 @@ Ogni milestone documenta:
   - assenza di collisioni critiche;
   - relazioni richieste presenti per ogni run valida.
 
-## Milestone 8 - Experience Engine
+## Milestone 8 - Knowledge Consistency
 
 - Obiettivo:
-  rendere esplicito l'apprendimento dell'esperienza analitica.
-- Status: planned
+  proteggere Experience e Recommendation da conoscenza semanticamente incoerente.
+- Status: completed
 - Criteri completamento:
-  - memoria di strategie efficaci;
-  - outcome tracking locale;
-  - scoring storico delle raccomandazioni;
-  - regole di promozione/declassamento esperienza.
+  - regole semantiche core;
+  - regole additive dei Domain Pack;
+  - gate espliciti verso Experience e Recommendation;
+  - report JSON-safe e deterministico.
 - Test attesi:
   - update score riproducibile;
   - comportamento stabile con storico vuoto;
@@ -64,7 +64,7 @@ Ogni milestone documenta:
 
 - Obiettivo:
   produrre next best analytical actions prioritizzate.
-- Status: planned
+- Status: completed
 - Criteri completamento:
   - generazione raccomandazioni per contesto e dominio;
   - priorita esplicite;
@@ -78,7 +78,7 @@ Ogni milestone documenta:
 
 - Obiettivo:
   formalizzare il decision core della piattaforma.
-- Status: planned
+- Status: completed
 - Criteri completamento:
   - arbitration tra evidenze;
   - scoring di confidenza;
@@ -92,7 +92,7 @@ Ogni milestone documenta:
 
 - Obiettivo:
   trasformare i Domain Pack in capability distribuibili.
-- Status: planned
+- Status: completed
 - Criteri completamento:
   - discovery pack;
   - policy di compatibilita;
@@ -107,7 +107,7 @@ Ogni milestone documenta:
 
 - Obiettivo:
   aggiungere un layer narrativo avanzato senza spostare il core decisionale.
-- Status: planned
+- Status: completed
 - Criteri completamento:
   - sintesi executive opzionale;
   - riformulazione professionale;
@@ -117,3 +117,22 @@ Ogni milestone documenta:
   - funzionamento completo anche con LLM disattivato;
   - nessun impatto sui risultati fattuali;
   - fallback locale leggibile.
+
+## Milestone 13 - Integrated Product Intelligence Flow
+
+- Obiettivo:
+  trasformare i servizi di intelligence in un singolo percorso prodotto.
+- Status: completed
+- Criteri completamento:
+  - orchestrazione dopo la persistenza del Knowledge Graph;
+  - gate consistency applicati a Experience, Recommendation e Decision;
+  - payload unico su `AgentContext`;
+  - decisione visibile nella dashboard senza esecuzione automatica;
+  - narrativa opt-in e report deterministico preservato;
+  - failure del layer non bloccante per l'analisi principale.
+- Test attesi:
+  - percorso completo attraverso `Coordinator.run()`;
+  - fallback con narrativa disabilitata;
+  - decisione e provenance esposte;
+  - report finale invariato;
+  - disabilitazione per singola analisi.
