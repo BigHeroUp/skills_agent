@@ -155,6 +155,20 @@ def test_portal_register_excel_analysis_and_logout(tmp_path, monkeypatch):
     assert b"Analysis history" in logged_in.data
 
 
+def test_portal_cookie_secure_flag_can_be_disabled_for_local_http(tmp_path, monkeypatch):
+    monkeypatch.setenv("PLATFORM_ENV", "production")
+    monkeypatch.setenv("SESSION_COOKIE_SECURE", "false")
+    repository = PlatformRepository(f"sqlite:///{tmp_path / 'cookie.db'}")
+    app = create_app(repository, AuthService("c" * 32), coordinator_factory=FakeCoordinator)
+
+    response = app.test_client().get("/portal")
+    cookie = response.headers["Set-Cookie"]
+
+    assert "HttpOnly" in cookie
+    assert "SameSite=Lax" in cookie
+    assert "Secure" not in cookie
+
+
 class FakeQueuedJob:
     def __init__(self):
         self.cancelled = False

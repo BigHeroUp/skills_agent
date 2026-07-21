@@ -19,6 +19,13 @@ from services.platform.persistence import PlatformRepository
 from platform_api.jobs import execute_analysis_job, serialize_context
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def create_app(
     repository: PlatformRepository | None = None,
     auth_service: AuthService | None = None,
@@ -33,7 +40,10 @@ def create_app(
     app.config.update(
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
-        SESSION_COOKIE_SECURE=os.getenv("PLATFORM_ENV", "development").lower() == "production",
+        SESSION_COOKIE_SECURE=_env_bool(
+            "SESSION_COOKIE_SECURE",
+            os.getenv("PLATFORM_ENV", "development").lower() == "production",
+        ),
     )
     executor = ThreadPoolExecutor(max_workers=max(1, int(os.getenv("ANALYSIS_WORKERS", "2"))))
     counters = {"submitted": 0, "completed": 0, "failed": 0}

@@ -130,6 +130,10 @@ login/logout, CSV/Excel uploads, analysis history, progress and cancellation.
 Sessions use signed, HttpOnly, SameSite cookies and every mutation validates a
 CSRF token.
 
+Keep `SESSION_COOKIE_SECURE=true` behind HTTPS. For local Docker validation on
+`http://127.0.0.1:8080`, set it to `false`; otherwise the browser correctly
+refuses to return the Secure session cookie over HTTP and CSRF validation fails.
+
 Analysis jobs are queued in Redis and executed by an RQ worker. Jobs have
 bounded retries, progress updates and cooperative cancellation. PostgreSQL
 migrations are serialized with an advisory transaction lock so multi-worker
