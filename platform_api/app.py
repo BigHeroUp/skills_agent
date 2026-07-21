@@ -11,12 +11,14 @@ from typing import Any
 from pathlib import Path
 
 import pandas as pd
-from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, Response, g, jsonify, redirect, render_template, request, session, url_for
 
 from coordinator import Coordinator
 from services.platform.auth import AuthService, Identity
 from services.platform.persistence import PlatformRepository
 from platform_api.jobs import execute_analysis_job, serialize_context
+from platform_api.knowledge import answer_workspace_question, build_workspace_payload, tenant_paths
+from services.knowledge_graph.query_engine import KnowledgeGraphQueryEngine
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -98,7 +100,31 @@ def create_app(
         return session.setdefault("csrf_token", secrets.token_urlsafe(24))
 
     def valid_csrf() -> bool:
-        return secrets.compare_digest(str(session.get("csrf_token") or ""), str(request.form.get("csrf_token") or ""))
+        body = request.get_json(silent=True) if request.is_json else {}
+        supplied = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token") or (body or {}).get("csrf_token")
+        return secrets.compare_digest(str(session.get("csrf_token") or ""), str(supplied or ""))
+
+    def workspace_paths(identity: Identity):
+        return tenant_paths(os.getenv("TENANT_DATA_ROOT", "data/tenants"), identity.tenant_id)
+
+    def latest_product_intelligence(identity: Identity) -> dict[str, Any]:
+        for item in repo.list_analyses(identity.tenant_id, 20):
+            if item.get("status") != "completed":
+                continue
+            detail = repo.get_analysis(identity.tenant_id, item["id"])
+            intelligence = ((detail or {}).get("result") or {}).get("product_intelligence")
+            if isinstance(intelligence, dict) and intelligence:
+                return {"analysis_id": item["id"], "updated_at": item.get("updated_at"), **intelligence}
+        return {}
+
+    def workspace_payload(identity: Identity):
+        paths = workspace_paths(identity)
+        return build_workspace_payload(
+            paths["graph"], paths["experience"], repo.list_analyses(identity.tenant_id, 50),
+            node_type=request.args.get("type", ""), search=request.args.get("q", ""),
+            limit=request.args.get("limit", 250),
+            latest_intelligence=latest_product_intelligence(identity),
+        )
 
     def enqueue_analysis(identity: Identity, body: dict[str, Any]) -> tuple[str, str]:
         job_id = repo.create_analysis(identity.tenant_id, identity.user_id, body)
@@ -196,6 +222,55 @@ def create_app(
             csrf_token=csrf_token(),
             message=session.pop("message", ""),
             self_registration=os.getenv("ALLOW_SELF_REGISTRATION", "true").lower() in {"1", "true", "yes"},
+        )
+
+    @app.get("/portal/knowledge")
+    def portal_knowledge():
+        identity = portal_identity()
+        if identity is None:
+            session["message"] = "Login required to open Knowledge Intelligence."
+            return redirect(url_for("portal"))
+        return render_template("knowledge_workspace.html", identity=identity, csrf_token=csrf_token())
+
+    @app.get("/portal/api/knowledge")
+    def portal_knowledge_data():
+        identity = portal_identity()
+        if identity is None:
+            return error("Authentication required", 401)
+        return jsonify(workspace_payload(identity))
+
+    @app.post("/portal/api/knowledge/query")
+    def portal_knowledge_query():
+        identity = portal_identity()
+        if identity is None:
+            return error("Authentication required", 401)
+        if not valid_csrf():
+            return error("Invalid CSRF token", 400)
+        question = str((request.get_json(silent=True) or {}).get("question") or "").strip()
+        if not question:
+            return error("question is required", 400)
+        return jsonify(answer_workspace_question(workspace_paths(identity)["graph"], question))
+
+    @app.get("/portal/api/knowledge/nodes/<path:node_id>")
+    def portal_knowledge_node(node_id: str):
+        identity = portal_identity()
+        if identity is None:
+            return error("Authentication required", 401)
+        engine = KnowledgeGraphQueryEngine(path=workspace_paths(identity)["graph"])
+        node = next((item for item in engine.find_nodes(limit=1000) if item["id"] == node_id), None)
+        if node is None:
+            return error("Knowledge node not found", 404)
+        return jsonify({"node": node, "neighbors": engine.get_neighbors(node_id, limit=100)})
+
+    @app.get("/portal/api/knowledge/export")
+    def portal_knowledge_export():
+        identity = portal_identity()
+        if identity is None:
+            return error("Authentication required", 401)
+        return Response(
+            __import__("json").dumps(workspace_payload(identity), ensure_ascii=False, indent=2, default=str),
+            mimetype="application/json",
+            headers={"Content-Disposition": "attachment; filename=knowledge-intelligence.json"},
         )
 
     @app.post("/portal/register")
@@ -348,6 +423,23 @@ def create_app(
         item = repo.get_analysis(identity.tenant_id, analysis_id)
         return jsonify(item) if item else error("Analysis not found", 404)
 
+    @app.get("/api/v1/knowledge")
+    def get_knowledge_workspace():
+        identity, failure = require_identity()
+        if failure:
+            return failure
+        return jsonify(workspace_payload(identity))
+
+    @app.post("/api/v1/knowledge/query")
+    def query_knowledge_workspace():
+        identity, failure = require_identity()
+        if failure:
+            return failure
+        question = str((request.get_json(silent=True) or {}).get("question") or "").strip()
+        if not question:
+            return error("question is required", 400)
+        return jsonify(answer_workspace_question(workspace_paths(identity)["graph"], question))
+
     @app.post("/api/v1/analyses/<analysis_id>/cancel")
     def cancel_analysis(analysis_id: str):
         identity, failure = require_identity({"admin", "analyst"})
@@ -396,6 +488,8 @@ def create_app(
                 },
                 "/api/v1/analyses/{analysis_id}": {"get": {"summary": "Get tenant analysis"}},
                 "/api/v1/analyses/{analysis_id}/cancel": {"post": {"summary": "Cancel analysis"}},
+                "/api/v1/knowledge": {"get": {"summary": "Get tenant Knowledge Intelligence workspace"}},
+                "/api/v1/knowledge/query": {"post": {"summary": "Query the tenant Knowledge Graph"}},
             },
         })
 

@@ -1,4 +1,4 @@
-# Platform Productization: Milestones 15–19
+# Platform Productization: Milestones 15–20
 
 Skills Agent now supports two complementary operating modes:
 
@@ -149,3 +149,20 @@ Excel-derived records, Redis/RQ execution, PostgreSQL persistence, dashboard
 and gateway health. The dashboard remains single-process until its interactive
 runtime state is moved into shared persistence; API jobs already support a
 separate durable worker.
+
+## Milestone 20 — Knowledge Intelligence Workspace
+
+The authenticated `/portal/knowledge` surface exposes the platform memory as a
+single product workflow. Its read model combines the tenant Knowledge Graph,
+lossless validation and governance report, Analytical Experience, completed
+analysis history and the latest Product Intelligence payload. Users can search
+and filter nodes, inspect properties and neighbors, query the deterministic
+engine, review Recommendation and Decision output, and export the bounded JSON
+projection.
+
+The workspace never crosses tenant boundaries and does not require an LLM or an
+external graph database. Empty tenants receive a guided first-analysis state;
+large graphs are bounded server-side and can be narrowed by type or search.
+Bearer clients use `GET /api/v1/knowledge` and
+`POST /api/v1/knowledge/query`; browser sessions use CSRF-protected portal
+endpoints.

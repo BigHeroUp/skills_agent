@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>Knowledge Intelligence · Skills Agent</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='knowledge-workspace.css') }}">
+</head>
+<body>
+  <div class="scanlines" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('portal') }}" aria-label="Torna al portale">
+      <span class="core"><i></i></span>
+      <span><strong>SKILLS AGENT</strong><small>KNOWLEDGE INTELLIGENCE</small></span>
+    </a>
+    <div class="system-state"><span class="pulse"></span><span id="system-label">SINCRONIZZAZIONE</span></div>
+    <nav><a href="{{ url_for('portal') }}">PORTALE</a><a class="active" href="#">KNOWLEDGE</a><a href="{{ url_for('portal_knowledge_export') }}">EXPORT</a></nav>
+    <div class="identity"><span>{{ identity.email }}</span><small>{{ identity.role }} · {{ identity.tenant_id[:8] }}</small></div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div><p class="eyebrow">TENANT MEMORY / LIVE READ MODEL</p><h1>Knowledge Intelligence Workspace</h1>
+        <p>Esplora evidenze, lineage, anomalie, cause radice ed esperienza accumulata in un unico flusso verificabile.</p></div>
+      <div class="freshness"><small>ULTIMO AGGIORNAMENTO</small><strong id="updated-at">—</strong><span id="schema-version">SCHEMA —</span></div>
+    </section>
+
+    <section class="metrics" aria-label="Metriche del Knowledge Graph">
+      <article><span>NODI</span><strong id="metric-nodes">—</strong><i></i></article>
+      <article><span>RELAZIONI</span><strong id="metric-edges">—</strong><i></i></article>
+      <article><span>TIPI</span><strong id="metric-types">—</strong><i></i></article>
+      <article><span>EXPERIENCE</span><strong id="metric-experiences">—</strong><i></i></article>
+      <article><span>ANALISI</span><strong id="metric-analyses">—</strong><i></i></article>
+      <article class="quality-card"><span>GOVERNANCE</span><strong id="metric-quality">—</strong><i></i></article>
+    </section>
+
+    <section class="workspace-grid">
+      <aside class="panel controls">
+        <div class="panel-title"><span>01</span><h2>CONTROLLO GRAFO</h2></div>
+        <label for="search">RICERCA SEMANTICA</label>
+        <div class="input-shell"><input id="search" type="search" placeholder="Nodo, metrica, anomalia…"><button id="search-button" aria-label="Cerca">⌕</button></div>
+        <label for="type-filter">TIPO NODO</label><select id="type-filter"><option value="">Tutti i tipi</option></select>
+        <div class="legend" id="legend"></div>
+        <div class="mini-section"><span>RELAZIONI DOMINANTI</span><div id="relationships" class="bars"></div></div>
+        <button class="ghost-button" id="reset-view">REIMPOSTA VISTA</button>
+      </aside>
+
+      <section class="panel graph-panel">
+        <div class="panel-title"><span>02</span><h2>MEMORY MAP</h2><div class="graph-actions"><button id="zoom-out">−</button><button id="zoom-in">+</button></div></div>
+        <div class="graph-stage" id="graph-stage">
+          <svg id="knowledge-graph" viewBox="0 0 900 620" role="img" aria-label="Grafo interattivo della conoscenza"></svg>
+          <div id="empty-state" class="empty-state" hidden><span class="empty-core"></span><h3>Memoria ancora vuota</h3><p>Esegui un’analisi CSV o Excel dal portale. Il Coordinator popolerà automaticamente Knowledge Graph ed Experience.</p><a href="{{ url_for('portal') }}">AVVIA PRIMA ANALISI</a></div>
+          <div class="graph-hud"><span id="visible-count">0 nodi visibili</span><span>CLICK: DETTAGLIO</span><span>SCROLL: ZOOM</span></div>
+        </div>
+      </section>
+
+      <aside class="panel inspector">
+        <div class="panel-title"><span>03</span><h2>INSPECTOR</h2></div>
+        <div id="node-placeholder" class="placeholder"><div class="target"></div><p>Seleziona un nodo per vedere proprietà, connessioni e provenance.</p></div>
+        <div id="node-detail" hidden>
+          <span id="node-type" class="node-badge"></span><h3 id="node-label"></h3><code id="node-id"></code>
+          <div class="mini-section"><span>PROPRIETÀ</span><dl id="node-properties"></dl></div>
+          <div class="mini-section"><span>CONNESSIONI</span><div id="node-neighbors" class="neighbor-list"></div></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="lower-grid">
+      <section class="panel query-console">
+        <div class="panel-title"><span>04</span><h2>QUERY CONSOLE</h2><small>DETERMINISTICA · OFFLINE-FIRST</small></div>
+        <div class="suggestions"><button>Qual è l’ultima analisi?</button><button>Mostra le anomalie</button><button>Confronta le ultime analisi</button></div>
+        <form id="query-form"><span>&gt;_</span><input id="question" required placeholder="Interroga la memoria analitica…"><button type="submit">ESEGUI</button></form>
+        <div id="query-result" class="terminal-output"><span>READY</span><p>Il motore risponde solo con evidenze presenti nel Knowledge Graph.</p></div>
+      </section>
+
+      <section class="panel intelligence-panel">
+        <div class="panel-title"><span>05</span><h2>DECISION INTELLIGENCE</h2></div>
+        <div class="tabbar"><button class="active" data-tab="experience">EXPERIENCE</button><button data-tab="recommendation">RECOMMENDATION</button><button data-tab="decision">DECISION</button><button data-tab="quality">QUALITY</button></div>
+        <div id="intelligence-content" class="intelligence-content"></div>
+      </section>
+
+      <section class="panel timeline-panel">
+        <div class="panel-title"><span>06</span><h2>ANALYSIS TIMELINE</h2></div><div id="timeline" class="timeline"></div>
+      </section>
+    </section>
+  </main>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="{{ url_for('static', filename='knowledge-workspace.js') }}" defer></script>
+</body>
+</html>

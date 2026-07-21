@@ -46,8 +46,8 @@
           <label>CSV or Excel dataset</label><input type="file" name="dataset" accept=".csv,.xlsx,.xls" required>
           <label><input style="width:auto" type="checkbox" name="enable_narrative"> Enable optional narrative</label>
           <button type="submit">Queue analysis</button></form></section>
-        <section class="card"><h2>Session</h2><p>Tenant isolation is active for analyses, query history, analytical memory, Knowledge Graph and Experience.</p>
-          <p><code>{{ identity.tenant_id }}</code></p><form method="post" action="{{ url_for('portal_logout') }}">
+        <section class="card"><h2>Knowledge Intelligence</h2><p>Tenant isolation is active for analyses, query history, analytical memory, Knowledge Graph and Experience.</p>
+          <p><code>{{ identity.tenant_id }}</code></p><a class="button" href="{{ url_for('portal_knowledge') }}">Open Knowledge Workspace</a><form method="post" action="{{ url_for('portal_logout') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="logout" type="submit">Logout</button></form></section>
       </div>
       <section class="card wide"><h2>Analysis history</h2><a class="button" href="{{ url_for('portal') }}">Refresh history</a><table><thead><tr><th>Created</th><th>Description</th><th>Source</th><th>Status</th><th>Progress</th><th>ID</th><th>Action</th></tr></thead>
