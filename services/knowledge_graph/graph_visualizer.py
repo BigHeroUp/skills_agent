@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import Counter
+from math import cos, pi, sin
 from typing import Any
 
 import plotly.graph_objects as go
@@ -28,6 +30,33 @@ NODE_LEVELS = {
     "root_cause": 5,
     "report": 6,
 }
+
+MEMORY_LABELS = {
+    "analysis_run": "Analisi",
+    "dataset": "Dataset",
+    "dataframe_column": "Colonne",
+    "insight": "Insight",
+    "anomaly": "Anomalie",
+    "root_cause": "Root cause",
+    "report": "Report",
+    "python_file": "File Python",
+    "python_class": "Classi",
+    "python_function": "Funzioni",
+    "python_import": "Import",
+}
+
+PIPELINE_AGENTS = [
+    "DataSourceManager",
+    "QuerySuggestion",
+    "DataExtractor",
+    "DataValidator",
+    "DataProcessor",
+    "KnowledgeReasoning",
+    "Analyst",
+    "ReportGenerator",
+    "KnowledgeGraph",
+    "ProductIntelligence",
+]
 
 LINEAGE_BUCKETS = [
     ("dataset", "ANALYZED_DATASET"),
@@ -75,6 +104,112 @@ class KnowledgeGraphVisualizer:
         )
         return {
             "figure": self._build_figure(nodes, edges, message),
+            "nodes": nodes,
+            "edges": edges,
+            "message": message,
+        }
+
+    def build_memory_overview(self) -> dict[str, Any]:
+        """Costruisce la vista iniziale della memoria analitica persistente."""
+        counts = Counter(node.type for node in self.query_engine.snapshot.nodes)
+        total_nodes = sum(counts.values())
+        total_edges = len(self.query_engine.snapshot.edges)
+        memory_types = [node_type for node_type in MEMORY_LABELS if counts.get(node_type)]
+
+        core = {
+            "id": "veraxis:memory",
+            "type": "memory_core",
+            "label": "VERAXIS\nMEMORY",
+            "properties": {
+                "nodes": total_nodes,
+                "relationships": total_edges,
+                "knowledge_areas": len(memory_types),
+            },
+            "x": 0.0,
+            "y": 0.0,
+        }
+        nodes = [core]
+        edges = []
+        radius = 2.8
+        for index, node_type in enumerate(memory_types):
+            angle = (2 * pi * index / max(1, len(memory_types))) + pi / 2
+            count = counts[node_type]
+            nodes.append({
+                "id": f"memory:{node_type}",
+                "type": node_type,
+                "label": f"{MEMORY_LABELS[node_type]}\n{count}",
+                "properties": {"node_type": node_type, "count": count},
+                "x": radius * cos(angle),
+                "y": radius * sin(angle),
+            })
+            edges.append({
+                "source": core["id"],
+                "target": f"memory:{node_type}",
+                "relationship": "CONTAINS_MEMORY",
+            })
+
+        if not memory_types:
+            message = "Memoria Veraxis pronta: nessuna conoscenza persistente disponibile."
+        else:
+            message = (
+                f"Memoria Veraxis attiva · {total_nodes} nodi · "
+                f"{total_edges} relazioni · {len(memory_types)} aree di conoscenza."
+            )
+        return {
+            "figure": self._build_memory_figure(nodes, edges, message),
+            "nodes": nodes,
+            "edges": edges,
+            "message": message,
+        }
+
+    def build_pipeline_memory(self, processing_status: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Visualizza la memoria storica mentre la pipeline analitica si attiva."""
+        status = processing_status or {}
+        current_agent = str(status.get("current_agent") or "")
+        run_status = str(status.get("status") or "processing")
+        progress = int(status.get("progress") or 0)
+        current_index = PIPELINE_AGENTS.index(current_agent) if current_agent in PIPELINE_AGENTS else -1
+
+        nodes = [{
+            "id": "veraxis:active-memory",
+            "type": "memory_core",
+            "label": f"VERAXIS\n{progress}%",
+            "properties": {"status": run_status, "progress": progress},
+            "x": 0.0,
+            "y": 0.0,
+        }]
+        edges = []
+        radius = 3.4
+        for index, agent in enumerate(PIPELINE_AGENTS):
+            angle = pi / 2 - (2 * pi * index / len(PIPELINE_AGENTS))
+            if run_status == "error" and agent == current_agent:
+                agent_status = "error"
+            elif run_status == "completed" or (current_index >= 0 and index < current_index):
+                agent_status = "completed"
+            elif agent == current_agent:
+                agent_status = "active"
+            else:
+                agent_status = "pending"
+            nodes.append({
+                "id": f"pipeline:{agent}",
+                "type": "pipeline_agent",
+                "label": agent,
+                "properties": {"status": agent_status, "order": index + 1},
+                "status": agent_status,
+                "x": radius * cos(angle),
+                "y": radius * sin(angle),
+            })
+            edges.append({
+                "source": nodes[0]["id"],
+                "target": f"pipeline:{agent}",
+                "relationship": "ACTIVATES",
+            })
+
+        message = f"Memoria analitica in esecuzione · {current_agent or 'avvio'} · {progress}%."
+        if run_status == "error":
+            message = f"Elaborazione interrotta durante {current_agent or 'la pipeline'}."
+        return {
+            "figure": self._build_memory_figure(nodes, edges, message, pipeline=True),
             "nodes": nodes,
             "edges": edges,
             "message": message,
@@ -186,6 +321,81 @@ class KnowledgeGraphVisualizer:
             xaxis={"visible": False},
             yaxis={"visible": False},
             clickmode="event+select",
+        )
+        return figure
+
+    def _build_memory_figure(
+        self,
+        nodes: list[dict[str, Any]],
+        edges: list[dict[str, Any]],
+        title: str,
+        pipeline: bool = False,
+    ) -> go.Figure:
+        """Renderizza una mappa radiale con estetica olografica originale."""
+        node_by_id = {node["id"]: node for node in nodes}
+        edge_x, edge_y = [], []
+        for edge in edges:
+            source = node_by_id[edge["source"]]
+            target = node_by_id[edge["target"]]
+            edge_x.extend([source["x"], target["x"], None])
+            edge_y.extend([source["y"], target["y"], None])
+
+        colors = []
+        sizes = []
+        for node in nodes:
+            if node["type"] == "memory_core":
+                colors.append("#77E8FF")
+                sizes.append(48)
+            elif pipeline:
+                colors.append({
+                    "completed": "#53E6A4",
+                    "active": "#67D7FF",
+                    "error": "#FF5C7A",
+                    "pending": "#33485F",
+                }.get(node.get("status"), "#33485F"))
+                sizes.append(24 if node.get("status") == "active" else 18)
+            else:
+                colors.append(NODE_COLORS.get(node["type"], "#7A8EA5"))
+                count = int(node.get("properties", {}).get("count", 1))
+                sizes.append(min(38, 17 + count ** 0.35))
+
+        figure = go.Figure(data=[
+            go.Scatter(
+                x=edge_x, y=edge_y, mode="lines", hoverinfo="skip", showlegend=False,
+                line={"width": 1.3, "color": "rgba(71, 211, 255, 0.28)"},
+            ),
+            go.Scatter(
+                x=[node["x"] for node in nodes],
+                y=[node["y"] for node in nodes],
+                mode="markers+text",
+                marker={
+                    "size": sizes,
+                    "color": colors,
+                    "line": {"width": 2, "color": "rgba(177, 240, 255, 0.82)"},
+                },
+                text=[node["label"] for node in nodes],
+                textposition="top center",
+                textfont={"size": 11, "color": "#DDF8FF"},
+                customdata=nodes,
+                hovertext=[
+                    f"<b>{node['label']}</b><br>{node.get('type', '')}"
+                    for node in nodes
+                ],
+                hovertemplate="%{hovertext}<extra></extra>",
+                showlegend=False,
+            ),
+        ])
+        figure.update_layout(
+            template="plotly_dark",
+            title={"text": title, "x": 0.02, "xanchor": "left"},
+            height=580,
+            margin={"l": 20, "r": 20, "t": 70, "b": 20},
+            plot_bgcolor="#06111F",
+            paper_bgcolor="rgba(0,0,0,0)",
+            xaxis={"visible": False, "range": [-4.4, 4.4]},
+            yaxis={"visible": False, "range": [-4.4, 4.4], "scaleanchor": "x"},
+            clickmode="event+select",
+            hovermode="closest",
         )
         return figure
 

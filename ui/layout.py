@@ -5,6 +5,8 @@ import uuid
 
 from dash import dcc, html
 
+from services.knowledge_graph.graph_visualizer import KnowledgeGraphVisualizer
+
 
 DASH_INDEX_STRING = '''
 <!DOCTYPE html>
@@ -402,6 +404,7 @@ DASH_INDEX_STRING = '''
 
 def create_layout(processing_status):
     """Crea il layout Dash mantenendo gli stessi component id pubblici."""
+    memory_payload = KnowledgeGraphVisualizer().build_memory_overview()
     return html.Div([
         dcc.Store(id='session-id', data=str(uuid.uuid4())),
         dcc.Store(id='processing-store', data=processing_status),
@@ -582,7 +585,7 @@ def create_layout(processing_status):
                         html.Div([
                             html.H3("Knowledge Graph Explorer"),
                             html.P(
-                                "Lineage visuale dell'ultima analisi salvata nel Knowledge Graph.",
+                                "Memoria analitica viva: conoscenza storica, pipeline attiva e lineage finale.",
                                 style={"color": "#aaa", "marginTop": "6px"}
                             ),
                         ]),
@@ -600,9 +603,14 @@ def create_layout(processing_status):
                         "gap": "16px",
                         "flexWrap": "wrap",
                     }),
-                    html.Div(id='knowledge-graph-status', style={"color": "#9ed8ff", "marginTop": "12px"}),
+                    html.Div(
+                        memory_payload["message"],
+                        id='knowledge-graph-status',
+                        style={"color": "#9ed8ff", "marginTop": "12px"},
+                    ),
                     dcc.Graph(
                         id='knowledge-graph-figure',
+                        figure=memory_payload["figure"],
                         config={"displayModeBar": True, "responsive": True},
                         style={"marginTop": "12px"}
                     ),
@@ -621,7 +629,7 @@ def create_layout(processing_status):
                         "background": "rgba(0,0,0,0.22)",
                     })
                 ], className="card")
-            ], id='knowledge-graph-container', style={"display": "none"}),
+            ], id='knowledge-graph-container', style={"display": "block"}),
             
             # Sezione Chat Follow-up
             html.Div([

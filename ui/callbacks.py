@@ -459,16 +459,22 @@ def register_callbacks(app, state, logger):
         Output('knowledge-graph-container', 'style'),
         Output('knowledge-graph-status', 'children'),
         Output('knowledge-graph-figure', 'figure'),
+        Input('processing-store', 'data'),
         Input('interval-component', 'n_intervals'),
         Input('knowledge-graph-refresh-button', 'n_clicks'),
         prevent_initial_call=True
     )
-    def render_knowledge_graph(n_intervals, refresh_clicks):
-        """Renderizza la lineage dell'ultima analisi nel Knowledge Graph."""
-        if state.processing_status.get('status') != 'completed' or state.current_context is None:
-            return {"display": "none"}, "", no_update
+    def render_knowledge_graph(processing_data, n_intervals, refresh_clicks):
+        """Renderizza memoria globale, pipeline attiva o lineage finale."""
         try:
-            payload = KnowledgeGraphVisualizer().build_latest_analysis_lineage()
+            visualizer = KnowledgeGraphVisualizer()
+            status = state.processing_status.get('status', 'idle')
+            if status in {'processing', 'starting', 'error'}:
+                payload = visualizer.build_pipeline_memory(state.processing_status)
+            elif status == 'completed' and state.current_context is not None:
+                payload = visualizer.build_latest_analysis_lineage()
+            else:
+                payload = visualizer.build_memory_overview()
             return {"display": "block"}, payload["message"], payload["figure"]
         except Exception as e:
             logger.warning("Knowledge Graph Explorer non disponibile: %s", type(e).__name__)

@@ -1,4 +1,5 @@
 import plotly.graph_objects as go
+from types import SimpleNamespace
 
 from services.knowledge_graph.graph_visualizer import (
     NODE_COLORS,
@@ -6,11 +7,20 @@ from services.knowledge_graph.graph_visualizer import (
     format_node_details_payload,
 )
 from services.knowledge_graph.query_engine import KnowledgeGraphQueryEngine
+from services.knowledge_graph.models import KnowledgeNode
 
 
 class FakeLineageQueryEngine:
     def __init__(self, column_count=2):
         self.column_count = column_count
+        self.snapshot = SimpleNamespace(
+            nodes=[
+                KnowledgeNode("analysis_run:latest", "analysis_run", "Analisi response_time"),
+                KnowledgeNode("dataset:latest", "dataset", "performance.xlsx"),
+                KnowledgeNode("insight:latest:key", "insight", "key_findings"),
+            ],
+            edges=[],
+        )
 
     def get_latest_analysis_runs(self, limit=1):
         return [
@@ -153,3 +163,26 @@ def test_node_details_formatter_limits_properties():
     assert details["type"] == "dataframe_column"
     assert details["id"] == "dataframe_column:1"
     assert len(details["properties"]) == 10
+
+
+def test_memory_overview_aggregates_persistent_knowledge():
+    payload = KnowledgeGraphVisualizer(FakeLineageQueryEngine()).build_memory_overview()
+
+    assert isinstance(payload["figure"], go.Figure)
+    assert payload["nodes"][0]["type"] == "memory_core"
+    assert any(node["type"] == "analysis_run" for node in payload["nodes"])
+    assert "Memoria Veraxis attiva" in payload["message"]
+
+
+def test_pipeline_memory_marks_current_and_completed_agents():
+    payload = KnowledgeGraphVisualizer(FakeLineageQueryEngine()).build_pipeline_memory({
+        "status": "processing",
+        "current_agent": "Analyst",
+        "progress": 60,
+    })
+    by_id = {node["id"]: node for node in payload["nodes"]}
+
+    assert by_id["pipeline:Analyst"]["status"] == "active"
+    assert by_id["pipeline:DataValidator"]["status"] == "completed"
+    assert by_id["pipeline:ReportGenerator"]["status"] == "pending"
+    assert "60%" in payload["message"]
