@@ -34,7 +34,9 @@ def create_app(
     coordinator_factory=Coordinator,
     job_queue=None,
 ) -> Flask:
-    app = Flask(__name__)
+    # Keep portal assets under /portal so the production gateway routes them
+    # to this service instead of the Dash application mounted at `/`.
+    app = Flask(__name__, static_url_path="/portal/static")
     app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("API_MAX_REQUEST_BYTES", str(10 * 1024 * 1024)))
     repo = repository or PlatformRepository()
     auth = auth_service or AuthService()
