@@ -180,6 +180,15 @@ offline-first di Analytical Intelligence.
   - Recommendation, Decision e timeline nello stesso flusso di prodotto;
   - API read model ed export JSON autenticato.
 
+### Milestone 21 - Unified Authenticated Product Entry
+
+- Status: completed
+- Focus:
+  - un solo ingresso pubblico su `/portal` con redirect da `/`;
+  - rimozione della modalità Dash anonima dal deployment;
+  - tutte le analisi e la memoria vincolate a identità e tenant;
+  - semplificazione del gateway e della topologia Docker.
+
 ## Planning Rule
 
 Ogni milestone futura deve rispettare tre vincoli:

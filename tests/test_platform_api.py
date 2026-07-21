@@ -173,6 +173,16 @@ def test_portal_cookie_secure_flag_can_be_disabled_for_local_http(tmp_path, monk
     assert "Secure" not in cookie
 
 
+def test_root_redirects_to_the_only_public_product_entrypoint(tmp_path):
+    repository = PlatformRepository(f"sqlite:///{tmp_path / 'entry.db'}")
+    app = create_app(repository, AuthService("e" * 32), coordinator_factory=FakeCoordinator)
+
+    response = app.test_client().get("/")
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/portal"
+
+
 def test_tenant_knowledge_workspace_is_visible_queryable_and_isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("ALLOW_SELF_REGISTRATION", "true")
     monkeypatch.setenv("TENANT_DATA_ROOT", str(tmp_path / "tenants"))

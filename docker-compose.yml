@@ -72,28 +72,10 @@ services:
       timeout: 5s
       retries: 5
 
-  dashboard:
-    build: .
-    restart: unless-stopped
-    env_file: .env.production
-    environment:
-      PLATFORM_MODE: dashboard
-      PLATFORM_PORTAL_URL: /portal
-    command: ["gunicorn", "--config", "deploy/gunicorn-dashboard.conf.py", "app_dash:server"]
-    expose: ["8050"]
-    volumes:
-      - platform_data:/app/data
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8050/', timeout=3)"]
-      interval: 30s
-      timeout: 5s
-      start_period: 20s
-      retries: 3
-
   gateway:
     image: nginx:1.27-alpine
     restart: unless-stopped
-    depends_on: [api, dashboard]
+    depends_on: [api]
     ports:
       - "8080:80"
     volumes:

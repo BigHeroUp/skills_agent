@@ -149,6 +149,11 @@ def create_app(
         executor.submit(run_analysis, identity, job_id, body)
         return job_id, "local_fallback"
 
+    @app.get("/")
+    def platform_entry():
+        """Expose one product entrypoint: the authenticated portal."""
+        return redirect(url_for("portal"))
+
     @app.post("/api/v1/auth/register")
     def register():
         if os.getenv("ALLOW_SELF_REGISTRATION", "true").lower() not in {"1", "true", "yes"}:
