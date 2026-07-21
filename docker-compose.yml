@@ -23,13 +23,54 @@ services:
     environment:
       DATABASE_URL_FILE: /run/secrets/database_url
       PLATFORM_MODE: api
+      REDIS_URL: redis://redis:6379/0
     secrets:
       - database_url
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     command: ["gunicorn", "--config", "deploy/gunicorn.conf.py", "platform_api.app:app"]
     expose: ["8080"]
+    volumes:
+      - platform_data:/app/data
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+      REDIS_URL: redis://redis:6379/0
+      PLATFORM_MODE: worker
+    secrets:
+      - database_url
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["python", "worker.py"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - platform_data:/app/data
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   dashboard:
     build: .
@@ -37,8 +78,11 @@ services:
     env_file: .env.production
     environment:
       PLATFORM_MODE: dashboard
-    command: ["gunicorn", "--config", "deploy/gunicorn-dashboard.conf.py", "app_dash:app.server"]
+      PLATFORM_PORTAL_URL: /portal
+    command: ["gunicorn", "--config", "deploy/gunicorn-dashboard.conf.py", "app_dash:server"]
     expose: ["8050"]
+    volumes:
+      - platform_data:/app/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8050/', timeout=3)"]
       interval: 30s
@@ -57,6 +101,8 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
+  platform_data:
 
 secrets:
   postgres_password:

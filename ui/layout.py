@@ -1,5 +1,6 @@
 """Layout Dash della dashboard multi-agent."""
 
+import os
 import uuid
 
 from dash import dcc, html
@@ -414,7 +415,13 @@ def create_layout(processing_status):
             # Header
             html.Div([
                 html.H1("🤖 Multi-Agent Data Analysis Platform"),
-                html.P("Sistema intelligente per analisi dati multi-sorgente")
+                html.P("Sistema intelligente per analisi dati multi-sorgente"),
+                html.A(
+                    "Account, login e storico analisi",
+                    href=os.getenv("PLATFORM_PORTAL_URL", "http://127.0.0.1:8080/portal"),
+                    className="secondary-button",
+                    style={"display": "inline-block", "textDecoration": "none", "marginTop": "10px"},
+                ),
             ], className="header"),
             
             # Selezione fonte dati

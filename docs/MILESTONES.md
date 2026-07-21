@@ -154,13 +154,14 @@ Ogni milestone documenta:
   - dashboard costruibile senza avviare il server;
   - regressione offline completa.
 
-## Milestones 15–18 - Productization
+## Milestones 15–19 - Productization
 
 - Status: completed
 - Milestone 15: qualità analitica, deduplicazione multi-metodo, Markdown e card dashboard.
 - Milestone 16: persistenza versionata e tenant-aware su SQLite/PostgreSQL.
 - Milestone 17: API REST, autenticazione firmata, RBAC e job asincroni bounded.
 - Milestone 18: Docker non-root, Gunicorn, Nginx, health, metrics, secrets e backup.
+- Milestone 19: portale account, upload CSV/Excel, storico/progresso/cancel, Redis/RQ e collaudo PostgreSQL reale.
 - Test attesi:
   - pipeline CSV end-to-end senza regressione QuerySuggestion;
   - isolamento della stessa analysis id tra tenant;

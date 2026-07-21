@@ -23,11 +23,12 @@ def test_repository_isolates_analyses_by_tenant_and_backs_up(tmp_path):
     analysis_id = repository.create_analysis(first["tenant_id"], first["user_id"], {
         "description": "Analyze revenue", "records": [{"revenue": 10}]
     })
-
     assert repository.get_analysis(first["tenant_id"], analysis_id)["status"] == "queued"
+    repository.update_progress(first["tenant_id"], analysis_id, 65)
     assert "records" not in repository.get_analysis(first["tenant_id"], analysis_id)["request"]
     assert repository.get_analysis(first["tenant_id"], analysis_id)["request"]["record_count"] == 1
     assert repository.get_analysis(second["tenant_id"], analysis_id) is None
+    assert repository.list_analyses(first["tenant_id"])[0]["progress"] == 65
     assert repository.list_analyses(second["tenant_id"]) == []
     assert repository.backup(tmp_path / "backup.db").exists()
-    assert repository.readiness()["schema_version"] == 1
+    assert repository.readiness()["schema_version"] == 2

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
@@ -10,25 +11,38 @@ from typing import Any
 from pathlib import Path
 
 import pandas as pd
-from flask import Flask, g, jsonify, request
+from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
 
 from coordinator import Coordinator
 from services.platform.auth import AuthService, Identity
 from services.platform.persistence import PlatformRepository
+from platform_api.jobs import execute_analysis_job, serialize_context
 
 
 def create_app(
     repository: PlatformRepository | None = None,
     auth_service: AuthService | None = None,
     coordinator_factory=Coordinator,
+    job_queue=None,
 ) -> Flask:
     app = Flask(__name__)
     app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("API_MAX_REQUEST_BYTES", str(10 * 1024 * 1024)))
     repo = repository or PlatformRepository()
     auth = auth_service or AuthService()
+    app.secret_key = auth.secret
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=os.getenv("PLATFORM_ENV", "development").lower() == "production",
+    )
     executor = ThreadPoolExecutor(max_workers=max(1, int(os.getenv("ANALYSIS_WORKERS", "2"))))
     counters = {"submitted": 0, "completed": 0, "failed": 0}
     counter_lock = threading.Lock()
+    redis_url = os.getenv("REDIS_URL", "").strip()
+    if job_queue is None and redis_url:
+        from redis import Redis
+        from rq import Queue
+        job_queue = Queue("analyses", connection=Redis.from_url(redis_url), default_timeout=1800)
 
     @app.after_request
     def security_headers(response):
@@ -59,6 +73,43 @@ def create_app(
             return None, error("Insufficient role", 403)
         g.identity = identity
         return identity, None
+
+    def portal_identity() -> Identity | None:
+        token = session.get("access_token")
+        if not token:
+            return None
+        try:
+            return auth.verify_token(token)
+        except ValueError:
+            session.clear()
+            return None
+
+    def csrf_token() -> str:
+        return session.setdefault("csrf_token", secrets.token_urlsafe(24))
+
+    def valid_csrf() -> bool:
+        return secrets.compare_digest(str(session.get("csrf_token") or ""), str(request.form.get("csrf_token") or ""))
+
+    def enqueue_analysis(identity: Identity, body: dict[str, Any]) -> tuple[str, str]:
+        job_id = repo.create_analysis(identity.tenant_id, identity.user_id, body)
+        with counter_lock:
+            counters["submitted"] += 1
+        if job_queue is not None:
+            from rq import Retry
+            job_queue.enqueue(
+                execute_analysis_job,
+                asdict(identity),
+                job_id,
+                body,
+                job_id=job_id,
+                description=f"analysis:{job_id}",
+                retry=Retry(max=2, interval=[10, 30]),
+                result_ttl=86400,
+                failure_ttl=604800,
+            )
+            return job_id, "redis_rq"
+        executor.submit(run_analysis, identity, job_id, body)
+        return job_id, "local_fallback"
 
     @app.post("/api/v1/auth/register")
     def register():
@@ -121,11 +172,126 @@ def create_app(
         max_records = max(1, int(os.getenv("API_MAX_RECORDS", "100000")))
         if len(records) > max_records:
             return error(f"records exceeds configured limit {max_records}", 413)
-        job_id = repo.create_analysis(identity.tenant_id, identity.user_id, body)
-        with counter_lock:
-            counters["submitted"] += 1
-        executor.submit(run_analysis, identity, job_id, body)
-        return jsonify({"id": job_id, "status": "queued"}), 202
+        job_id, queue_backend = enqueue_analysis(identity, body)
+        return jsonify({"id": job_id, "status": "queued", "queue": queue_backend}), 202
+
+    @app.get("/portal")
+    def portal():
+        identity = portal_identity()
+        analyses = repo.list_analyses(identity.tenant_id, 50) if identity else []
+        return render_template(
+            "portal.html",
+            identity=identity,
+            analyses=analyses,
+            csrf_token=csrf_token(),
+            message=session.pop("message", ""),
+            self_registration=os.getenv("ALLOW_SELF_REGISTRATION", "true").lower() in {"1", "true", "yes"},
+        )
+
+    @app.post("/portal/register")
+    def portal_register():
+        if not valid_csrf():
+            return "Invalid CSRF token", 400
+        if os.getenv("ALLOW_SELF_REGISTRATION", "true").lower() not in {"1", "true", "yes"}:
+            return "Self registration disabled", 403
+        try:
+            organization = request.form.get("organization", "").strip()
+            email = request.form.get("email", "").strip().lower()
+            if not organization or "@" not in email:
+                raise ValueError("Organization and valid email are required")
+            created = repo.create_tenant_with_admin(
+                organization,
+                email,
+                auth.hash_password(request.form.get("password", "")),
+            )
+            identity = Identity(created["user_id"], created["tenant_id"], email, "admin")
+            session["access_token"] = auth.issue_token(identity)
+            session["message"] = "Organization registered successfully."
+        except Exception as exc:
+            session["message"] = str(exc)
+        return redirect(url_for("portal"))
+
+    @app.post("/portal/analyses/<analysis_id>/cancel")
+    def portal_cancel_analysis(analysis_id: str):
+        identity = portal_identity()
+        if identity is None:
+            return redirect(url_for("portal"))
+        if identity.role not in {"admin", "analyst"}:
+            return "Insufficient role", 403
+        if not valid_csrf():
+            return "Invalid CSRF token", 400
+        if not repo.request_cancel(identity.tenant_id, analysis_id):
+            session["message"] = "Analysis not found or no longer cancellable."
+            return redirect(url_for("portal"))
+        if job_queue is not None:
+            try:
+                job = job_queue.fetch_job(analysis_id)
+                if job is not None:
+                    job.cancel()
+                    repo.update_analysis(identity.tenant_id, analysis_id, status="cancelled")
+            except Exception:
+                pass
+        session["message"] = f"Cancellation requested for analysis {analysis_id[:8]}."
+        return redirect(url_for("portal"))
+
+    @app.post("/portal/login")
+    def portal_login():
+        if not valid_csrf():
+            return "Invalid CSRF token", 400
+        user = repo.get_user_by_email(request.form.get("tenant_id", ""), request.form.get("email", ""))
+        if not user or not auth.verify_password(request.form.get("password", ""), user["password_hash"]):
+            session["message"] = "Invalid credentials."
+        else:
+            identity = Identity(user["id"], user["tenant_id"], user["email"], user["role"])
+            session["access_token"] = auth.issue_token(identity)
+            session["message"] = "Login completed."
+        return redirect(url_for("portal"))
+
+    @app.post("/portal/logout")
+    def portal_logout():
+        if not valid_csrf():
+            return "Invalid CSRF token", 400
+        session.clear()
+        return redirect(url_for("portal"))
+
+    @app.post("/portal/analyses")
+    def portal_submit_analysis():
+        identity = portal_identity()
+        if identity is None:
+            return redirect(url_for("portal"))
+        if identity.role not in {"admin", "analyst"}:
+            return "Insufficient role", 403
+        if not valid_csrf():
+            return "Invalid CSRF token", 400
+        uploaded = request.files.get("dataset")
+        description = request.form.get("description", "").strip()
+        if not uploaded or not description:
+            session["message"] = "Description and dataset are required."
+            return redirect(url_for("portal"))
+        filename = uploaded.filename or "dataset"
+        try:
+            if filename.lower().endswith(".csv"):
+                frame = pd.read_csv(uploaded.stream)
+                source_type = "csv"
+            elif filename.lower().endswith((".xlsx", ".xls")):
+                frame = pd.read_excel(uploaded.stream)
+                source_type = "excel"
+            else:
+                raise ValueError("Only CSV and Excel files are supported")
+            max_records = max(1, int(os.getenv("API_MAX_RECORDS", "100000")))
+            if len(frame) > max_records:
+                raise ValueError(f"Dataset exceeds configured limit {max_records}")
+            job_id, backend = enqueue_analysis(identity, {
+                "description": description,
+                "records": frame.where(pd.notna(frame), None).to_dict(orient="records"),
+                "source_type": source_type,
+                "dataset_name": filename,
+                "enable_narrative": request.form.get("enable_narrative") == "on",
+            })
+            session["message"] = f"Analysis {job_id[:8]} queued through {backend}."
+        except Exception as exc:
+            session["message"] = str(exc)
+        return redirect(url_for("portal"))
 
     def run_analysis(identity: Identity, job_id: str, body: dict[str, Any]):
         repo.update_analysis(identity.tenant_id, job_id, status="processing")
@@ -148,7 +314,7 @@ def create_app(
                 },
             )
             repo.update_analysis(
-                identity.tenant_id, job_id, status="completed", result=_serialize_context(context)
+                identity.tenant_id, job_id, status="completed", result=serialize_context(context)
             )
             with counter_lock:
                 counters["completed"] += 1
@@ -171,6 +337,23 @@ def create_app(
             return failure
         item = repo.get_analysis(identity.tenant_id, analysis_id)
         return jsonify(item) if item else error("Analysis not found", 404)
+
+    @app.post("/api/v1/analyses/<analysis_id>/cancel")
+    def cancel_analysis(analysis_id: str):
+        identity, failure = require_identity({"admin", "analyst"})
+        if failure:
+            return failure
+        if not repo.request_cancel(identity.tenant_id, analysis_id):
+            return error("Analysis not found or no longer cancellable", 409)
+        if job_queue is not None:
+            try:
+                job = job_queue.fetch_job(analysis_id)
+                if job is not None:
+                    job.cancel()
+                    repo.update_analysis(identity.tenant_id, analysis_id, status="cancelled")
+            except Exception:
+                pass
+        return jsonify({"id": analysis_id, "status": "cancelling"}), 202
 
     @app.get("/health/live")
     def live():
@@ -202,28 +385,13 @@ def create_app(
                     "get": {"summary": "List tenant analyses"},
                 },
                 "/api/v1/analyses/{analysis_id}": {"get": {"summary": "Get tenant analysis"}},
+                "/api/v1/analyses/{analysis_id}/cancel": {"post": {"summary": "Cancel analysis"}},
             },
         })
 
     app.extensions["platform_repository"] = repo
     app.extensions["platform_executor"] = executor
     return app
-
-
-def _serialize_context(context) -> dict[str, Any]:
-    """Expose analytical results without persisting uploaded raw rows."""
-    return {
-        "is_valid": bool(context.is_valid),
-        "errors": list(context.errors),
-        "validation_results": context.validation_results,
-        "insights": context.insights,
-        "anomaly_detection_results": context.anomaly_detection_results,
-        "root_cause_results": context.root_cause_results,
-        "recommended_analytical_steps": context.recommended_analytical_steps,
-        "product_intelligence": context.product_intelligence,
-        "final_report": context.final_report,
-        "created_at": context.created_at.isoformat(),
-    }
 
 
 app = create_app()
