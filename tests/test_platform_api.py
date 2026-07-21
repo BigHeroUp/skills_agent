@@ -218,7 +218,8 @@ def test_tenant_knowledge_workspace_is_visible_queryable_and_isolated(tmp_path, 
     page = client.get("/portal/knowledge")
     assert page.status_code == 200
     assert b"Knowledge Intelligence Workspace" in page.data
-    assert b"knowledge-workspace.js" in page.data
+    assert b'/portal/static/knowledge-workspace.js' in page.data
+    assert client.get("/portal/static/knowledge-workspace.js").status_code == 200
     assert client.get("/portal/api/knowledge/export").headers["Content-Disposition"].endswith(
         "knowledge-intelligence.json"
     )
