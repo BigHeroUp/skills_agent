@@ -87,3 +87,16 @@ def test_health_cli_returns_success_for_ready_resources(tmp_path, capsys):
 
     assert exit_code == 0
     assert json.loads(capsys.readouterr().out)["status"] == "healthy"
+
+
+def test_production_gateway_exposes_only_the_authenticated_product_entrypoint():
+    root = Path(__file__).parents[1]
+    compose = (root / "docker-compose.yml").read_text(encoding="utf-8")
+    nginx = (root / "deploy" / "nginx.conf").read_text(encoding="utf-8")
+
+    assert "  dashboard:\n" not in compose
+    assert "depends_on: [api]" in compose
+    assert "location = /" in nginx
+    assert "absolute_redirect off;" in nginx
+    assert "return 302 /portal;" in nginx
+    assert "proxy_pass http://dashboard:8050" not in nginx

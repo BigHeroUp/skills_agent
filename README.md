@@ -340,6 +340,11 @@ backed by the real graph, experience and completed job results, not demo-only
 data. JSON consumers can use `GET /api/v1/knowledge` and
 `POST /api/v1/knowledge/query` with the existing Bearer token.
 
+The production gateway now has one product entrypoint. Opening `/` redirects to
+the authenticated `/portal`, which owns registration, login, analyses, history
+and Knowledge Intelligence. The former unauthenticated Dash surface is retained
+only as developer tooling and is not deployed by Docker Compose.
+
 ## Querying the Knowledge Graph
 
 The local graph can be queried deterministically without OpenAI through the

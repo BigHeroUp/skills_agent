@@ -180,3 +180,12 @@ Ogni milestone documenta:
 - API Bearer `GET /api/v1/knowledge` e `POST /api/v1/knowledge/query`, più export JSON autenticato.
 - Stati empty/loading/error e richieste bounded fino a 1.000 nodi.
 - Test: isolamento tenant, accesso protetto, query, export e rendering del workspace.
+
+## Milestone 21 - Unified Authenticated Product Entry
+
+- Status: completed
+- `/` reindirizza al portale autenticato `/portal`.
+- Il gateway espone una sola modalità prodotto multi-tenant.
+- La dashboard Dash legacy viene rimossa dallo stack Compose e resta disponibile soltanto come tooling di sviluppo.
+- Route sconosciute non vengono inoltrate a una UI alternativa.
+- Test di regressione su redirect applicativo, configurazione Nginx e topologia Compose.

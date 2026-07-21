@@ -1,18 +1,16 @@
 # Platform Productization: Milestones 15–20
 
-Skills Agent now supports two complementary operating modes:
-
-- local/offline dashboard with the Coordinator and local stores;
-- authenticated multi-tenant REST API backed by SQLite locally or PostgreSQL
-  in production.
+Skills Agent exposes one production product mode: the authenticated,
+multi-tenant portal backed by SQLite locally or PostgreSQL in production. The
+legacy Dash application remains source-level tooling for development and smoke
+tests, but it is not exposed by the production gateway.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
     U[User or client] --> G[Nginx gateway]
-    G --> D[Dash dashboard]
-    G --> A[Authenticated REST API]
+    G --> A[Authenticated portal and REST API]
     A --> R[(Redis queue)]
     R --> J[RQ analysis worker]
     J --> C[Coordinator]
@@ -103,8 +101,6 @@ The root `Dockerfile` runs as a non-root user. `docker-compose.yml` provides:
 - Redis with append-only persistence and a no-eviction queue policy;
 - a separate RQ worker with retry and cancellation support;
 - Gunicorn API service;
-- single-process, threaded Gunicorn dashboard because dashboard state remains
-  process-local;
 - Nginx reverse proxy with request limits and security headers;
 - readiness probes, restart policies, and internal service networking.
 
@@ -124,8 +120,9 @@ files, logs, or backups.
 
 ## Milestone 19 — Integrated Portal, Durable Jobs and Deployment Validation
 
-The product now exposes `/portal` through the same Nginx gateway as the Dash
-application. The portal supports organization registration, tenant-aware
+The product exposes `/portal` as its only public user interface. Requests to
+`/` redirect there, while the unauthenticated Dash runtime is no longer part of
+the Compose production stack. The portal supports organization registration, tenant-aware
 login/logout, CSV/Excel uploads, analysis history, progress and cancellation.
 Sessions use signed, HttpOnly, SameSite cookies and every mutation validates a
 CSRF token.
@@ -146,9 +143,7 @@ Validated demo workbooks:
 
 The deployment validation covers registration, login, RBAC, tenant isolation,
 Excel-derived records, Redis/RQ execution, PostgreSQL persistence, dashboard
-and gateway health. The dashboard remains single-process until its interactive
-runtime state is moved into shared persistence; API jobs already support a
-separate durable worker.
+and gateway health. API jobs execute through a separate durable worker.
 
 ## Milestone 20 — Knowledge Intelligence Workspace
 
