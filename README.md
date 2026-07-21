@@ -318,7 +318,7 @@ compiles the code, builds the dashboard in a smoke test, and runs the full
 offline regression suite. Operational details and configuration are documented
 in [Production Hardening and Observability](docs/PRODUCTION_HARDENING.md).
 
-Milestones 15–19 turn that runtime into a deployable multi-user product. The
+Milestones 15–20 turn that runtime into a deployable multi-user product. The
 dashboard now renders Markdown reports and decision cards; anomalies detected
 by multiple statistical methods are presented once with full provenance. A
 tenant-isolated REST API adds signed authentication, RBAC, asynchronous jobs,
@@ -329,6 +329,16 @@ jobs, retry and a separate worker. Docker Compose ships PostgreSQL, Redis,
 Gunicorn API/dashboard services, the worker and an Nginx gateway. Two verified
 demo workbooks are available in `outputs/milestone19/`. See
 [Platform Productization](docs/PLATFORM_PRODUCTIZATION.md).
+
+Milestone 20 makes the accumulated intelligence directly explorable from the
+authenticated portal. Open `/portal/knowledge` (or use the **Open Knowledge
+Workspace** button) for a JARVIS-inspired command center with a tenant-scoped
+interactive graph, semantic filters, node properties and neighbors,
+deterministic questions, provenance, structural quality/governance, Analytical
+Experience, Recommendation, Decision and analysis timeline. The workspace is
+backed by the real graph, experience and completed job results, not demo-only
+data. JSON consumers can use `GET /api/v1/knowledge` and
+`POST /api/v1/knowledge/query` with the existing Bearer token.
 
 ## Querying the Knowledge Graph
 
@@ -628,6 +638,7 @@ Only a new Domain Intelligence Pack.
 - Multi-tenant SQLite/PostgreSQL persistence
 - Authenticated REST API with asynchronous analysis jobs
 - Docker/Gunicorn/Nginx production deployment
+- Interactive tenant Knowledge Intelligence Workspace
 
 ---
 
@@ -638,7 +649,7 @@ Only a new Domain Intelligence Pack.
 - SDK surfaces for Product Intelligence
 - concrete Knowledge Graph v2 migrations
 - Domain Pack update, disable, and removal lifecycle
-- distributed durable job queue and horizontal dashboard state
+- horizontal dashboard state for multi-process interactive scaling
 
 ---
 

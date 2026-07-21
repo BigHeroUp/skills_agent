@@ -170,6 +170,16 @@ offline-first di Analytical Intelligence.
   - avvio Docker Desktop e collaudo reale PostgreSQL/Redis/Nginx;
   - workbook dimostrativi Sales e Operations verificati.
 
+### Milestone 20 - Knowledge Intelligence Workspace
+
+- Status: completed
+- Focus:
+  - command center autenticato e tenant-aware per tutta la memoria analitica;
+  - grafo interattivo, filtri, inspector, lineage e provenance;
+  - query deterministiche, Graph Quality/Governance ed Experience;
+  - Recommendation, Decision e timeline nello stesso flusso di prodotto;
+  - API read model ed export JSON autenticato.
+
 ## Planning Rule
 
 Ogni milestone futura deve rispettare tre vincoli:

@@ -6,6 +6,10 @@ from pathlib import Path
 from platform_api.app import create_app
 from services.platform.auth import AuthService
 from services.platform.persistence import PlatformRepository
+from services.experience.experience_models import AnalyticalExperience
+from services.experience.experience_store import ExperienceStore
+from services.knowledge_graph.models import KnowledgeEdge, KnowledgeGraphSnapshot, KnowledgeNode
+from services.knowledge_graph.store import KnowledgeGraphStore
 from utils.context import AgentContext
 
 
@@ -167,6 +171,66 @@ def test_portal_cookie_secure_flag_can_be_disabled_for_local_http(tmp_path, monk
     assert "HttpOnly" in cookie
     assert "SameSite=Lax" in cookie
     assert "Secure" not in cookie
+
+
+def test_tenant_knowledge_workspace_is_visible_queryable_and_isolated(tmp_path, monkeypatch):
+    monkeypatch.setenv("ALLOW_SELF_REGISTRATION", "true")
+    monkeypatch.setenv("TENANT_DATA_ROOT", str(tmp_path / "tenants"))
+    repository = PlatformRepository(f"sqlite:///{tmp_path / 'knowledge.db'}")
+    auth = AuthService("k" * 32)
+    app = create_app(repository, auth, coordinator_factory=FakeCoordinator)
+    client = app.test_client()
+    first = _register(client, "Knowledge Corp", "admin@knowledge.test")
+    second = _register(client, "Empty Corp", "admin@empty.test")
+    tenant_root = tmp_path / "tenants" / first["identity"]["tenant_id"]
+    KnowledgeGraphStore(tenant_root / "knowledge_graph.json").save(KnowledgeGraphSnapshot(
+        nodes=[
+            KnowledgeNode("run:1", "analysis_run", "Revenue analysis", {"created_at": "2026-07-21T09:00:00Z"}),
+            KnowledgeNode("anomaly:1", "anomaly", "Revenue spike", {"severity": "high"}),
+        ],
+        edges=[KnowledgeEdge("run:1", "anomaly:1", "DETECTED_ANOMALY")],
+    ))
+    experience = ExperienceStore(tenant_root / "experience.json")
+    experience.upsert_experience(AnalyticalExperience(
+        "experience:1", "Recurring revenue spike", "Pattern detected in regional revenue",
+        anomalies=["Revenue spike"], confidence=0.91, evidence_count=2,
+    ))
+    experience.save()
+
+    headers = {"Authorization": f"Bearer {first['access_token']}"}
+    payload = client.get("/api/v1/knowledge", headers=headers).get_json()
+    assert payload["summary"]["nodes"] == 2
+    assert payload["summary"]["edges"] == 1
+    assert payload["summary"]["experiences"] == 1
+    assert payload["quality"]["can_consume"] is True
+    assert client.get(
+        "/api/v1/knowledge", headers={"Authorization": f"Bearer {second['access_token']}"}
+    ).get_json()["summary"]["nodes"] == 0
+
+    query = client.post(
+        "/api/v1/knowledge/query", json={"question": "Mostra le anomalie"}, headers=headers,
+    )
+    assert query.status_code == 200
+    assert query.get_json()["execution_type"] == "deterministic_kg_query"
+
+    with client.session_transaction() as portal_session:
+        portal_session["access_token"] = first["access_token"]
+    page = client.get("/portal/knowledge")
+    assert page.status_code == 200
+    assert b"Knowledge Intelligence Workspace" in page.data
+    assert b"knowledge-workspace.js" in page.data
+    assert client.get("/portal/api/knowledge/export").headers["Content-Disposition"].endswith(
+        "knowledge-intelligence.json"
+    )
+
+
+def test_knowledge_portal_requires_login(tmp_path):
+    repository = PlatformRepository(f"sqlite:///{tmp_path / 'protected.db'}")
+    app = create_app(repository, AuthService("z" * 32), coordinator_factory=FakeCoordinator)
+    client = app.test_client()
+
+    assert client.get("/portal/knowledge").status_code == 302
+    assert client.get("/portal/api/knowledge").status_code == 401
 
 
 class FakeQueuedJob:

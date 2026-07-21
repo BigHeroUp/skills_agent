@@ -168,3 +168,15 @@ Ogni milestone documenta:
   - viewer senza diritto di avviare job;
   - readiness database e metriche operative;
   - configurazioni compilabili e documentate.
+
+## Milestone 20 - Knowledge Intelligence Workspace
+
+- Status: completed
+- Workspace autenticato `/portal/knowledge` con visual language JARVIS-inspired.
+- Grafo SVG tenant-scoped con ricerca, filtro per tipo, zoom, legenda e relazioni dominanti.
+- Inspector con proprietà, connessioni e provenance dei nodi reali.
+- Query console deterministica collegata al `KnowledgeGraphQueryEngine` offline-first.
+- Graph Quality/Governance, Analytical Experience, Recommendation, Decision e timeline nello stesso flusso.
+- API Bearer `GET /api/v1/knowledge` e `POST /api/v1/knowledge/query`, più export JSON autenticato.
+- Stati empty/loading/error e richieste bounded fino a 1.000 nodi.
+- Test: isolamento tenant, accesso protetto, query, export e rendering del workspace.
