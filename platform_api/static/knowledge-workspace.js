@@ -26,7 +26,7 @@
     const d=state.data,s=d.summary,q=d.quality;
     $("metric-nodes").textContent=s.nodes;$("metric-edges").textContent=s.edges;$("metric-types").textContent=s.node_types;
     $("metric-experiences").textContent=s.experiences;$("metric-analyses").textContent=s.analyses;
-    $("metric-quality").textContent=q.can_consume ? "VALID" : d.source.exists ? "REVIEW" : "EMPTY";
+    $("metric-quality").textContent=q.can_consume ? "VALIDO" : d.source.exists ? "DA VERIFICARE" : "VUOTO";
     $("metric-quality").style.color=q.can_consume?"var(--green)":"var(--amber)";
     $("updated-at").textContent=shortDate(d.source.updated_at);$("schema-version").textContent=`SCHEMA V${d.source.schema_version}`;
     renderFilters();renderRelationships();renderGraph();renderIntelligence();renderTimeline();
@@ -90,9 +90,9 @@
   function renderTimeline(){const box=$("timeline");box.replaceChildren();state.data.analyses.forEach(item=>{const row=el("div","timeline-item");row.append(el("b",null,item.description),el("small",null,shortDate(item.created_at)),el("span",null,`${item.status.toUpperCase()} · ${item.progress}% · ${item.id.slice(0,8)}`));box.append(row)});if(!box.children.length)box.append(el("p",null,"Nessuna analisi eseguita."))}
 
   async function runQuery(question){
-    const output=$("query-result");output.replaceChildren(el("span",null,"PROCESSING"),el("p",null,"Ricerca delle evidenze in corso…"));
+    const output=$("query-result");output.replaceChildren(el("span",null,"ELABORAZIONE"),el("p",null,"Ricerca delle evidenze in corso…"));
     const response=await fetch("/portal/api/knowledge/query",{method:"POST",headers:{"Content-Type":"application/json","X-CSRF-Token":document.querySelector('meta[name="csrf-token"]').content},body:JSON.stringify({question})});
-    const result=await response.json();if(!response.ok)throw new Error(result.error||"Query non riuscita");output.replaceChildren(el("span",null,`CONFIDENCE ${Math.round((result.confidence||0)*100)}% · ${result.execution_type||"QUERY"}`),el("p",null,result.answer||"Nessuna risposta"));
+    const result=await response.json();if(!response.ok)throw new Error(result.error||"Interrogazione non riuscita");output.replaceChildren(el("span",null,`CONFIDENZA ${Math.round((result.confidence||0)*100)}% · QUERY DETERMINISTICA`),el("p",null,result.answer||"Nessuna risposta"));
     (result.matches||[]).slice(0,5).forEach(match=>output.append(el("p",null,`↳ ${match.label||match.id}`)));
   }
   function showError(error){$("system-label").textContent="ERRORE SISTEMA";toast(error.message||String(error))}

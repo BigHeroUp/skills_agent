@@ -43,6 +43,33 @@ def test_count_occurrences_by_category_is_deterministic_and_json_safe():
     json.dumps(payload)
 
 
+def test_business_count_request_selects_contract_status_and_related_antenna_counts():
+    df = pd.DataFrame({
+        "CONTRATTOID": [1, 2, 3, 4],
+        "STATO_CONTRATTO": ["ATTIVO", "ATTIVO", "NON_ATTIVO", "ATTIVO"],
+        "STATO_ANTENNA": ["ATTIVA", "ASSENTE", "ATTIVA", "ATTIVA"],
+        "AGG_ANTENNA": ["A1", "N/D", "A2", "A3"],
+    })
+
+    payload = AnalysisEngine().run(
+        "Dimmi il numero totale di contratti attivi, quelli non attivi e le relative antenne",
+        df,
+    )
+
+    result = payload["deterministic_results"]
+    assert payload["execution_summary"]["row_count"] == 4
+    assert payload["analysis_plan"]["analysis_type"] == "count_occurrences"
+    assert result["target_column"] == "STATO_CONTRATTO"
+    assert result["total_records"] == 4
+    assert result["counts"] == [
+        {"value": "ATTIVO", "count": 3},
+        {"value": "NON_ATTIVO", "count": 1},
+    ]
+    assert {item["target_column"] for item in result["related_counts"]} >= {
+        "STATO_ANTENNA", "AGG_ANTENNA",
+    }
+
+
 def test_top_n_values_by_numeric_sum():
     df = pd.DataFrame({
         "cliente": ["A", "A", "B", "C"],

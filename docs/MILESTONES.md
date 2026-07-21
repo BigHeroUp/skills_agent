@@ -189,3 +189,14 @@ Ogni milestone documenta:
 - La dashboard Dash legacy viene rimossa dallo stack Compose e resta disponibile soltanto come tooling di sviluppo.
 - Route sconosciute non vengono inoltrate a una UI alternativa.
 - Test di regressione su redirect applicativo, configurazione Nginx e topologia Compose.
+
+## Milestone 22 - Risultati analitici visibili e localizzazione italiana
+
+- Status: completed
+- Portale e Knowledge Workspace interamente localizzati in italiano.
+- Aggiornamento automatico per analisi in coda, in elaborazione o in annullamento.
+- Pagina risultato tenant-aware con report, conteggi deterministici, perimetro dati e Product Intelligence.
+- Download del report in formato Markdown.
+- Conteggi categoriali prioritari per richieste con “numero”, “quanti”, “totale” e “distribuzione”.
+- Selezione semantica di stato contratto e dimensioni correlate delle antenne.
+- Blocco delle false analisi completate quando un dataset non vuoto produce zero righe elaborate.

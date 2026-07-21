@@ -49,6 +49,7 @@ def execute_analysis_job(
             },
             progress_callback=progress,
         )
+        ensure_usable_analysis(context, input_row_count=len(frame))
         repository.update_analysis(
             identity.tenant_id,
             job_id,
@@ -70,6 +71,10 @@ def serialize_context(context) -> dict[str, Any]:
         "is_valid": bool(context.is_valid),
         "errors": list(context.errors),
         "validation_results": context.validation_results,
+        "analysis_plan": context.analysis_plan,
+        "deterministic_results": context.deterministic_results,
+        "execution_summary": context.execution_summary,
+        "dataframe_profile": context.dataframe_enriched_metadata,
         "insights": context.insights,
         "anomaly_detection_results": context.anomaly_detection_results,
         "root_cause_results": context.root_cause_results,
@@ -82,3 +87,15 @@ def serialize_context(context) -> dict[str, Any]:
 
 class AnalysisCancelled(RuntimeError):
     pass
+
+
+def ensure_usable_analysis(context, *, input_row_count: int) -> None:
+    """Impedisce di pubblicare come completato un report che ha perso il dataset."""
+    profile = getattr(context, "dataframe_enriched_metadata", {}) or {}
+    errors = list(getattr(context, "errors", []) or [])
+    processed_rows = int(profile.get("row_count", 0) or 0)
+    if input_row_count > 0 and errors and processed_rows == 0:
+        raise RuntimeError(
+            "L'analisi è stata interrotta perché il motore non ha prodotto risultati "
+            "sul dataset caricato. Verifica la domanda o la compatibilità delle colonne."
+        )

@@ -345,6 +345,15 @@ the authenticated `/portal`, which owns registration, login, analyses, history
 and Knowledge Intelligence. The former unauthenticated Dash surface is retained
 only as developer tooling and is not deployed by Docker Compose.
 
+La Milestone 22 completa in italiano il flusso di analisi visibile. Il portale
+aggiorna automaticamente le elaborazioni attive, collega ogni analisi a una
+pagina risultato isolata per tenant e mostra output deterministico, perimetro
+dei dati, Product Intelligence e report Markdown scaricabile. Le domande
+categoriali, come i conteggi per stato di contratto e antenna, vengono pianificate
+prima delle aggregazioni numeriche. Un controllo finale rifiuta ogni elaborazione
+che riceve righe ma perde il dataframe durante il processo, evitando report
+fuorvianti basati su zero record.
+
 ## Querying the Knowledge Graph
 
 The local graph can be queried deterministically without OpenAI through the

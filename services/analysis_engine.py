@@ -7,7 +7,7 @@ calcoli reali sul dataframe e restituisce solo risultati serializzabili.
 from __future__ import annotations
 
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 import pandas as pd
@@ -24,6 +24,7 @@ class AnalysisPlan:
     time_column: str | None = None
     aggregation: str | None = None
     limit: int | None = None
+    related_columns: list[str] = field(default_factory=list)
     description: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -32,7 +33,9 @@ class AnalysisPlan:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AnalysisPlan":
         valid_keys = set(cls.__dataclass_fields__.keys())
-        return cls(**{key: data.get(key) for key in valid_keys})
+        values = {key: data.get(key) for key in valid_keys}
+        values["related_columns"] = list(values.get("related_columns") or [])
+        return cls(**values)
 
 
 class AnalysisEngine:
@@ -215,6 +218,17 @@ class AnalysisEngine:
                 description=f"Top {limit} valori calcolati dal dataframe.",
             )
 
+        count_terms = ["conteggio", "occorren", "quanti", "numero", "totale", "distribuzione"]
+        if any(term in request for term in count_terms):
+            ranked = self._rank_categorical_columns(df, request)
+            return AnalysisPlan(
+                analysis_type="count_occurrences",
+                target_column=ranked[0] if ranked else self._find_categorical_column(df, request),
+                related_columns=ranked[1:4],
+                limit=limit,
+                description="Conteggio occorrenze calcolato dal dataframe.",
+            )
+
         aggregation = self._find_aggregation(request)
         if aggregation:
             return AnalysisPlan(
@@ -224,14 +238,6 @@ class AnalysisEngine:
                 aggregation=aggregation,
                 limit=limit,
                 description=f"Aggregazione numerica '{aggregation}' calcolata dal dataframe.",
-            )
-
-        if any(term in request for term in ["conteggio", "occorren", "quanti", "numero", "totale", "distribuzione"]):
-            return AnalysisPlan(
-                analysis_type="count_occurrences",
-                target_column=self._find_categorical_column(df, request),
-                limit=limit,
-                description="Conteggio occorrenze calcolato dal dataframe.",
             )
 
         return AnalysisPlan(
@@ -254,13 +260,28 @@ class AnalysisEngine:
         column = self._require_column(df, plan.target_column or self._find_categorical_column(df, ""))
         limit = plan.limit or 10
         counts = df[column].fillna("N/D").astype(str).value_counts(dropna=False).head(limit)
+        related_counts = []
+        for related in plan.related_columns or []:
+            if related == column or related not in df.columns:
+                continue
+            values = df[related].fillna("N/D").astype(str).value_counts(dropna=False).head(limit)
+            related_counts.append({
+                "target_column": str(related),
+                "counts": [
+                    {"value": self._json_safe(index), "count": int(value)}
+                    for index, value in values.items()
+                ],
+                "unique_values": int(df[related].nunique(dropna=True)),
+            })
         return {
             "target_column": str(column),
+            "total_records": int(len(df)),
             "counts": [
                 {"value": self._json_safe(index), "count": int(value)}
                 for index, value in counts.items()
             ],
             "unique_values": int(df[column].nunique(dropna=True)),
+            "related_counts": related_counts,
         }
 
     def _top_n(self, df: pd.DataFrame, plan: AnalysisPlan) -> dict[str, Any]:
@@ -460,6 +481,9 @@ class AnalysisEngine:
         return None
 
     def _find_categorical_column(self, df: pd.DataFrame, request: str) -> str | None:
+        ranked = self._rank_categorical_columns(df, request)
+        if ranked:
+            return ranked[0]
         mentioned = self._find_mentioned_column(df, request)
         if mentioned and not pd.api.types.is_numeric_dtype(df[mentioned]) and not self._is_identifier_column(mentioned, df):
             return str(mentioned)
@@ -483,6 +507,41 @@ class AnalysisEngine:
             if not self._is_identifier_column(column, df)
         ]
         return str(candidates[0]) if candidates else None
+
+    def _rank_categorical_columns(self, df: pd.DataFrame, request: str) -> list[str]:
+        """Ordina le dimensioni business citate, tollerando singolare/plurale e underscore."""
+        candidates = [
+            column for column in df.columns
+            if (
+                pd.api.types.is_object_dtype(df[column])
+                or pd.api.types.is_string_dtype(df[column])
+                or pd.api.types.is_bool_dtype(df[column])
+                or isinstance(df[column].dtype, pd.CategoricalDtype)
+            ) and not self._is_identifier_column(column, df)
+        ]
+        request_tokens = self._semantic_tokens(request)
+        active_intent = any(token.startswith("attiv") for token in request_tokens)
+        scored = []
+        for position, column in enumerate(candidates):
+            column_tokens = self._semantic_tokens(str(column))
+            matches = sum(
+                1 for left in column_tokens for right in request_tokens
+                if len(left) >= 4 and len(right) >= 4 and left[:5] == right[:5]
+            )
+            if active_intent and any(token.startswith("stato") for token in column_tokens):
+                matches += 1
+            if active_intent and any(token.startswith("contrat") for token in column_tokens):
+                matches += 1
+            cardinality = int(df[column].nunique(dropna=True))
+            useful = 1 if 1 <= cardinality <= max(50, int(len(df) * 0.5)) else 0
+            scored.append((matches, useful, -position, str(column)))
+        scored.sort(reverse=True)
+        matched = [item[3] for item in scored if item[0] > 0]
+        fallback = [item[3] for item in scored if item[3] not in matched and item[1] > 0]
+        return matched + fallback
+
+    def _semantic_tokens(self, value: str) -> list[str]:
+        return [token for token in self._normalize(value).split() if len(token) >= 3]
 
     def _find_numeric_column(self, df: pd.DataFrame, request: str) -> str | None:
         numeric_columns = [
@@ -593,6 +652,7 @@ class AnalysisEngine:
             plan.group_by_column,
             plan.value_column,
             plan.time_column,
+            *(plan.related_columns or []),
         ]
         return [str(column) for column in columns if column]
 
