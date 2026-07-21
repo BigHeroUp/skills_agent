@@ -1,4 +1,4 @@
-openai>=1.0.0
+openai>=2.46.0
 python-dotenv>=1.0.0
 pandas>=2.0
 openpyxl>=3.0
