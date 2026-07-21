@@ -189,6 +189,16 @@ offline-first di Analytical Intelligence.
   - tutte le analisi e la memoria vincolate a identità e tenant;
   - semplificazione del gateway e della topologia Docker.
 
+### Milestone 22 - Risultati analitici visibili e localizzazione italiana
+
+- Status: completed
+- Focus:
+  - flusso completo in italiano dalla registrazione al risultato;
+  - aggiornamento automatico e pagina risultato per ogni job;
+  - conteggi e raggruppamenti categoriali coerenti con la domanda business;
+  - report scaricabile e accesso diretto al Knowledge Graph;
+  - prevenzione dei report fuorvianti basati su zero record.
+
 ## Planning Rule
 
 Ogni milestone futura deve rispettare tre vincoli:

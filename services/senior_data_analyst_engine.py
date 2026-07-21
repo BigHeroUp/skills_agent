@@ -512,6 +512,13 @@ class SeniorDataAnalystEngine:
                 "step_id": "single-plan",
                 "result": direct,
             })
+            for related in direct.get("related_counts") or []:
+                if isinstance(related, dict) and related.get("counts"):
+                    collected.append({
+                        "title": f"Distribuzione di {related.get('target_column')}",
+                        "step_id": "related-count",
+                        "result": {"analysis_type": "count_occurrences", **related},
+                    })
 
         for item in data.get("autonomous_analysis_results") or []:
             if not isinstance(item, dict) or item.get("status") not in {None, "completed"}:

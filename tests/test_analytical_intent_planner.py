@@ -131,3 +131,27 @@ def test_followup_delivery_filter_reruns_pipeline_on_filtered_dataframe():
     assert new_context.followup_execution_type == "filtered_reanalysis"
     assert new_context.processed_data["filtered_row_count"] == result["filtered_row_count"]
     assert "TEMPO_ATTIVAZIONE_GIORNI" in new_context.raw_data["dataframe"].columns
+
+
+def test_categorical_contract_count_pipeline_keeps_real_dataframe_and_report():
+    df = pd.DataFrame({
+        "CONTRATTOID": range(1, 7),
+        "STATO_CONTRATTO": ["ATTIVO", "ATTIVO", "NON_ATTIVO", "ATTIVO", "NON_ATTIVO", "ATTIVO"],
+        "STATO_ANTENNA": ["ATTIVA", "ASSENTE", "ATTIVA", "ATTIVA", "ASSENTE", "ATTIVA"],
+        "AGG_ANTENNA": ["A1", None, "A2", "A3", None, "A4"],
+    })
+    context = AgentContext(
+        user_input="Dimmi il numero totale di contratti attivi, quelli non attivi e le relative antenne",
+        raw_data={"dataframe": df},
+        metadata={"source_type": "excel"},
+    )
+
+    for agent in (DataProcessorAgent(), AnalystAgent(), ReportGeneratorAgent()):
+        context = agent.process(context)
+
+    assert not any("Colonna non disponibile" in error for error in context.errors)
+    assert context.execution_summary["row_count"] == 6
+    assert context.deterministic_results["target_column"] == "STATO_CONTRATTO"
+    assert context.deterministic_results["total_records"] == 6
+    assert "6 record" in context.final_report
+    assert "0 record" not in context.final_report

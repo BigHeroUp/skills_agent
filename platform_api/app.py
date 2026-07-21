@@ -16,7 +16,7 @@ from flask import Flask, Response, g, jsonify, redirect, render_template, reques
 from coordinator import Coordinator
 from services.platform.auth import AuthService, Identity
 from services.platform.persistence import PlatformRepository
-from platform_api.jobs import execute_analysis_job, serialize_context
+from platform_api.jobs import ensure_usable_analysis, execute_analysis_job, serialize_context
 from platform_api.knowledge import answer_workspace_question, build_workspace_payload, tenant_paths
 from services.knowledge_graph.query_engine import KnowledgeGraphQueryEngine
 
@@ -82,9 +82,9 @@ def create_app(
     def require_identity(roles: set[str] | None = None):
         identity = authenticate()
         if identity is None:
-            return None, error("Authentication required", 401)
+            return None, error("Autenticazione richiesta", 401)
         if roles and identity.role not in roles:
-            return None, error("Insufficient role", 403)
+            return None, error("Ruolo non autorizzato", 403)
         g.identity = identity
         return identity, None
 
@@ -128,6 +128,15 @@ def create_app(
             latest_intelligence=latest_product_intelligence(identity),
         )
 
+    status_labels = {
+        "queued": "In coda",
+        "processing": "In elaborazione",
+        "cancelling": "Annullamento in corso",
+        "cancelled": "Annullata",
+        "completed": "Completata",
+        "failed": "Non riuscita",
+    }
+
     def enqueue_analysis(identity: Identity, body: dict[str, Any]) -> tuple[str, str]:
         job_id = repo.create_analysis(identity.tenant_id, identity.user_id, body)
         with counter_lock:
@@ -157,10 +166,10 @@ def create_app(
     @app.post("/api/v1/auth/register")
     def register():
         if os.getenv("ALLOW_SELF_REGISTRATION", "true").lower() not in {"1", "true", "yes"}:
-            return error("Self registration disabled", 403)
+            return error("Registrazione autonoma disabilitata", 403)
         body = request.get_json(silent=True) or {}
         if not str(body.get("organization") or "").strip() or "@" not in str(body.get("email") or ""):
-            return error("organization and valid email are required", 400)
+            return error("Organizzazione ed email valida sono obbligatorie", 400)
         try:
             password_hash = auth.hash_password(str(body.get("password") or ""))
             created = repo.create_tenant_with_admin(
@@ -181,7 +190,7 @@ def create_app(
         body = request.get_json(silent=True) or {}
         user = repo.get_user_by_email(str(body.get("tenant_id") or ""), str(body.get("email") or ""))
         if not user or not auth.verify_password(str(body.get("password") or ""), user["password_hash"]):
-            return error("Invalid credentials", 401)
+            return error("Credenziali non valide", 401)
         identity = Identity(user["id"], user["tenant_id"], user["email"], user["role"])
         return jsonify({"access_token": auth.issue_token(identity), "identity": asdict(identity)})
 
@@ -211,10 +220,10 @@ def create_app(
         description = str(body.get("description") or "").strip()
         records = body.get("records")
         if not description or not isinstance(records, list) or not records:
-            return error("description and non-empty records are required", 400)
+            return error("Richiesta di analisi e record non vuoti sono obbligatori", 400)
         max_records = max(1, int(os.getenv("API_MAX_RECORDS", "100000")))
         if len(records) > max_records:
-            return error(f"records exceeds configured limit {max_records}", 413)
+            return error(f"Il numero di record supera il limite configurato di {max_records}", 413)
         job_id, queue_backend = enqueue_analysis(identity, body)
         return jsonify({"id": job_id, "status": "queued", "queue": queue_backend}), 202
 
@@ -229,13 +238,48 @@ def create_app(
             csrf_token=csrf_token(),
             message=session.pop("message", ""),
             self_registration=os.getenv("ALLOW_SELF_REGISTRATION", "true").lower() in {"1", "true", "yes"},
+            status_labels=status_labels,
+            auto_refresh=any(item.get("status") in {"queued", "processing", "cancelling"} for item in analyses),
+        )
+
+    @app.get("/portal/analyses/<analysis_id>")
+    def portal_analysis_result(analysis_id: str):
+        identity = portal_identity()
+        if identity is None:
+            session["message"] = "Accedi per consultare il risultato dell'analisi."
+            return redirect(url_for("portal"))
+        item = repo.get_analysis(identity.tenant_id, analysis_id)
+        if item is None:
+            return "Analisi non trovata", 404
+        return render_template(
+            "analysis_result.html",
+            identity=identity,
+            analysis=item,
+            result=item.get("result") or {},
+            status_label=status_labels.get(item.get("status"), item.get("status", "—")),
+            auto_refresh=item.get("status") in {"queued", "processing", "cancelling"},
+        )
+
+    @app.get("/portal/analyses/<analysis_id>/download")
+    def portal_analysis_download(analysis_id: str):
+        identity = portal_identity()
+        if identity is None:
+            return error("Autenticazione richiesta", 401)
+        item = repo.get_analysis(identity.tenant_id, analysis_id)
+        if item is None:
+            return error("Analisi non trovata", 404)
+        report = str((item.get("result") or {}).get("final_report") or "Risultato non disponibile.")
+        return Response(
+            report,
+            mimetype="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f"attachment; filename=analisi-{analysis_id[:8]}.md"},
         )
 
     @app.get("/portal/knowledge")
     def portal_knowledge():
         identity = portal_identity()
         if identity is None:
-            session["message"] = "Login required to open Knowledge Intelligence."
+            session["message"] = "Accedi per aprire lo spazio della conoscenza."
             return redirect(url_for("portal"))
         return render_template("knowledge_workspace.html", identity=identity, csrf_token=csrf_token())
 
@@ -243,37 +287,37 @@ def create_app(
     def portal_knowledge_data():
         identity = portal_identity()
         if identity is None:
-            return error("Authentication required", 401)
+            return error("Autenticazione richiesta", 401)
         return jsonify(workspace_payload(identity))
 
     @app.post("/portal/api/knowledge/query")
     def portal_knowledge_query():
         identity = portal_identity()
         if identity is None:
-            return error("Authentication required", 401)
+            return error("Autenticazione richiesta", 401)
         if not valid_csrf():
-            return error("Invalid CSRF token", 400)
+            return error("Token CSRF non valido", 400)
         question = str((request.get_json(silent=True) or {}).get("question") or "").strip()
         if not question:
-            return error("question is required", 400)
+            return error("La domanda è obbligatoria", 400)
         return jsonify(answer_workspace_question(workspace_paths(identity)["graph"], question))
 
     @app.get("/portal/api/knowledge/nodes/<path:node_id>")
     def portal_knowledge_node(node_id: str):
         identity = portal_identity()
         if identity is None:
-            return error("Authentication required", 401)
+            return error("Autenticazione richiesta", 401)
         engine = KnowledgeGraphQueryEngine(path=workspace_paths(identity)["graph"])
         node = next((item for item in engine.find_nodes(limit=1000) if item["id"] == node_id), None)
         if node is None:
-            return error("Knowledge node not found", 404)
+            return error("Nodo della conoscenza non trovato", 404)
         return jsonify({"node": node, "neighbors": engine.get_neighbors(node_id, limit=100)})
 
     @app.get("/portal/api/knowledge/export")
     def portal_knowledge_export():
         identity = portal_identity()
         if identity is None:
-            return error("Authentication required", 401)
+            return error("Autenticazione richiesta", 401)
         return Response(
             __import__("json").dumps(workspace_payload(identity), ensure_ascii=False, indent=2, default=str),
             mimetype="application/json",
@@ -283,14 +327,14 @@ def create_app(
     @app.post("/portal/register")
     def portal_register():
         if not valid_csrf():
-            return "Invalid CSRF token", 400
+            return "Token CSRF non valido", 400
         if os.getenv("ALLOW_SELF_REGISTRATION", "true").lower() not in {"1", "true", "yes"}:
-            return "Self registration disabled", 403
+            return "Registrazione autonoma disabilitata", 403
         try:
             organization = request.form.get("organization", "").strip()
             email = request.form.get("email", "").strip().lower()
             if not organization or "@" not in email:
-                raise ValueError("Organization and valid email are required")
+                raise ValueError("Organizzazione ed email valida sono obbligatorie")
             created = repo.create_tenant_with_admin(
                 organization,
                 email,
@@ -298,7 +342,7 @@ def create_app(
             )
             identity = Identity(created["user_id"], created["tenant_id"], email, "admin")
             session["access_token"] = auth.issue_token(identity)
-            session["message"] = "Organization registered successfully."
+            session["message"] = "Organizzazione registrata correttamente."
         except Exception as exc:
             session["message"] = str(exc)
         return redirect(url_for("portal"))
@@ -309,11 +353,11 @@ def create_app(
         if identity is None:
             return redirect(url_for("portal"))
         if identity.role not in {"admin", "analyst"}:
-            return "Insufficient role", 403
+            return "Ruolo non autorizzato", 403
         if not valid_csrf():
-            return "Invalid CSRF token", 400
+            return "Token CSRF non valido", 400
         if not repo.request_cancel(identity.tenant_id, analysis_id):
-            session["message"] = "Analysis not found or no longer cancellable."
+            session["message"] = "Analisi non trovata o non più annullabile."
             return redirect(url_for("portal"))
         if job_queue is not None:
             try:
@@ -323,26 +367,26 @@ def create_app(
                     repo.update_analysis(identity.tenant_id, analysis_id, status="cancelled")
             except Exception:
                 pass
-        session["message"] = f"Cancellation requested for analysis {analysis_id[:8]}."
+        session["message"] = f"Annullamento richiesto per l'analisi {analysis_id[:8]}."
         return redirect(url_for("portal"))
 
     @app.post("/portal/login")
     def portal_login():
         if not valid_csrf():
-            return "Invalid CSRF token", 400
+            return "Token CSRF non valido", 400
         user = repo.get_user_by_email(request.form.get("tenant_id", ""), request.form.get("email", ""))
         if not user or not auth.verify_password(request.form.get("password", ""), user["password_hash"]):
-            session["message"] = "Invalid credentials."
+            session["message"] = "Credenziali non valide."
         else:
             identity = Identity(user["id"], user["tenant_id"], user["email"], user["role"])
             session["access_token"] = auth.issue_token(identity)
-            session["message"] = "Login completed."
+            session["message"] = "Accesso completato."
         return redirect(url_for("portal"))
 
     @app.post("/portal/logout")
     def portal_logout():
         if not valid_csrf():
-            return "Invalid CSRF token", 400
+            return "Token CSRF non valido", 400
         session.clear()
         return redirect(url_for("portal"))
 
@@ -352,13 +396,13 @@ def create_app(
         if identity is None:
             return redirect(url_for("portal"))
         if identity.role not in {"admin", "analyst"}:
-            return "Insufficient role", 403
+            return "Ruolo non autorizzato", 403
         if not valid_csrf():
-            return "Invalid CSRF token", 400
+            return "Token CSRF non valido", 400
         uploaded = request.files.get("dataset")
         description = request.form.get("description", "").strip()
         if not uploaded or not description:
-            session["message"] = "Description and dataset are required."
+            session["message"] = "La richiesta di analisi e il file sono obbligatori."
             return redirect(url_for("portal"))
         filename = uploaded.filename or "dataset"
         try:
@@ -369,10 +413,10 @@ def create_app(
                 frame = pd.read_excel(uploaded.stream)
                 source_type = "excel"
             else:
-                raise ValueError("Only CSV and Excel files are supported")
+                raise ValueError("Sono supportati soltanto file CSV ed Excel")
             max_records = max(1, int(os.getenv("API_MAX_RECORDS", "100000")))
             if len(frame) > max_records:
-                raise ValueError(f"Dataset exceeds configured limit {max_records}")
+                raise ValueError(f"Il dataset supera il limite configurato di {max_records} record")
             job_id, backend = enqueue_analysis(identity, {
                 "description": description,
                 "records": frame.where(pd.notna(frame), None).to_dict(orient="records"),
@@ -380,7 +424,7 @@ def create_app(
                 "dataset_name": filename,
                 "enable_narrative": request.form.get("enable_narrative") == "on",
             })
-            session["message"] = f"Analysis {job_id[:8]} queued through {backend}."
+            session["message"] = f"Analisi {job_id[:8]} avviata correttamente."
         except Exception as exc:
             session["message"] = str(exc)
         return redirect(url_for("portal"))
@@ -405,6 +449,7 @@ def create_app(
                     "enable_narrative": bool(body.get("enable_narrative", False)),
                 },
             )
+            ensure_usable_analysis(context, input_row_count=len(frame))
             repo.update_analysis(
                 identity.tenant_id, job_id, status="completed", result=serialize_context(context)
             )
@@ -428,7 +473,7 @@ def create_app(
         if failure:
             return failure
         item = repo.get_analysis(identity.tenant_id, analysis_id)
-        return jsonify(item) if item else error("Analysis not found", 404)
+        return jsonify(item) if item else error("Analisi non trovata", 404)
 
     @app.get("/api/v1/knowledge")
     def get_knowledge_workspace():
@@ -444,7 +489,7 @@ def create_app(
             return failure
         question = str((request.get_json(silent=True) or {}).get("question") or "").strip()
         if not question:
-            return error("question is required", 400)
+            return error("La domanda è obbligatoria", 400)
         return jsonify(answer_workspace_question(workspace_paths(identity)["graph"], question))
 
     @app.post("/api/v1/analyses/<analysis_id>/cancel")
@@ -453,7 +498,7 @@ def create_app(
         if failure:
             return failure
         if not repo.request_cancel(identity.tenant_id, analysis_id):
-            return error("Analysis not found or no longer cancellable", 409)
+            return error("Analisi non trovata o non più annullabile", 409)
         if job_queue is not None:
             try:
                 job = job_queue.fetch_job(analysis_id)

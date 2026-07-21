@@ -3,7 +3,10 @@ import re
 import time
 from pathlib import Path
 
+import pytest
+
 from platform_api.app import create_app
+from platform_api.jobs import ensure_usable_analysis
 from services.platform.auth import AuthService
 from services.platform.persistence import PlatformRepository
 from services.experience.experience_models import AnalyticalExperience
@@ -21,6 +24,18 @@ class FakeCoordinator:
             anomaly_detection_results={"anomaly_count": 1},
             product_intelligence={"status": "completed"},
         )
+
+
+def test_unusable_zero_row_report_is_not_publishable():
+    context = AgentContext(
+        user_input="Conta i contratti",
+        errors=["[DataProcessor] Colonna non disponibile per l'analisi: None"],
+        final_report="Report su 0 record",
+        dataframe_enriched_metadata={},
+    )
+
+    with pytest.raises(RuntimeError, match="analisi è stata interrotta"):
+        ensure_usable_analysis(context, input_row_count=100)
 
 
 def _register(client, organization, email):
@@ -130,8 +145,8 @@ def test_portal_register_excel_analysis_and_logout(tmp_path, monkeypatch):
         "email": "admin@portal.test",
         "password": "portal-password-1",
     }, follow_redirects=True)
-    assert b"Organization registered successfully" in registered.data
-    assert b"New analysis" in registered.data
+    assert b"Organizzazione registrata correttamente" in registered.data
+    assert b"Nuova analisi" in registered.data
     tenant_id = re.search(rb'<p><code>([^<]+)</code></p>', registered.data).group(1).decode()
 
     csrf = re.search(rb'name="csrf_token" value="([^"]+)"', registered.data).group(1).decode()
@@ -142,11 +157,22 @@ def test_portal_register_excel_analysis_and_logout(tmp_path, monkeypatch):
             "description": "Analyze regional revenue anomalies",
             "dataset": (io.BytesIO(workbook.read()), "sales-demo.xlsx"),
         }, content_type="multipart/form-data", follow_redirects=True)
-    assert b"queued through local_fallback" in submitted.data
+    assert b"avviata correttamente" in submitted.data
+
+    analysis_id = repository.list_analyses(tenant_id, 1)[0]["id"]
+    for _ in range(50):
+        if repository.get_analysis(tenant_id, analysis_id)["status"] == "completed":
+            break
+        time.sleep(0.01)
+    result_page = client.get(f"/portal/analyses/{analysis_id}")
+    assert result_page.status_code == 200
+    assert b"Report dell'analisi" in result_page.data
+    assert b"Completed report" in result_page.data
+    assert client.get(f"/portal/analyses/{analysis_id}/download").status_code == 200
 
     csrf = re.search(rb'name="csrf_token" value="([^"]+)"', submitted.data).group(1).decode()
     logged_out = client.post("/portal/logout", data={"csrf_token": csrf}, follow_redirects=True)
-    assert b"Register organization" in logged_out.data
+    assert b"Registra un'organizzazione" in logged_out.data
 
     csrf = re.search(rb'name="csrf_token" value="([^"]+)"', logged_out.data).group(1).decode()
     logged_in = client.post("/portal/login", data={
@@ -155,8 +181,8 @@ def test_portal_register_excel_analysis_and_logout(tmp_path, monkeypatch):
         "email": "admin@portal.test",
         "password": "portal-password-1",
     }, follow_redirects=True)
-    assert b"Login completed" in logged_in.data
-    assert b"Analysis history" in logged_in.data
+    assert b"Accesso completato" in logged_in.data
+    assert b"Storico analisi" in logged_in.data
 
 
 def test_portal_cookie_secure_flag_can_be_disabled_for_local_http(tmp_path, monkeypatch):
@@ -227,7 +253,7 @@ def test_tenant_knowledge_workspace_is_visible_queryable_and_isolated(tmp_path, 
         portal_session["access_token"] = first["access_token"]
     page = client.get("/portal/knowledge")
     assert page.status_code == 200
-    assert b"Knowledge Intelligence Workspace" in page.data
+    assert b"Spazio di intelligenza della conoscenza" in page.data
     assert b'/portal/static/knowledge-workspace.js' in page.data
     assert client.get("/portal/static/knowledge-workspace.js").status_code == 200
     assert client.get("/portal/api/knowledge/export").headers["Content-Disposition"].endswith(
