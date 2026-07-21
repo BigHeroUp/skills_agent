@@ -29,6 +29,7 @@ runtime_state = DashboardRuntimeState()
 app.index_string = DASH_INDEX_STRING
 app.layout = create_layout(runtime_state.processing_status)
 register_callbacks(app, runtime_state, logger)
+server = app.server
 
 
 @app.server.after_request

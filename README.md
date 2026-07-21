@@ -57,7 +57,7 @@ V2 architecture documents:
 - [Milestones](docs/MILESTONES.md)
 - [V2 Product Model](docs/V2_PRODUCT_MODEL.md)
 - [Production Hardening and Observability](docs/PRODUCTION_HARDENING.md)
-- [Platform Productization (Milestones 15–18)](docs/PLATFORM_PRODUCTIZATION.md)
+- [Platform Productization (Milestones 15–19)](docs/PLATFORM_PRODUCTIZATION.md)
 
 ---
 
@@ -318,12 +318,16 @@ compiles the code, builds the dashboard in a smoke test, and runs the full
 offline regression suite. Operational details and configuration are documented
 in [Production Hardening and Observability](docs/PRODUCTION_HARDENING.md).
 
-Milestones 15–18 turn that runtime into a deployable multi-user product. The
+Milestones 15–19 turn that runtime into a deployable multi-user product. The
 dashboard now renders Markdown reports and decision cards; anomalies detected
 by multiple statistical methods are presented once with full provenance. A
 tenant-isolated REST API adds signed authentication, RBAC, asynchronous jobs,
-SQLite/PostgreSQL persistence, health endpoints and metrics. Docker Compose
-ships PostgreSQL, Gunicorn API/dashboard services and an Nginx gateway. See
+SQLite/PostgreSQL persistence, health endpoints and metrics. A browser portal
+now supports organization registration, login/logout, CSV/Excel uploads,
+tenant-scoped history, progress and cancellation. Redis/RQ provides durable
+jobs, retry and a separate worker. Docker Compose ships PostgreSQL, Redis,
+Gunicorn API/dashboard services, the worker and an Nginx gateway. Two verified
+demo workbooks are available in `outputs/milestone19/`. See
 [Platform Productization](docs/PLATFORM_PRODUCTIZATION.md).
 
 ## Querying the Knowledge Graph

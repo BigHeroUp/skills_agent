@@ -160,6 +160,16 @@ offline-first di Analytical Intelligence.
   - gateway Nginx, health check e metriche;
   - secrets esterni, backup e guida operativa.
 
+### Milestone 19 - Integrated Portal and Durable Job Validation
+
+- Status: completed
+- Focus:
+  - registrazione organizzazione, login e logout via portale;
+  - upload CSV/Excel, storico tenant, progresso e annullamento;
+  - Redis/RQ con worker separato e retry;
+  - avvio Docker Desktop e collaudo reale PostgreSQL/Redis/Nginx;
+  - workbook dimostrativi Sales e Operations verificati.
+
 ## Planning Rule
 
 Ogni milestone futura deve rispettare tre vincoli:

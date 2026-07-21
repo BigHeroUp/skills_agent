@@ -12,7 +12,7 @@ from typing import Any, Iterator
 from uuid import uuid4
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class PlatformRepository:
@@ -62,6 +62,10 @@ class PlatformRepository:
         identity = "BIGSERIAL" if self.backend == "postgresql" else "INTEGER"
         with self.connect() as connection:
             cursor = connection.cursor()
+            if self.backend == "postgresql":
+                # Gunicorn may boot multiple workers simultaneously. Serialize DDL
+                # so PostgreSQL does not race while creating the same relation type.
+                cursor.execute("SELECT pg_advisory_xact_lock(734519002)")
             cursor.execute("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)")
             cursor.execute("CREATE TABLE IF NOT EXISTS tenants (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL)")
             cursor.execute("""CREATE TABLE IF NOT EXISTS users (
@@ -74,10 +78,13 @@ class PlatformRepository:
                 id TEXT UNIQUE NOT NULL, tenant_id TEXT NOT NULL, created_by TEXT NOT NULL,
                 description TEXT NOT NULL, source_type TEXT NOT NULL, status TEXT NOT NULL,
                 request_json TEXT NOT NULL, result_json TEXT, error TEXT,
+                progress INTEGER NOT NULL DEFAULT 0, cancel_requested INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
                 FOREIGN KEY(tenant_id) REFERENCES tenants(id), FOREIGN KEY(created_by) REFERENCES users(id)
             )""")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_analyses_tenant_created ON analyses(tenant_id, created_at)")
+            self._ensure_column(cursor, "analyses", "progress", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(cursor, "analyses", "cancel_requested", "INTEGER NOT NULL DEFAULT 0")
             cursor.execute(
                 f"INSERT INTO schema_migrations(version, applied_at) VALUES ({self.placeholder}, {self.placeholder}) ON CONFLICT(version) DO NOTHING",
                 (SCHEMA_VERSION, self._now()),
@@ -149,6 +156,33 @@ class PlatformRepository:
             )
             return cursor.rowcount == 1
 
+    def update_progress(self, tenant_id: str, analysis_id: str, progress: int, status: str = "processing") -> bool:
+        with self.connect() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                f"UPDATE analyses SET progress={self.placeholder}, status={self.placeholder}, updated_at={self.placeholder} WHERE tenant_id={self.placeholder} AND id={self.placeholder}",
+                (max(0, min(int(progress), 100)), status, self._now(), tenant_id, analysis_id),
+            )
+            return cursor.rowcount == 1
+
+    def request_cancel(self, tenant_id: str, analysis_id: str) -> bool:
+        with self.connect() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                f"UPDATE analyses SET cancel_requested=1, status={self.placeholder}, updated_at={self.placeholder} WHERE tenant_id={self.placeholder} AND id={self.placeholder} AND status IN ('queued','processing')",
+                ("cancelling", self._now(), tenant_id, analysis_id),
+            )
+            return cursor.rowcount == 1
+
+    def is_cancel_requested(self, tenant_id: str, analysis_id: str) -> bool:
+        with self.connect() as connection:
+            row = connection.cursor().execute(
+                f"SELECT cancel_requested FROM analyses WHERE tenant_id={self.placeholder} AND id={self.placeholder}",
+                (tenant_id, analysis_id),
+            ).fetchone()
+        value = row.get("cancel_requested") if isinstance(row, dict) else row[0] if row else 0
+        return bool(value)
+
     def get_analysis(self, tenant_id: str, analysis_id: str) -> dict[str, Any] | None:
         with self.connect() as connection:
             row = connection.cursor().execute(
@@ -165,7 +199,7 @@ class PlatformRepository:
     def list_analyses(self, tenant_id: str, limit: int = 50) -> list[dict[str, Any]]:
         with self.connect() as connection:
             rows = connection.cursor().execute(
-                f"SELECT id,description,source_type,status,error,created_at,updated_at FROM analyses WHERE tenant_id={self.placeholder} ORDER BY sequence DESC LIMIT {self.placeholder}",
+                f"SELECT id,description,source_type,status,progress,cancel_requested,error,created_at,updated_at FROM analyses WHERE tenant_id={self.placeholder} ORDER BY sequence DESC LIMIT {self.placeholder}",
                 (tenant_id, max(1, min(int(limit), 100))),
             ).fetchall()
         return [self._row(row) for row in rows]
@@ -192,3 +226,15 @@ class PlatformRepository:
     @staticmethod
     def _row(row) -> dict[str, Any] | None:
         return dict(row) if row is not None else None
+
+    def _ensure_column(self, cursor, table: str, column: str, definition: str) -> None:
+        if self.backend == "sqlite":
+            columns = {row[1] for row in cursor.execute(f"PRAGMA table_info({table})").fetchall()}
+        else:
+            rows = cursor.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name=%s",
+                (table,),
+            ).fetchall()
+            columns = {row.get("column_name") if isinstance(row, dict) else row[0] for row in rows}
+        if column not in columns:
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")

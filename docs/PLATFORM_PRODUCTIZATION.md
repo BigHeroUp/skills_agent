@@ -1,4 +1,4 @@
-# Platform Productization: Milestones 15–18
+# Platform Productization: Milestones 15–19
 
 Skills Agent now supports two complementary operating modes:
 
@@ -13,7 +13,8 @@ flowchart LR
     U[User or client] --> G[Nginx gateway]
     G --> D[Dash dashboard]
     G --> A[Authenticated REST API]
-    A --> J[Bounded analysis workers]
+    A --> R[(Redis queue)]
+    R --> J[RQ analysis worker]
     J --> C[Coordinator]
     C --> PI[Product Intelligence]
     A --> P[(PostgreSQL)]
@@ -76,6 +77,7 @@ Primary endpoints:
 | POST | `/api/v1/analyses` | admin, analyst |
 | GET | `/api/v1/analyses` | authenticated |
 | GET | `/api/v1/analyses/{id}` | authenticated, tenant-scoped |
+| POST | `/api/v1/analyses/{id}/cancel` | admin, analyst |
 | GET | `/health/live` | infrastructure |
 | GET | `/health/ready` | infrastructure |
 | GET | `/metrics` | infrastructure |
@@ -98,6 +100,8 @@ curl -X POST http://127.0.0.1:8080/api/v1/auth/register \
 The root `Dockerfile` runs as a non-root user. `docker-compose.yml` provides:
 
 - PostgreSQL 16 with a persistent volume;
+- Redis with append-only persistence and a no-eviction queue policy;
+- a separate RQ worker with retry and cancellation support;
 - Gunicorn API service;
 - single-process, threaded Gunicorn dashboard because dashboard state remains
   process-local;
@@ -118,9 +122,26 @@ Terminate TLS at the ingress/load balancer or extend the supplied Nginx server
 with managed certificates. Do not commit `.env.production`, `secrets/`, database
 files, logs, or backups.
 
-## Current production boundary
+## Milestone 19 — Integrated Portal, Durable Jobs and Deployment Validation
 
-The API job executor is bounded but process-local. A deployment requiring
-horizontal API scaling should replace it with a durable queue (for example
-Celery/RQ plus Redis) before increasing Gunicorn processes. The dashboard also
-keeps one process until its runtime state is moved into shared persistence.
+The product now exposes `/portal` through the same Nginx gateway as the Dash
+application. The portal supports organization registration, tenant-aware
+login/logout, CSV/Excel uploads, analysis history, progress and cancellation.
+Sessions use signed, HttpOnly, SameSite cookies and every mutation validates a
+CSRF token.
+
+Analysis jobs are queued in Redis and executed by an RQ worker. Jobs have
+bounded retries, progress updates and cooperative cancellation. PostgreSQL
+migrations are serialized with an advisory transaction lock so multi-worker
+Gunicorn startup cannot race during schema creation.
+
+Validated demo workbooks:
+
+- `outputs/milestone19/skills_agent_sales_demo.xlsx`;
+- `outputs/milestone19/skills_agent_operations_demo.xlsx`.
+
+The deployment validation covers registration, login, RBAC, tenant isolation,
+Excel-derived records, Redis/RQ execution, PostgreSQL persistence, dashboard
+and gateway health. The dashboard remains single-process until its interactive
+runtime state is moved into shared persistence; API jobs already support a
+separate durable worker.

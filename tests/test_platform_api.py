@@ -1,4 +1,7 @@
+import io
+import re
 import time
+from pathlib import Path
 
 from platform_api.app import create_app
 from services.platform.auth import AuthService
@@ -107,3 +110,90 @@ def test_api_limits_payload_and_adds_security_headers(tmp_path, monkeypatch):
     assert response.status_code == 413
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert client.get("/api/v1/openapi.json").get_json()["openapi"] == "3.0.3"
+
+
+def test_portal_register_excel_analysis_and_logout(tmp_path, monkeypatch):
+    monkeypatch.setenv("ALLOW_SELF_REGISTRATION", "true")
+    repository = PlatformRepository(f"sqlite:///{tmp_path / 'portal.db'}")
+    app = create_app(repository, AuthService("p" * 32), coordinator_factory=FakeCoordinator)
+    client = app.test_client()
+
+    page = client.get("/portal")
+    csrf = re.search(rb'name="csrf_token" value="([^"]+)"', page.data).group(1).decode()
+    registered = client.post("/portal/register", data={
+        "csrf_token": csrf,
+        "organization": "Portal Corp",
+        "email": "admin@portal.test",
+        "password": "portal-password-1",
+    }, follow_redirects=True)
+    assert b"Organization registered successfully" in registered.data
+    assert b"New analysis" in registered.data
+    tenant_id = re.search(rb'<p><code>([^<]+)</code></p>', registered.data).group(1).decode()
+
+    csrf = re.search(rb'name="csrf_token" value="([^"]+)"', registered.data).group(1).decode()
+    workbook_path = Path(__file__).parents[1] / "outputs" / "milestone19" / "skills_agent_sales_demo.xlsx"
+    with workbook_path.open("rb") as workbook:
+        submitted = client.post("/portal/analyses", data={
+            "csrf_token": csrf,
+            "description": "Analyze regional revenue anomalies",
+            "dataset": (io.BytesIO(workbook.read()), "sales-demo.xlsx"),
+        }, content_type="multipart/form-data", follow_redirects=True)
+    assert b"queued through local_fallback" in submitted.data
+
+    csrf = re.search(rb'name="csrf_token" value="([^"]+)"', submitted.data).group(1).decode()
+    logged_out = client.post("/portal/logout", data={"csrf_token": csrf}, follow_redirects=True)
+    assert b"Register organization" in logged_out.data
+
+    csrf = re.search(rb'name="csrf_token" value="([^"]+)"', logged_out.data).group(1).decode()
+    logged_in = client.post("/portal/login", data={
+        "csrf_token": csrf,
+        "tenant_id": tenant_id,
+        "email": "admin@portal.test",
+        "password": "portal-password-1",
+    }, follow_redirects=True)
+    assert b"Login completed" in logged_in.data
+    assert b"Analysis history" in logged_in.data
+
+
+class FakeQueuedJob:
+    def __init__(self):
+        self.cancelled = False
+
+    def cancel(self):
+        self.cancelled = True
+
+
+class FakeQueue:
+    def __init__(self):
+        self.enqueued = []
+        self.jobs = {}
+
+    def enqueue(self, function, *args, **kwargs):
+        job = FakeQueuedJob()
+        self.enqueued.append((function, args, kwargs))
+        self.jobs[kwargs["job_id"]] = job
+        return job
+
+    def fetch_job(self, job_id):
+        return self.jobs.get(job_id)
+
+
+def test_redis_queue_submission_and_cancel_contract(tmp_path, monkeypatch):
+    monkeypatch.setenv("ALLOW_SELF_REGISTRATION", "true")
+    repository = PlatformRepository(f"sqlite:///{tmp_path / 'queue.db'}")
+    queue = FakeQueue()
+    app = create_app(repository, AuthService("q" * 32), coordinator_factory=FakeCoordinator, job_queue=queue)
+    client = app.test_client()
+    admin = _register(client, "Queue Corp", "admin@queue.test")
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    created = client.post("/api/v1/analyses", json={
+        "description": "Analyze queued data", "records": [{"x": 1}]
+    }, headers=headers)
+    analysis_id = created.get_json()["id"]
+    cancelled = client.post(f"/api/v1/analyses/{analysis_id}/cancel", headers=headers)
+
+    assert created.get_json()["queue"] == "redis_rq"
+    assert len(queue.enqueued) == 1
+    assert cancelled.status_code == 202
+    assert queue.jobs[analysis_id].cancelled is True
