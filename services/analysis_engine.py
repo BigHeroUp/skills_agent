@@ -25,6 +25,7 @@ class AnalysisPlan:
     aggregation: str | None = None
     limit: int | None = None
     related_columns: list[str] = field(default_factory=list)
+    semantic_groups: list[dict[str, Any]] = field(default_factory=list)
     description: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -35,6 +36,7 @@ class AnalysisPlan:
         valid_keys = set(cls.__dataclass_fields__.keys())
         values = {key: data.get(key) for key in valid_keys}
         values["related_columns"] = list(values.get("related_columns") or [])
+        values["semantic_groups"] = list(values.get("semantic_groups") or [])
         return cls(**values)
 
 
@@ -221,10 +223,12 @@ class AnalysisEngine:
         count_terms = ["conteggio", "occorren", "quanti", "numero", "totale", "distribuzione"]
         if any(term in request for term in count_terms):
             ranked = self._rank_categorical_columns(df, request)
+            target = ranked[0] if ranked else self._find_categorical_column(df, request)
             return AnalysisPlan(
                 analysis_type="count_occurrences",
-                target_column=ranked[0] if ranked else self._find_categorical_column(df, request),
+                target_column=target,
                 related_columns=ranked[1:4],
+                semantic_groups=self._infer_semantic_groups(request, df, target),
                 limit=limit,
                 description="Conteggio occorrenze calcolato dal dataframe.",
             )
@@ -259,8 +263,11 @@ class AnalysisEngine:
     def _count_occurrences(self, df: pd.DataFrame, plan: AnalysisPlan) -> dict[str, Any]:
         column = self._require_column(df, plan.target_column or self._find_categorical_column(df, ""))
         limit = plan.limit or 10
-        counts = df[column].fillna("N/D").astype(str).value_counts(dropna=False).head(limit)
+        raw_counts = df[column].fillna("N/D").astype(str).value_counts(dropna=False).head(limit)
         related_counts = []
+        cross_tabs = []
+        grouped_series, applied_groups = self._apply_semantic_groups(df[column], plan.semantic_groups)
+        counts = grouped_series.value_counts(dropna=False).head(limit) if applied_groups else raw_counts
         for related in plan.related_columns or []:
             if related == column or related not in df.columns:
                 continue
@@ -273,6 +280,8 @@ class AnalysisEngine:
                 ],
                 "unique_values": int(df[related].nunique(dropna=True)),
             })
+            if int(df[related].nunique(dropna=True)) <= min(50, max(10, len(df) // 10)):
+                cross_tabs.append(self._build_cross_tab(grouped_series, df[related], column, related))
         return {
             "target_column": str(column),
             "total_records": int(len(df)),
@@ -282,6 +291,119 @@ class AnalysisEngine:
             ],
             "unique_values": int(df[column].nunique(dropna=True)),
             "related_counts": related_counts,
+            "cross_tabs": cross_tabs,
+            "semantic_groups": applied_groups,
+            "raw_counts": [
+                {"value": self._json_safe(index), "count": int(value)}
+                for index, value in raw_counts.items()
+            ],
+        }
+
+    def _infer_semantic_groups(
+        self, request: str, df: pd.DataFrame, target_column: str | None
+    ) -> list[dict[str, Any]]:
+        if not target_column or target_column not in df.columns:
+            return []
+        normalized_request = self._normalize(request)
+        values = {
+            self._normalize(str(value)): str(value)
+            for value in df[target_column].dropna().unique()
+        }
+        for normalized_value, source_value in sorted(values.items(), key=lambda item: -len(item[0])):
+            if not normalized_value or normalized_value.startswith("non "):
+                continue
+            value_pattern = self._category_value_pattern(normalized_value)
+            negative_patterns = (
+                rf"\bnon\s+{value_pattern}\b",
+                rf"\bsenza\s+{value_pattern}\b",
+                rf"\bdivers\w*\s+da\s+{value_pattern}\b",
+                rf"\besclus\w*\s+{value_pattern}\b",
+            )
+            if not re.search(rf"\b{value_pattern}\b", normalized_request):
+                continue
+            if not any(re.search(pattern, normalized_request) for pattern in negative_patterns):
+                continue
+            complementary_values = [
+                value for key, value in values.items() if key != normalized_value
+            ]
+            explicit_complement = values.get(f"non {normalized_value}")
+            negative_label = (
+                explicit_complement
+                if explicit_complement and complementary_values == [explicit_complement]
+                else f"NON {source_value}"
+            )
+            return [
+                {"label": source_value, "operator": "include", "values": [source_value]},
+                {
+                    "label": negative_label,
+                    "operator": "exclude",
+                    "values": [source_value],
+                },
+            ]
+        return []
+
+    def _category_value_pattern(self, normalized_value: str) -> str:
+        tokens = normalized_value.split()
+        if len(tokens) != 1:
+            return r"\s+".join(re.escape(token) for token in tokens)
+        token = tokens[0]
+        stem = token[:-1] if len(token) > 4 and token[-1] in "aeio" else token
+        return re.escape(stem) + r"\w*"
+
+    def _apply_semantic_groups(
+        self, series: pd.Series, definitions: list[dict[str, Any]]
+    ) -> tuple[pd.Series, list[dict[str, Any]]]:
+        raw = series.fillna("N/D").astype(str)
+        if not definitions:
+            return raw, []
+        grouped = pd.Series("ALTRO", index=raw.index, dtype="object")
+        applied = []
+        assigned = pd.Series(False, index=raw.index)
+        for definition in definitions:
+            label = str(definition.get("label") or "ALTRO")
+            values = [str(value) for value in definition.get("values") or []]
+            operator = definition.get("operator") or "include"
+            mask = ~raw.isin(values) if operator == "exclude" else raw.isin(values)
+            mask &= ~assigned
+            grouped.loc[mask] = label
+            assigned |= mask
+            applied.append({
+                "label": label,
+                "operator": operator,
+                "values": values,
+                "source_values": sorted(raw.loc[mask].unique().tolist()),
+                "count": int(mask.sum()),
+            })
+        return grouped, applied
+
+    def _build_cross_tab(
+        self,
+        primary: pd.Series,
+        related: pd.Series,
+        primary_column: str,
+        related_column: str,
+    ) -> dict[str, Any]:
+        related_values = related.fillna("N/D").astype(str)
+        table = pd.crosstab(primary, related_values, dropna=False)
+        rows = []
+        for row_label, values in table.iterrows():
+            counts = {str(key): int(value) for key, value in values.items()}
+            total = int(values.sum())
+            rows.append({
+                "value": str(row_label),
+                "total": total,
+                "counts": counts,
+                "shares_percent": {
+                    key: round(value / total * 100, 2) if total else 0.0
+                    for key, value in counts.items()
+                },
+            })
+        return {
+            "primary_column": str(primary_column),
+            "related_column": str(related_column),
+            "columns": [str(value) for value in table.columns],
+            "rows": rows,
+            "total_records": int(len(primary)),
         }
 
     def _top_n(self, df: pd.DataFrame, plan: AnalysisPlan) -> dict[str, Any]:

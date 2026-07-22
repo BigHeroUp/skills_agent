@@ -139,6 +139,53 @@ def test_business_report_filters_uninformative_segments():
     assert "PYID" not in analysis["final_report"]
 
 
+def test_categorical_cross_report_is_answer_first_and_omits_irrelevant_sections():
+    processed_data = _processed_data()
+    processed_data["analysis_plan"] = {
+        "analysis_type": "count_occurrences",
+        "target_column": "PRIORITA",
+        "related_columns": ["CANALE"],
+    }
+    processed_data["deterministic_results"] = {
+        "analysis_type": "count_occurrences",
+        "target_column": "PRIORITA",
+        "counts": [
+            {"value": "CRITICA", "count": 5},
+            {"value": "NON CRITICA", "count": 3},
+        ],
+        "cross_tabs": [{
+            "primary_column": "PRIORITA",
+            "related_column": "CANALE",
+            "columns": ["APP", "N/D", "WEB"],
+            "rows": [
+                {"value": "CRITICA", "total": 5, "counts": {"APP": 3, "N/D": 1, "WEB": 1}},
+                {"value": "NON CRITICA", "total": 3, "counts": {"APP": 1, "N/D": 1, "WEB": 1}},
+            ],
+            "total_records": 8,
+        }],
+        "semantic_groups": [{
+            "label": "NON CRITICA",
+            "operator": "exclude",
+            "values": ["CRITICA"],
+            "source_values": ["ALTA", "MEDIA"],
+            "count": 3,
+        }],
+    }
+
+    report = SeniorDataAnalystEngine().analyze(
+        processed_data,
+        user_request="Quanti elementi sono CRITICI, non CRITICI e il relativo CANALE?",
+    )["final_report"]
+
+    assert "## Risposta" in report
+    assert "## PRIORITA × CANALE" in report
+    assert "| CRITICA | 3 | 1 | 1 | **5** |" in report
+    assert "stati originali osservati: ALTA, MEDIA" in report
+    assert "## KPI principali" not in report
+    assert "## Concentrazione temporale" not in report
+    assert "## Possibili cause radice" not in report
+
+
 def test_handles_time_trend_and_segmentation():
     analysis = SeniorDataAnalystEngine().analyze(_processed_data())
 

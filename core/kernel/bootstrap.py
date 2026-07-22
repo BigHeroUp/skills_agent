@@ -15,12 +15,14 @@ def create_default_kernel(
     """Create the default experimental kernel with built-in capabilities."""
 
     from core.capabilities import (
+        AnalyticalCapabilityProvider,
         ExperienceCapabilityProvider,
         KnowledgeGraphCapabilityProvider,
     )
 
     kernel = VeraxisKernel()
     kernel.register_capability(HealthCheckCapability(kernel))
+    AnalyticalCapabilityProvider().register(kernel.registry)
     KnowledgeGraphCapabilityProvider(path=path).register(kernel.registry)
     ExperienceCapabilityProvider(
         kg_path=path,

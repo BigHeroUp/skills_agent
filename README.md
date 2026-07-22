@@ -354,6 +354,13 @@ prima delle aggregazioni numeriche. Un controllo finale rifiuta ogni elaborazion
 che riceve righe ma perde il dataframe durante il processo, evitando report
 fuorvianti basati su zero record.
 
+La Milestone 23 estende i conteggi categoriali con segmentazioni
+multidimensionali deterministiche. Le richieste che collegano una dimensione
+principale a una correlata producono tabelle incrociate con totali e quote; i
+gruppi business derivati da una categoria e dal suo complemento espongono la
+regola e i valori originali inclusi. Il report adotta un formato answer-first ed evita
+sezioni statistiche non pertinenti alla domanda categoriale.
+
 ## Querying the Knowledge Graph
 
 The local graph can be queried deterministically without OpenAI through the
@@ -527,6 +534,10 @@ Kernel Runtime Foundation status:
 - no runtime migration from Coordinator to Kernel has been applied yet.
 - experimental capability discovery now includes `knowledge_graph.query` and
   `experience.query`;
+- `analysis.categorical_count` exposes deterministic categorical counts,
+  semantic groups and cross-tabs through the Kernel contract;
+- a shadow parity runner compares Kernel output with the current production
+  analytical engine before any cutover;
 - analytical experience remains deterministic, offline-first, and privacy-safe.
 
 ---
