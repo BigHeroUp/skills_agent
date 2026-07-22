@@ -27,6 +27,7 @@ def execute_analysis_job(
     try:
         frame = pd.DataFrame(body["records"])
         tenant_root = Path(os.getenv("TENANT_DATA_ROOT", "data/tenants")) / identity.tenant_id
+        tenant_root.mkdir(parents=True, exist_ok=True)
 
         def progress(agent_name: str, value: int):
             if repository.is_cancel_requested(identity.tenant_id, job_id):

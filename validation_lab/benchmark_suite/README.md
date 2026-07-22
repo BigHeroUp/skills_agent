@@ -1,5 +1,9 @@
 # Benchmark Suite
 
+La suite eseguibile corrente è definita in `../functional_benchmark.py` e avviabile con
+`scripts/run_beta_functional_benchmark.py`. Contiene 30 casi sintetici, sei domini e
+contratti attesi espliciti; nessun risultato atteso viene derivato dall'output osservato.
+
 La benchmark suite definisce domini non lavorativi per validare Skills Agent senza dipendere da dati aziendali. Ogni dominio deve coprire ingestion, comprensione semantica, planning, statistiche, report e UX quando applicabile.
 
 ## Finance personale
@@ -97,4 +101,3 @@ La benchmark suite definisce domini non lavorativi per validare Skills Agent sen
 - KPI attesi: uptime, P95 valore, outlier count, device critici.
 - Grafici attesi: serie temporale, heatmap device, distribuzione valori.
 - Errori da intercettare: device ID come metrica, timestamp mancanti, valori impossibili non segnalati.
-

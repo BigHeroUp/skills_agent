@@ -244,3 +244,21 @@ Ogni milestone documenta:
   - validazione degli input non validi;
   - parità completa su fixture sintetiche neutrali;
   - regressione completa, incluso il contratto Redis/RQ.
+
+## Milestone 25 - Private Beta Readiness
+
+- Obiettivo:
+  rendere la private beta governata da evidenze misurabili, lifecycle dei dati
+  esplicito e osservabilità operativa.
+- Status: completed
+- Criteri completamento:
+  - feedback tenant-scoped e metriche aggregate di qualità;
+  - cancellazione amministrativa e retention dry-run/apply per job terminali;
+  - backup e restore SQLite documentati e verificabili;
+  - probe HTTP bounded per carico e concorrenza;
+  - evaluator deterministico con soglie per casi, domini, accuratezza, sicurezza,
+    operations e bug critici;
+  - runbook privacy, beta e incident response.
+- Nota:
+  il completamento della milestone abilita il processo di qualificazione, ma la
+  beta resta `not_ready` finché le evidenze minime non sono state raccolte.

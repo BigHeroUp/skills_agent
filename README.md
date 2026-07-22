@@ -361,6 +361,12 @@ gruppi business derivati da una categoria e dal suo complemento espongono la
 regola e i valori originali inclusi. Il report adotta un formato answer-first ed evita
 sezioni statistiche non pertinenti alla domanda categoriale.
 
+La Milestone 25 introduce il processo di qualificazione per la private beta:
+feedback tenant-scoped, metriche aggregate, cancellazione e retention, prova di
+restore, probe bounded di concorrenza e gate deterministici basati su evidenze.
+Il framework non dichiara automaticamente la piattaforma pronta: senza il
+campione minimo di casi e feedback lo stato resta `not_ready`.
+
 ## Querying the Knowledge Graph
 
 The local graph can be queried deterministically without OpenAI through the

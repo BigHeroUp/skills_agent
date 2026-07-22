@@ -1,0 +1,7 @@
+{
+  "validation_cases": {"total": 0, "domains": 0},
+  "feedback": {"total": 0, "correct": 0, "partial": 0, "incorrect": 0},
+  "load_test": {"concurrency": 0, "requests": 0, "error_rate": 1.0, "p95_ms": null},
+  "operations": {"backup_restore_passed": false, "retention_delete_passed": false, "monitoring_passed": false},
+  "safety": {"tenant_isolation_passed": false, "unsupported_requests_passed": false, "open_critical_bugs": 0}
+}

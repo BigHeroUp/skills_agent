@@ -26,6 +26,15 @@ class FakeCoordinator:
         )
 
 
+class CapturingCoordinator(FakeCoordinator):
+    def __init__(self):
+        self.metadata = None
+
+    def run(self, description, metadata):
+        self.metadata = metadata
+        return super().run(description, metadata)
+
+
 def test_unusable_zero_row_report_is_not_publishable():
     context = AgentContext(
         user_input="Conta i contratti",
@@ -85,6 +94,35 @@ def test_authenticated_async_analysis_and_tenant_isolation(tmp_path, monkeypatch
     assert b"skills_agent_analyses_completed_total 1" in client.get("/metrics").data
 
 
+def test_api_normalizes_custom_record_source_and_creates_tenant_workspace(tmp_path, monkeypatch):
+    monkeypatch.setenv("ALLOW_SELF_REGISTRATION", "true")
+    tenant_data_root = tmp_path / "tenant-data"
+    monkeypatch.setenv("TENANT_DATA_ROOT", str(tenant_data_root))
+    repository = PlatformRepository(f"sqlite:///{tmp_path / 'source.db'}")
+    coordinator = CapturingCoordinator()
+    app = create_app(repository, AuthService("n" * 32), coordinator_factory=lambda: coordinator)
+    client = app.test_client()
+    admin = _register(client, "Source Corp", "admin@source.test")
+
+    response = client.post(
+        "/api/v1/analyses",
+        json={
+            "description": "Analyze synthetic records",
+            "records": [{"value": 1}],
+            "source_type": "client_specific_label",
+        },
+        headers={"Authorization": f"Bearer {admin['access_token']}"},
+    )
+    analysis_id = response.get_json()["id"]
+    for _ in range(50):
+        if repository.get_analysis(admin["identity"]["tenant_id"], analysis_id)["status"] == "completed":
+            break
+        time.sleep(0.01)
+
+    assert coordinator.metadata["source_type"] == "csv"
+    assert (tenant_data_root / admin["identity"]["tenant_id"]).is_dir()
+
+
 def test_viewer_cannot_submit_analysis(tmp_path, monkeypatch):
     monkeypatch.setenv("ALLOW_SELF_REGISTRATION", "true")
     repository = PlatformRepository(f"sqlite:///{tmp_path / 'roles.db'}")
@@ -110,6 +148,35 @@ def test_viewer_cannot_submit_analysis(tmp_path, monkeypatch):
         headers={"Authorization": f"Bearer {login['access_token']}"},
     )
     assert forbidden.status_code == 403
+
+
+def test_feedback_metrics_and_admin_delete_are_tenant_scoped(tmp_path, monkeypatch):
+    monkeypatch.setenv("ALLOW_SELF_REGISTRATION", "true")
+    repository = PlatformRepository(f"sqlite:///{tmp_path / 'feedback.db'}")
+    app = create_app(repository, AuthService("f" * 32), coordinator_factory=FakeCoordinator)
+    client = app.test_client()
+    first = _register(client, "First", "admin@first.test")
+    second = _register(client, "Second", "admin@second.test")
+    first_headers = {"Authorization": f"Bearer {first['access_token']}"}
+    second_headers = {"Authorization": f"Bearer {second['access_token']}"}
+    created = client.post("/api/v1/analyses", json={
+        "description": "Synthetic analysis", "records": [{"value": 1}],
+    }, headers=first_headers)
+    analysis_id = created.get_json()["id"]
+
+    feedback = client.post(f"/api/v1/analyses/{analysis_id}/feedback", json={
+        "rating": 5, "outcome": "correct", "notes": "Clear answer",
+    }, headers=first_headers)
+    foreign_feedback = client.post(f"/api/v1/analyses/{analysis_id}/feedback", json={
+        "rating": 1, "outcome": "incorrect",
+    }, headers=second_headers)
+
+    assert feedback.status_code == 201
+    assert feedback.get_json()["summary"]["average_rating"] == 5.0
+    assert foreign_feedback.status_code == 400
+    assert b"skills_agent_feedback_total 1" in client.get("/metrics").data
+    assert client.delete(f"/api/v1/analyses/{analysis_id}", headers=second_headers).status_code == 404
+    assert client.delete(f"/api/v1/analyses/{analysis_id}", headers=first_headers).status_code == 204
 
 
 def test_api_limits_payload_and_adds_security_headers(tmp_path, monkeypatch):

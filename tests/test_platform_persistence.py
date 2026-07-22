@@ -31,4 +31,34 @@ def test_repository_isolates_analyses_by_tenant_and_backs_up(tmp_path):
     assert repository.list_analyses(first["tenant_id"])[0]["progress"] == 65
     assert repository.list_analyses(second["tenant_id"]) == []
     assert repository.backup(tmp_path / "backup.db").exists()
-    assert repository.readiness()["schema_version"] == 2
+    assert repository.readiness()["schema_version"] == 3
+
+    restored = PlatformRepository(f"sqlite:///{tmp_path / 'restored.db'}")
+    restored.restore(tmp_path / "backup.db")
+    assert restored.get_analysis(first["tenant_id"], analysis_id)["request"]["record_count"] == 1
+
+
+def test_feedback_retention_and_delete_remain_tenant_scoped(tmp_path):
+    repository = PlatformRepository(f"sqlite:///{tmp_path / 'lifecycle.db'}")
+    first = repository.create_tenant_with_admin("First", "admin@first.test", "hash")
+    second = repository.create_tenant_with_admin("Second", "admin@second.test", "hash")
+    analysis_id = repository.create_analysis(first["tenant_id"], first["user_id"], {
+        "description": "Synthetic analysis", "records": [{"value": 1}],
+    })
+    repository.update_analysis(first["tenant_id"], analysis_id, status="completed", result={"ok": True})
+
+    feedback = repository.record_analysis_feedback(
+        first["tenant_id"], analysis_id, first["user_id"],
+        rating=4, outcome="correct", notes="Useful result",
+    )
+    assert feedback["rating"] == 4
+    assert repository.feedback_summary(first["tenant_id"])["outcomes"] == {"correct": 1}
+    assert repository.feedback_summary(second["tenant_id"])["total"] == 0
+    assert repository.delete_analysis(second["tenant_id"], analysis_id) is False
+    assert repository.get_analysis(first["tenant_id"], analysis_id) is not None
+
+    with repository.connect() as connection:
+        connection.execute("UPDATE analyses SET created_at=? WHERE id=?", ("2020-01-01T00:00:00+00:00", analysis_id))
+    assert len(repository.retention_candidates("2021-01-01T00:00:00+00:00")) == 1
+    assert repository.purge_analyses_before("2021-01-01T00:00:00+00:00") == 1
+    assert repository.get_analysis(first["tenant_id"], analysis_id) is None

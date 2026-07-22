@@ -95,6 +95,26 @@ class AnalysisEngine:
             }
 
         selected_plan, plan_metadata = self._coerce_or_infer_plan(user_request, df, source_type, plan)
+        if plan is None and plan_metadata["plan_source"] == "new" and selected_plan.description.startswith("Piano fallback"):
+            return {
+                "analysis_plan": selected_plan.to_dict(),
+                "deterministic_results": {
+                    "status": "unsupported",
+                    "message": "La richiesta non identifica un intento analitico supportato. Specificare conteggio, distribuzione, aggregazione, trend, valori mancanti o duplicati.",
+                },
+                "execution_summary": {
+                    "status": "unsupported",
+                    "source": "analysis_engine",
+                    "row_count": int(len(df)),
+                    "columns_used": [],
+                    "analysis_pattern_id": None,
+                    "plan_source": "new",
+                    "confidence_score": 0.0,
+                    "similarity_score": None,
+                    "similarity_method": None,
+                },
+                **plan_metadata,
+            }
         results = self.execute_plan(df, selected_plan)
         columns_used = self._columns_used(selected_plan)
         if plan_metadata["plan_source"] == "new":
@@ -220,7 +240,7 @@ class AnalysisEngine:
                 description=f"Top {limit} valori calcolati dal dataframe.",
             )
 
-        count_terms = ["conteggio", "occorren", "quanti", "numero", "totale", "distribuzione"]
+        count_terms = ["conta", "conteggio", "occorren", "quanti", "numero", "totale", "distribuzione"]
         if any(term in request for term in count_terms):
             ranked = self._rank_categorical_columns(df, request)
             target = ranked[0] if ranked else self._find_categorical_column(df, request)

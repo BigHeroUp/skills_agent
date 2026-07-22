@@ -231,6 +231,16 @@ offline-first di Analytical Intelligence.
   - eventi e metadata Kernel preservati senza migrare il portale o i job;
   - promozione futura subordinata alla parità deterministica verificata.
 
+### Milestone 25 - Private Beta Readiness
+
+- Status: completed
+- Focus:
+  - quality gate deterministici e evidence-first;
+  - feedback persistente, metriche aggregate e zero dati sensibili nelle label;
+  - cancellazione, retention, backup e restore operativi;
+  - probe bounded di carico/concorrenza e runbook incidenti;
+  - nessuna dichiarazione di readiness senza il campione minimo richiesto.
+
 ## Planning Rule
 
 Ogni milestone futura deve rispettare tre vincoli:
