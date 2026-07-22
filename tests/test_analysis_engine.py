@@ -43,6 +43,17 @@ def test_count_occurrences_by_category_is_deterministic_and_json_safe():
     json.dumps(payload)
 
 
+def test_unsupported_request_abstains_instead_of_running_arbitrary_fallback():
+    payload = AnalysisEngine().run(
+        "Sorprendimi con questi dati",
+        pd.DataFrame({"categoria": ["A", "B"]}),
+    )
+
+    assert payload["execution_summary"]["status"] == "unsupported"
+    assert payload["deterministic_results"]["status"] == "unsupported"
+    assert "Specificare" in payload["deterministic_results"]["message"]
+
+
 def test_business_count_request_selects_contract_status_and_related_antenna_counts():
     df = pd.DataFrame({
         "CONTRATTOID": [1, 2, 3, 4],

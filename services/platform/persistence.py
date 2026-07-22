@@ -12,7 +12,7 @@ from typing import Any, Iterator
 from uuid import uuid4
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class PlatformRepository:
@@ -83,6 +83,17 @@ class PlatformRepository:
                 FOREIGN KEY(tenant_id) REFERENCES tenants(id), FOREIGN KEY(created_by) REFERENCES users(id)
             )""")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_analyses_tenant_created ON analyses(tenant_id, created_at)")
+            cursor.execute(f"""CREATE TABLE IF NOT EXISTS analysis_feedback (
+                sequence {identity} PRIMARY KEY{'' if self.backend == 'postgresql' else ' AUTOINCREMENT'},
+                id TEXT UNIQUE NOT NULL, tenant_id TEXT NOT NULL, analysis_id TEXT NOT NULL,
+                user_id TEXT NOT NULL, rating INTEGER NOT NULL, outcome TEXT NOT NULL,
+                notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                UNIQUE(tenant_id, analysis_id, user_id),
+                FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+                FOREIGN KEY(analysis_id) REFERENCES analyses(id),
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )""")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_feedback_tenant_created ON analysis_feedback(tenant_id, created_at)")
             self._ensure_column(cursor, "analyses", "progress", "INTEGER NOT NULL DEFAULT 0")
             self._ensure_column(cursor, "analyses", "cancel_requested", "INTEGER NOT NULL DEFAULT 0")
             cursor.execute(
@@ -204,6 +215,75 @@ class PlatformRepository:
             ).fetchall()
         return [self._row(row) for row in rows]
 
+    def record_analysis_feedback(self, tenant_id: str, analysis_id: str, user_id: str, *, rating: int, outcome: str, notes: str = "") -> dict[str, Any]:
+        if int(rating) not in range(1, 6):
+            raise ValueError("Rating must be between 1 and 5")
+        if outcome not in {"correct", "partial", "incorrect"}:
+            raise ValueError("Unsupported feedback outcome")
+        if self.get_analysis(tenant_id, analysis_id) is None:
+            raise ValueError("Analysis not found")
+        now, feedback_id = self._now(), uuid4().hex
+        with self.connect() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                f"""INSERT INTO analysis_feedback(id,tenant_id,analysis_id,user_id,rating,outcome,notes,created_at,updated_at)
+                VALUES ({','.join([self.placeholder] * 9)})
+                ON CONFLICT(tenant_id,analysis_id,user_id) DO UPDATE SET
+                    rating=excluded.rating,outcome=excluded.outcome,notes=excluded.notes,updated_at=excluded.updated_at""",
+                (feedback_id, tenant_id, analysis_id, user_id, int(rating), outcome, str(notes or "").strip()[:1000], now, now),
+            )
+            row = cursor.execute(
+                f"SELECT * FROM analysis_feedback WHERE tenant_id={self.placeholder} AND analysis_id={self.placeholder} AND user_id={self.placeholder}",
+                (tenant_id, analysis_id, user_id),
+            ).fetchone()
+        return self._row(row)
+
+    def feedback_summary(self, tenant_id: str | None = None) -> dict[str, Any]:
+        where, params = "", ()
+        if tenant_id:
+            where, params = f" WHERE tenant_id={self.placeholder}", (tenant_id,)
+        with self.connect() as connection:
+            cursor = connection.cursor()
+            aggregate = cursor.execute(f"SELECT COUNT(*) AS total, AVG(rating) AS average_rating FROM analysis_feedback{where}", params).fetchone()
+            outcomes = cursor.execute(f"SELECT outcome, COUNT(*) AS total FROM analysis_feedback{where} GROUP BY outcome", params).fetchall()
+        aggregate = self._row(aggregate) or {}
+        normalized_outcomes = [self._row(row) for row in outcomes]
+        return {
+            "total": int(aggregate.get("total") or 0),
+            "average_rating": round(float(aggregate.get("average_rating") or 0.0), 2),
+            "outcomes": {str(row["outcome"]): int(row["total"]) for row in normalized_outcomes},
+        }
+
+    def analysis_status_summary(self) -> dict[str, int]:
+        with self.connect() as connection:
+            rows = connection.cursor().execute(
+                "SELECT status, COUNT(*) AS total FROM analyses GROUP BY status"
+            ).fetchall()
+        normalized = [self._row(row) for row in rows]
+        return {str(row["status"]): int(row["total"]) for row in normalized}
+
+    def delete_analysis(self, tenant_id: str, analysis_id: str) -> bool:
+        with self.connect() as connection:
+            cursor = connection.cursor()
+            cursor.execute(f"DELETE FROM analysis_feedback WHERE tenant_id={self.placeholder} AND analysis_id={self.placeholder}", (tenant_id, analysis_id))
+            cursor.execute(f"DELETE FROM analyses WHERE tenant_id={self.placeholder} AND id={self.placeholder}", (tenant_id, analysis_id))
+            return cursor.rowcount == 1
+
+    def retention_candidates(self, before: str, tenant_id: str | None = None) -> list[dict[str, Any]]:
+        clauses = [f"created_at < {self.placeholder}", "status IN ('completed','failed','cancelled')"]
+        params: list[Any] = [before]
+        if tenant_id:
+            clauses.append(f"tenant_id={self.placeholder}")
+            params.append(tenant_id)
+        with self.connect() as connection:
+            rows = connection.cursor().execute(
+                f"SELECT id,tenant_id,status,created_at FROM analyses WHERE {' AND '.join(clauses)} ORDER BY created_at", tuple(params)
+            ).fetchall()
+        return [self._row(row) for row in rows]
+
+    def purge_analyses_before(self, before: str, tenant_id: str | None = None) -> int:
+        return sum(self.delete_analysis(item["tenant_id"], item["id"]) for item in self.retention_candidates(before, tenant_id))
+
     def backup(self, destination: str | Path) -> Path:
         if self.backend != "sqlite":
             raise RuntimeError("PostgreSQL backups must use pg_dump")
@@ -212,6 +292,16 @@ class PlatformRepository:
         with sqlite3.connect(self.sqlite_path) as source, sqlite3.connect(target) as backup:
             source.backup(backup)
         return target
+
+    def restore(self, source: str | Path) -> Path:
+        if self.backend != "sqlite":
+            raise RuntimeError("PostgreSQL restores must use pg_restore")
+        backup_path = Path(source)
+        if not backup_path.is_file():
+            raise ValueError("Backup file does not exist")
+        with sqlite3.connect(backup_path) as backup, sqlite3.connect(self.sqlite_path) as destination:
+            backup.backup(destination)
+        return self.sqlite_path
 
     def readiness(self) -> dict[str, Any]:
         with self.connect() as connection:

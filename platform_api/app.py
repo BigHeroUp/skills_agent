@@ -138,6 +138,14 @@ def create_app(
     }
 
     def enqueue_analysis(identity: Identity, body: dict[str, Any]) -> tuple[str, str]:
+        body = dict(body)
+        # API records are already decoded tabular data. Keep only source types the
+        # ingestion pipeline can execute; arbitrary client labels are provenance,
+        # not executable adapter names.
+        requested_source_type = str(body.get("source_type") or "records")
+        body["requested_source_type"] = requested_source_type
+        if requested_source_type not in {"csv", "excel"}:
+            body["source_type"] = "csv"
         job_id = repo.create_analysis(identity.tenant_id, identity.user_id, body)
         with counter_lock:
             counters["submitted"] += 1
@@ -258,7 +266,27 @@ def create_app(
             result=item.get("result") or {},
             status_label=status_labels.get(item.get("status"), item.get("status", "—")),
             auto_refresh=item.get("status") in {"queued", "processing", "cancelling"},
+            csrf_token=csrf_token(),
         )
+
+    @app.post("/portal/analyses/<analysis_id>/feedback")
+    def portal_analysis_feedback(analysis_id: str):
+        identity = portal_identity()
+        if identity is None:
+            return redirect(url_for("portal"))
+        if not valid_csrf():
+            return "Token CSRF non valido", 400
+        try:
+            repo.record_analysis_feedback(
+                identity.tenant_id, analysis_id, identity.user_id,
+                rating=int(request.form.get("rating", "0")),
+                outcome=request.form.get("outcome", ""),
+                notes=request.form.get("notes", ""),
+            )
+            session["message"] = "Feedback registrato."
+        except ValueError as exc:
+            session["message"] = str(exc)
+        return redirect(url_for("portal_analysis_result", analysis_id=analysis_id))
 
     @app.get("/portal/analyses/<analysis_id>/download")
     def portal_analysis_download(analysis_id: str):
@@ -434,6 +462,7 @@ def create_app(
         try:
             frame = pd.DataFrame(body["records"])
             tenant_root = Path(os.getenv("TENANT_DATA_ROOT", "data/tenants")) / identity.tenant_id
+            tenant_root.mkdir(parents=True, exist_ok=True)
             context = coordinator_factory().run(
                 str(body["description"]),
                 metadata={
@@ -474,6 +503,31 @@ def create_app(
             return failure
         item = repo.get_analysis(identity.tenant_id, analysis_id)
         return jsonify(item) if item else error("Analisi non trovata", 404)
+
+    @app.post("/api/v1/analyses/<analysis_id>/feedback")
+    def analysis_feedback(analysis_id: str):
+        identity, failure = require_identity()
+        if failure:
+            return failure
+        body = request.get_json(silent=True) or {}
+        try:
+            feedback = repo.record_analysis_feedback(
+                identity.tenant_id, analysis_id, identity.user_id,
+                rating=int(body.get("rating", 0)), outcome=str(body.get("outcome") or ""),
+                notes=str(body.get("notes") or ""),
+            )
+        except ValueError as exc:
+            return error(str(exc), 400)
+        return jsonify({"feedback": feedback, "summary": repo.feedback_summary(identity.tenant_id)}), 201
+
+    @app.delete("/api/v1/analyses/<analysis_id>")
+    def delete_analysis(analysis_id: str):
+        identity, failure = require_identity({"admin"})
+        if failure:
+            return failure
+        if not repo.delete_analysis(identity.tenant_id, analysis_id):
+            return error("Analisi non trovata", 404)
+        return "", 204
 
     @app.get("/api/v1/knowledge")
     def get_knowledge_workspace():
@@ -523,6 +577,19 @@ def create_app(
     @app.get("/metrics")
     def metrics():
         lines = [f"skills_agent_analyses_{name}_total {value}" for name, value in counters.items()]
+        feedback = repo.feedback_summary()
+        lines.extend([
+            f"skills_agent_feedback_total {feedback['total']}",
+            f"skills_agent_feedback_average_rating {feedback['average_rating']}",
+        ])
+        lines.extend(
+            f"skills_agent_feedback_outcome_total{{outcome=\"{outcome}\"}} {value}"
+            for outcome, value in sorted(feedback["outcomes"].items())
+        )
+        lines.extend(
+            f"skills_agent_persisted_analyses_status_total{{status=\"{status}\"}} {value}"
+            for status, value in sorted(repo.analysis_status_summary().items())
+        )
         return "\n".join(lines) + "\n", 200, {"Content-Type": "text/plain; version=0.0.4"}
 
     @app.get("/api/v1/openapi.json")
@@ -539,6 +606,7 @@ def create_app(
                     "get": {"summary": "List tenant analyses"},
                 },
                 "/api/v1/analyses/{analysis_id}": {"get": {"summary": "Get tenant analysis"}},
+                "/api/v1/analyses/{analysis_id}/feedback": {"post": {"summary": "Record analysis feedback"}},
                 "/api/v1/analyses/{analysis_id}/cancel": {"post": {"summary": "Cancel analysis"}},
                 "/api/v1/knowledge": {"get": {"summary": "Get tenant Knowledge Intelligence workspace"}},
                 "/api/v1/knowledge/query": {"post": {"summary": "Query the tenant Knowledge Graph"}},

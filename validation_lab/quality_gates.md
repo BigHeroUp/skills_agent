@@ -86,3 +86,18 @@ I quality gate sono criteri di accettazione osservabili. Un test case puo passar
 - Constraint set presente.
 - Backward compatibility.
 
+## L. Privacy e Lifecycle
+
+- Nessuna riga sorgente persistita nella richiesta.
+- Feedback isolato per tenant.
+- Cancellazione autorizzata e verificata.
+- Retention in dry-run per default.
+- Backup e restore provati in ambiente isolato.
+
+## M. Beta Operations
+
+- Metriche aggregate prive di dati personali.
+- Probe di concorrenza bounded su payload sintetici.
+- Richieste non supportate gestite esplicitamente.
+- Zero bug critici aperti.
+- Readiness calcolata da evidenze complete.
