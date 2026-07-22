@@ -17,7 +17,7 @@ offline-first di Analytical Intelligence.
 
 ### V2.1.1 - Kernel Architecture Foundation
 
-- Status: in progress
+- Status: completed
 - Focus:
   - stabilize the target kernel-oriented direction;
   - define capability-oriented architecture;
@@ -26,6 +26,17 @@ offline-first di Analytical Intelligence.
 - Note:
   this release does not introduce major runtime features; it formalizes the
   architectural direction for the next platform evolution stage.
+
+### V2.1.4 - Kernel Analytical Parity
+
+- Status: completed
+- Focus:
+  - capability Kernel `analysis.categorical_count` per conteggi, gruppi
+    semantici e tabelle incrociate deterministiche;
+  - provider registrato nel bootstrap sperimentale;
+  - shadow runner per confrontare Kernel e motore analitico di produzione;
+  - nessun cutover: il Coordinator resta il production boundary;
+  - test di parità su fixture sintetiche neutrali.
 
 ### Milestone 6 - Knowledge Reasoning Engine
 
@@ -198,6 +209,27 @@ offline-first di Analytical Intelligence.
   - conteggi e raggruppamenti categoriali coerenti con la domanda business;
   - report scaricabile e accesso diretto al Knowledge Graph;
   - prevenzione dei report fuorvianti basati su zero record.
+
+### Milestone 23 - Segmentazione categoriale multidimensionale
+
+- Status: completed
+- Focus:
+  - tabelle incrociate tra la dimensione principale e le dimensioni correlate
+    richieste dalla domanda business;
+  - raggruppamenti semantici deterministici e spiegati, inclusa la composizione
+    dei gruppi complementari richiesti in linguaggio naturale;
+  - report answer-first, proporzionato al tipo di analisi e privo di metriche o
+    sezioni non pertinenti;
+  - test di quadratura e regressione basati su categorie e dimensioni neutrali.
+
+### Milestone 24 - Kernel Analytical Parity
+
+- Status: completed
+- Focus:
+  - esposizione della segmentazione categoriale tramite contratto Kernel;
+  - confronto shadow automatico con il motore della pipeline corrente;
+  - eventi e metadata Kernel preservati senza migrare il portale o i job;
+  - promozione futura subordinata alla parità deterministica verificata.
 
 ## Planning Rule
 

@@ -50,6 +50,7 @@ class SeniorDataAnalystEngine:
             "visualization_plan": data.get("visualization_plan") or [],
             "followup_comparison_results": data.get("followup_comparison_results") or {},
             "analysis_plan": data.get("analysis_plan") or {},
+            "deterministic_results": data.get("deterministic_results") or {},
             "execution_summary": data.get("execution_summary") or {},
             "detected_patterns": data.get("detected_patterns") or [],
             "knowledge_analysis_steps": data.get("knowledge_analysis_steps") or [],
@@ -121,6 +122,8 @@ class SeniorDataAnalystEngine:
         """Compone un report Markdown business-first ed esportabile."""
         if self._is_activation_concentration_analysis(analysis):
             return self._generate_activation_concentration_report(analysis)
+        if self._is_categorical_cross_analysis(analysis):
+            return self._generate_categorical_cross_report(analysis)
 
         profile = analysis.get("dataset_profile", {})
         request = analysis.get("user_request") or "Analisi generale dei dati"
@@ -167,6 +170,110 @@ class SeniorDataAnalystEngine:
             self._format_technical_appendix(analysis),
         ]
         return "\n".join(sections)
+
+    def _is_categorical_cross_analysis(self, analysis: dict) -> bool:
+        result = analysis.get("deterministic_results") or {}
+        return (
+            result.get("analysis_type") == "count_occurrences"
+            and bool(result.get("cross_tabs"))
+        )
+
+    def _generate_categorical_cross_report(self, analysis: dict) -> str:
+        profile = analysis.get("dataset_profile", {})
+        request = analysis.get("user_request") or "Conteggio categoriale"
+        result = analysis.get("deterministic_results") or {}
+        primary_counts = result.get("counts") or []
+        cross_tabs = result.get("cross_tabs") or []
+        sections = [
+            "# Report business",
+            "",
+            f"**Obiettivo:** {request}",
+            f"**Perimetro:** {profile.get('row_count', 0)} record, {profile.get('column_count', 0)} colonne.",
+            "",
+            "## Risposta",
+            self._format_primary_counts(result.get("target_column"), primary_counts),
+        ]
+        for cross_tab in cross_tabs:
+            sections.extend([
+                "",
+                f"## {cross_tab.get('primary_column')} × {cross_tab.get('related_column')}",
+                self._format_cross_tab(cross_tab),
+            ])
+        semantic_groups = result.get("semantic_groups") or []
+        if semantic_groups:
+            sections.extend([
+                "",
+                "## Regole di raggruppamento",
+                self._format_semantic_groups(semantic_groups),
+            ])
+        sections.extend([
+            "",
+            "## Qualita dato pertinente",
+            self._format_categorical_quality(analysis, cross_tabs),
+            "",
+            "## Appendice tecnica",
+            self._format_technical_appendix(analysis),
+        ])
+        return "\n".join(sections)
+
+    def _format_primary_counts(self, column: str | None, counts: list[dict]) -> str:
+        total = sum(int(item.get("count", 0) or 0) for item in counts)
+        lines = [f"| {column or 'Categoria'} | Conteggio | Quota |", "|---|---:|---:|"]
+        for item in counts:
+            count = int(item.get("count", 0) or 0)
+            share = count / total * 100 if total else 0
+            lines.append(f"| {item.get('value')} | {count} | {share:.2f}% |")
+        lines.append(f"| **Totale** | **{total}** | **100.00%** |")
+        return "\n".join(lines)
+
+    def _format_cross_tab(self, cross_tab: dict) -> str:
+        columns = cross_tab.get("columns") or []
+        lines = [
+            "| Gruppo | " + " | ".join(columns) + " | Totale |",
+            "|---|" + "---:|" * (len(columns) + 1),
+        ]
+        totals = {column: 0 for column in columns}
+        grand_total = 0
+        for row in cross_tab.get("rows") or []:
+            counts = row.get("counts") or {}
+            total = int(row.get("total", 0) or 0)
+            grand_total += total
+            for column in columns:
+                totals[column] += int(counts.get(column, 0) or 0)
+            lines.append(
+                f"| {row.get('value')} | "
+                + " | ".join(str(int(counts.get(column, 0) or 0)) for column in columns)
+                + f" | **{total}** |"
+            )
+        lines.append(
+            "| **Totale** | "
+            + " | ".join(f"**{totals[column]}**" for column in columns)
+            + f" | **{grand_total}** |"
+        )
+        return "\n".join(lines)
+
+    def _format_semantic_groups(self, groups: list[dict]) -> str:
+        lines = []
+        for group in groups:
+            sources = ", ".join(group.get("source_values") or []) or "nessun valore"
+            operator = "tutti i valori diversi da" if group.get("operator") == "exclude" else "valori inclusi"
+            configured = ", ".join(group.get("values") or [])
+            lines.append(
+                f"- **{group.get('label')}**: {operator} {configured}; "
+                f"stati originali osservati: {sources} ({group.get('count', 0)} record)."
+            )
+        return "\n".join(lines)
+
+    def _format_categorical_quality(self, analysis: dict, cross_tabs: list[dict]) -> str:
+        relevant = {tab.get("primary_column") for tab in cross_tabs} | {
+            tab.get("related_column") for tab in cross_tabs
+        }
+        notes = [
+            item.get("summary")
+            for item in analysis.get("anomaly_analysis") or []
+            if item.get("type") == "missing_values" and item.get("column") in relevant
+        ]
+        return self._bullet_list(notes) if notes else "- Nessun valore mancante rilevante nelle dimensioni incrociate."
 
     def _is_activation_concentration_analysis(self, analysis: dict) -> bool:
         plan = analysis.get("analytical_execution_plan") or {}

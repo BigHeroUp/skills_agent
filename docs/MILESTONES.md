@@ -200,3 +200,47 @@ Ogni milestone documenta:
 - Conteggi categoriali prioritari per richieste con “numero”, “quanti”, “totale” e “distribuzione”.
 - Selezione semantica di stato contratto e dimensioni correlate delle antenne.
 - Blocco delle false analisi completate quando un dataset non vuoto produce zero righe elaborate.
+
+## Milestone 23 - Segmentazione categoriale multidimensionale
+
+- Obiettivo:
+  rendere le analisi categoriali aderenti alle domande business che richiedono
+  incroci, raggruppamenti semantici e un risultato sintetico direttamente
+  utilizzabile.
+- Status: completed
+- Criteri completamento:
+  - il planner riconosce richieste con una dimensione principale e una correlata,
+    producendo conteggi congiunti tra dimensione principale e dimensione
+    correlata anziché due distribuzioni indipendenti;
+  - i raggruppamenti derivati dalla domanda sono espliciti, deterministici,
+    tracciabili e accompagnati dal dettaglio dei valori originali inclusi;
+  - il report presenta per prima la risposta richiesta, con valori assoluti,
+    quote e tabella incrociata, relegando o escludendo percentili, anomalie e
+    raccomandazioni non pertinenti al tipo di analisi.
+- Test attesi:
+  - fixture sintetiche neutrali con più categorie e dimensioni correlate;
+  - quadratura della tabella incrociata sul totale dei record e sui totali
+    marginali, inclusi i valori mancanti;
+  - verifica generica di una categoria e del relativo gruppo complementare;
+  - regressione sui conteggi categoriali semplici già supportati;
+  - assenza nel report di sezioni quantitative non calcolabili o non richieste.
+
+## Milestone 24 - Kernel Analytical Parity
+
+- Obiettivo:
+  validare il Kernel come boundary analitico parallelo prima di qualsiasi
+  sostituzione del Coordinator in produzione.
+- Status: completed
+- Criteri completamento:
+  - capability `analysis.categorical_count` disponibile nel registry standard;
+  - input e output conformi ai contratti `CapabilityRequest` e
+    `CapabilityResponse`;
+  - esecuzione di conteggi, gruppi semantici e tabelle incrociate tramite Kernel;
+  - shadow runner capace di confrontare piano, risultati deterministici e
+    riepilogo di esecuzione con il motore di produzione;
+  - nessuna modifica al production boundary basato su Coordinator.
+- Test attesi:
+  - bootstrap con capability analitica registrata;
+  - validazione degli input non validi;
+  - parità completa su fixture sintetiche neutrali;
+  - regressione completa, incluso il contratto Redis/RQ.

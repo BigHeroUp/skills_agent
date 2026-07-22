@@ -70,6 +70,70 @@ def test_business_count_request_selects_contract_status_and_related_antenna_coun
     }
 
 
+def test_request_builds_generic_semantic_groups_and_cross_tab():
+    df = pd.DataFrame({
+        "PRIORITA": [
+            "CRITICA", "CRITICA", "CRITICA", "CRITICA", "CRITICA",
+            "ALTA", "MEDIA", "BASSA",
+        ],
+        "CANALE": [
+            "WEB", "WEB", "APP", None, "NEGOZIO",
+            "WEB", None, "APP",
+        ],
+    })
+
+    payload = AnalysisEngine().run(
+        "Quanti elementi hanno priorità CRITICA, quanti non CRITICA e il relativo CANALE?",
+        df,
+    )
+
+    result = payload["deterministic_results"]
+    assert result["counts"] == [
+        {"value": "CRITICA", "count": 5},
+        {"value": "NON CRITICA", "count": 3},
+    ]
+    assert result["semantic_groups"][1] == {
+        "label": "NON CRITICA",
+        "operator": "exclude",
+        "values": ["CRITICA"],
+        "source_values": ["ALTA", "BASSA", "MEDIA"],
+        "count": 3,
+    }
+    cross_tab = next(
+        item for item in result["cross_tabs"]
+        if item["related_column"] == "CANALE"
+    )
+    assert cross_tab["total_records"] == 8
+    assert cross_tab["rows"] == [
+        {
+            "value": "CRITICA",
+            "total": 5,
+            "counts": {"APP": 1, "N/D": 1, "NEGOZIO": 1, "WEB": 2},
+            "shares_percent": {"APP": 20.0, "N/D": 20.0, "NEGOZIO": 20.0, "WEB": 40.0},
+        },
+        {
+            "value": "NON CRITICA",
+            "total": 3,
+            "counts": {"APP": 1, "N/D": 1, "NEGOZIO": 0, "WEB": 1},
+            "shares_percent": {"APP": 33.33, "N/D": 33.33, "NEGOZIO": 0.0, "WEB": 33.33},
+        },
+    ]
+    assert sum(item["total"] for item in cross_tab["rows"]) == len(df)
+
+
+def test_generic_semantic_group_supports_inflected_request_terms():
+    df = pd.DataFrame({"CLASSE": ["URGENTE", "URGENTE", "ORDINARIA"]})
+
+    result = AnalysisEngine().run(
+        "Quanti casi sono urgenti e quanti non urgenti?", df
+    )["deterministic_results"]
+
+    assert result["counts"] == [
+        {"value": "URGENTE", "count": 2},
+        {"value": "NON URGENTE", "count": 1},
+    ]
+
+
 def test_top_n_values_by_numeric_sum():
     df = pd.DataFrame({
         "cliente": ["A", "A", "B", "C"],

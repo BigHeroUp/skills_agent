@@ -76,7 +76,7 @@ Objective:
 
 Status:
 
-- in progress
+- completed
 
 Test:
 
@@ -133,6 +133,25 @@ Test:
 
 - dedicated experience store, builder, engine, query, and kernel capability tests added;
 - full regression suite passed with `239 passed` via `python3 -m pytest -q`.
+
+### V2.1.4 Kernel Analytical Parity
+
+Objective:
+
+- expose deterministic categorical analysis through a Kernel-native capability;
+- compare Kernel output with the current production analytical engine in shadow mode;
+- preserve the Coordinator as the production boundary until broader parity is proven.
+
+Status:
+
+- completed
+
+Test:
+
+- capability bootstrap, validation and semantic cross-tab tests added;
+- shadow parity verified for analysis plan, deterministic results and execution summary;
+- Redis/RQ test environment restored;
+- full regression suite passed with `383 passed` via `python3 -m pytest -q`.
 
 ### Validation Lab e Quality Gates
 
