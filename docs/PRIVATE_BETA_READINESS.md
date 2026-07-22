@@ -28,6 +28,18 @@ approvate. Non inserire dati sorgente, prompt sensibili, token o identificativi 
 python3 scripts/check_beta_readiness.py /path/to/beta_evidence.json
 ```
 
+Il campione funzionale incluso è sintetico e riproducibile: 30 contratti di analisi
+coprono sei domini e cinque intenti per dominio. Ogni risultato viene confrontato con un
+contratto atteso scritto indipendentemente dall'output del motore:
+
+```bash
+python3 scripts/run_beta_functional_benchmark.py \
+  --output /tmp/veraxis-functional-benchmark.json
+```
+
+Il benchmark verifica inferenza dell'intento e calcolo deterministico. Non viene contato
+come feedback utente: il gate di accuratezza resta separato per impedire auto-certificazioni.
+
 ## Feedback e metriche
 
 Ogni utente autenticato può valutare una propria analisi con rating 1–5, esito
