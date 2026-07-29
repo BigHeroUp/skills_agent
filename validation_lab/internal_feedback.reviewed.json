@@ -1,0 +1,2399 @@
+{
+  "campaign": "Veraxis internal single-user validation",
+  "evidence_class": "internal_single_user_not_independent_beta_feedback",
+  "generated_at": "2026-07-29T20:34:47.380236+00:00",
+  "total": 20,
+  "automatic_passed": 20,
+  "cases": [
+    {
+      "review_id": "REV-001",
+      "benchmark_id": "retail-count",
+      "domain": "retail",
+      "category": "count_occurrences",
+      "objective": "Verificare conteggi, categorie e totale dei record.",
+      "prompt": "Conta gli elementi per categoria",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "categoria",
+          "canale",
+          "ricavo"
+        ],
+        "records": [
+          {
+            "categoria": "Casa",
+            "canale": "web",
+            "ricavo": 10.0
+          },
+          {
+            "categoria": "Casa",
+            "canale": "web",
+            "ricavo": 10.0
+          },
+          {
+            "categoria": "Sport",
+            "canale": "app",
+            "ricavo": 25.0
+          },
+          {
+            "categoria": "Libri",
+            "canale": "web",
+            "ricavo": 5.0
+          },
+          {
+            "categoria": "Sport",
+            "canale": "store",
+            "ricavo": null
+          }
+        ]
+      },
+      "expected": {
+        "target_column": "categoria",
+        "total_records": 5,
+        "counts": [
+          {
+            "value": "Casa",
+            "count": 2
+          },
+          {
+            "value": "Sport",
+            "count": 2
+          },
+          {
+            "value": "Libri",
+            "count": 1
+          }
+        ]
+      },
+      "actual_type": "count_occurrences",
+      "actual": {
+        "target_column": "categoria",
+        "total_records": 5,
+        "counts": [
+          {
+            "value": "Casa",
+            "count": 2
+          },
+          {
+            "value": "Sport",
+            "count": 2
+          },
+          {
+            "value": "Libri",
+            "count": 1
+          }
+        ],
+        "unique_values": 3,
+        "related_counts": [
+          {
+            "target_column": "canale",
+            "counts": [
+              {
+                "value": "web",
+                "count": 3
+              },
+              {
+                "value": "app",
+                "count": 1
+              },
+              {
+                "value": "store",
+                "count": 1
+              }
+            ],
+            "unique_values": 3
+          }
+        ],
+        "cross_tabs": [
+          {
+            "primary_column": "categoria",
+            "related_column": "canale",
+            "columns": [
+              "app",
+              "store",
+              "web"
+            ],
+            "rows": [
+              {
+                "value": "Casa",
+                "total": 2,
+                "counts": {
+                  "app": 0,
+                  "store": 0,
+                  "web": 2
+                },
+                "shares_percent": {
+                  "app": 0.0,
+                  "store": 0.0,
+                  "web": 100.0
+                }
+              },
+              {
+                "value": "Libri",
+                "total": 1,
+                "counts": {
+                  "app": 0,
+                  "store": 0,
+                  "web": 1
+                },
+                "shares_percent": {
+                  "app": 0.0,
+                  "store": 0.0,
+                  "web": 100.0
+                }
+              },
+              {
+                "value": "Sport",
+                "total": 2,
+                "counts": {
+                  "app": 1,
+                  "store": 1,
+                  "web": 0
+                },
+                "shares_percent": {
+                  "app": 50.0,
+                  "store": 50.0,
+                  "web": 0.0
+                }
+              }
+            ],
+            "total_records": 5
+          }
+        ],
+        "semantic_groups": [],
+        "raw_counts": [
+          {
+            "value": "Casa",
+            "count": 2
+          },
+          {
+            "value": "Sport",
+            "count": 2
+          },
+          {
+            "value": "Libri",
+            "count": 1
+          }
+        ],
+        "analysis_type": "count_occurrences",
+        "plan": {
+          "analysis_type": "count_occurrences",
+          "target_column": "categoria",
+          "group_by_column": null,
+          "value_column": null,
+          "time_column": null,
+          "aggregation": null,
+          "limit": 10,
+          "related_columns": [
+            "canale"
+          ],
+          "semantic_groups": [],
+          "description": "Conteggio occorrenze calcolato dal dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Il conteggio per categoria e il totale dei record coincidono con l’atteso. Le informazioni aggiuntive (related_counts, cross_tabs e raw_counts) sono coerenti e non alterano il risultato."
+      }
+    },
+    {
+      "review_id": "REV-002",
+      "benchmark_id": "retail-sum",
+      "domain": "retail",
+      "category": "numeric_aggregation",
+      "objective": "Verificare aggregazione, metrica e raggruppamento.",
+      "prompt": "Calcola la somma di ricavo per categoria",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "categoria",
+          "canale",
+          "ricavo"
+        ],
+        "records": [
+          {
+            "categoria": "Casa",
+            "canale": "web",
+            "ricavo": 10.0
+          },
+          {
+            "categoria": "Casa",
+            "canale": "web",
+            "ricavo": 10.0
+          },
+          {
+            "categoria": "Sport",
+            "canale": "app",
+            "ricavo": 25.0
+          },
+          {
+            "categoria": "Libri",
+            "canale": "web",
+            "ricavo": 5.0
+          },
+          {
+            "categoria": "Sport",
+            "canale": "store",
+            "ricavo": null
+          }
+        ]
+      },
+      "expected": {
+        "aggregation": "sum",
+        "group_by_column": "categoria",
+        "value_column": "ricavo",
+        "groups": [
+          {
+            "group": "Sport",
+            "value": 25.0
+          },
+          {
+            "group": "Casa",
+            "value": 20.0
+          },
+          {
+            "group": "Libri",
+            "value": 5.0
+          }
+        ]
+      },
+      "actual_type": "numeric_aggregation",
+      "actual": {
+        "value_column": "ricavo",
+        "group_by_column": "categoria",
+        "aggregation": "sum",
+        "groups": [
+          {
+            "group": "Sport",
+            "value": 25.0
+          },
+          {
+            "group": "Casa",
+            "value": 20.0
+          },
+          {
+            "group": "Libri",
+            "value": 5.0
+          }
+        ],
+        "analysis_type": "numeric_aggregation",
+        "plan": {
+          "analysis_type": "numeric_aggregation",
+          "target_column": null,
+          "group_by_column": "categoria",
+          "value_column": "ricavo",
+          "time_column": null,
+          "aggregation": "sum",
+          "limit": 10,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Aggregazione numerica 'sum' calcolata dal dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Aggregazione, colonna di raggruppamento, metrica e valori per gruppo coincidono integralmente con l’atteso."
+      }
+    },
+    {
+      "review_id": "REV-003",
+      "benchmark_id": "retail-top",
+      "domain": "retail",
+      "category": "top_n",
+      "objective": "Verificare ordinamento, limite e valore aggregato.",
+      "prompt": "Top 2 categoria per somma di ricavo",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "categoria",
+          "canale",
+          "ricavo"
+        ],
+        "records": [
+          {
+            "categoria": "Casa",
+            "canale": "web",
+            "ricavo": 10.0
+          },
+          {
+            "categoria": "Casa",
+            "canale": "web",
+            "ricavo": 10.0
+          },
+          {
+            "categoria": "Sport",
+            "canale": "app",
+            "ricavo": 25.0
+          },
+          {
+            "categoria": "Libri",
+            "canale": "web",
+            "ricavo": 5.0
+          },
+          {
+            "categoria": "Sport",
+            "canale": "store",
+            "ricavo": null
+          }
+        ]
+      },
+      "expected": {
+        "aggregation": "sum",
+        "target_column": "categoria",
+        "value_column": "ricavo",
+        "top": [
+          {
+            "value": "Sport",
+            "metric": 25.0
+          },
+          {
+            "value": "Casa",
+            "metric": 20.0
+          }
+        ]
+      },
+      "actual_type": "top_n",
+      "actual": {
+        "target_column": "categoria",
+        "value_column": "ricavo",
+        "aggregation": "sum",
+        "top": [
+          {
+            "value": "Sport",
+            "metric": 25.0
+          },
+          {
+            "value": "Casa",
+            "metric": 20.0
+          }
+        ],
+        "analysis_type": "top_n",
+        "plan": {
+          "analysis_type": "top_n",
+          "target_column": "categoria",
+          "group_by_column": null,
+          "value_column": "ricavo",
+          "time_column": null,
+          "aggregation": "sum",
+          "limit": 2,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Top 2 valori calcolati dal dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Ordinamento, limite Top 2, metrica aggregata e valori restituiti coincidono con l’atteso."
+      }
+    },
+    {
+      "review_id": "REV-004",
+      "benchmark_id": "retail-nulls",
+      "domain": "retail",
+      "category": "null_detection",
+      "objective": "Verificare completezza e conteggio dei valori mancanti.",
+      "prompt": "Trova tutti i valori mancanti",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "categoria",
+          "canale",
+          "ricavo"
+        ],
+        "records": [
+          {
+            "categoria": "Casa",
+            "canale": "web",
+            "ricavo": 10.0
+          },
+          {
+            "categoria": "Casa",
+            "canale": "web",
+            "ricavo": 10.0
+          },
+          {
+            "categoria": "Sport",
+            "canale": "app",
+            "ricavo": 25.0
+          },
+          {
+            "categoria": "Libri",
+            "canale": "web",
+            "ricavo": 5.0
+          },
+          {
+            "categoria": "Sport",
+            "canale": "store",
+            "ricavo": null
+          }
+        ]
+      },
+      "expected": {
+        "row_count": 5,
+        "total_nulls": 1,
+        "columns_with_nulls": [
+          {
+            "column": "ricavo",
+            "null_count": 1,
+            "null_percent": 20.0
+          }
+        ]
+      },
+      "actual_type": "null_detection",
+      "actual": {
+        "row_count": 5,
+        "columns_with_nulls": [
+          {
+            "column": "ricavo",
+            "null_count": 1,
+            "null_percent": 20.0
+          }
+        ],
+        "total_nulls": 1,
+        "analysis_type": "null_detection",
+        "plan": {
+          "analysis_type": "null_detection",
+          "target_column": null,
+          "group_by_column": null,
+          "value_column": null,
+          "time_column": null,
+          "aggregation": null,
+          "limit": 10,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Rilevazione valori nulli nel dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Numero di righe, totale dei null e dettaglio della colonna con valori mancanti coincidono con l’atteso."
+      }
+    },
+    {
+      "review_id": "REV-005",
+      "benchmark_id": "retail-duplicates",
+      "domain": "retail",
+      "category": "duplicate_detection",
+      "objective": "Verificare individuazione e quantificazione dei duplicati.",
+      "prompt": "Individua le righe duplicate",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "categoria",
+          "canale",
+          "ricavo"
+        ],
+        "records": [
+          {
+            "categoria": "Casa",
+            "canale": "web",
+            "ricavo": 10.0
+          },
+          {
+            "categoria": "Casa",
+            "canale": "web",
+            "ricavo": 10.0
+          },
+          {
+            "categoria": "Sport",
+            "canale": "app",
+            "ricavo": 25.0
+          },
+          {
+            "categoria": "Libri",
+            "canale": "web",
+            "ricavo": 5.0
+          },
+          {
+            "categoria": "Sport",
+            "canale": "store",
+            "ricavo": null
+          }
+        ]
+      },
+      "expected": {
+        "row_count": 5,
+        "duplicate_rows": 1,
+        "duplicate_groups_rows": 2
+      },
+      "actual_type": "duplicate_detection",
+      "actual": {
+        "row_count": 5,
+        "duplicate_rows": 1,
+        "duplicate_groups_rows": 2,
+        "sample": [
+          {
+            "categoria": "Casa",
+            "canale": "web",
+            "ricavo": 10.0
+          },
+          {
+            "categoria": "Casa",
+            "canale": "web",
+            "ricavo": 10.0
+          }
+        ],
+        "analysis_type": "duplicate_detection",
+        "plan": {
+          "analysis_type": "duplicate_detection",
+          "target_column": null,
+          "group_by_column": null,
+          "value_column": null,
+          "time_column": null,
+          "aggregation": null,
+          "limit": 10,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Rilevazione righe duplicate nel dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Il numero di righe duplicate e il numero complessivo di righe appartenenti ai gruppi duplicati coincidono con l’atteso; il campione mostrato è coerente."
+      }
+    },
+    {
+      "review_id": "REV-006",
+      "benchmark_id": "energia-count",
+      "domain": "energia",
+      "category": "count_occurrences",
+      "objective": "Verificare conteggi, categorie e totale dei record.",
+      "prompt": "Conta gli elementi per fascia",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "fascia",
+          "canale",
+          "consumo"
+        ],
+        "records": [
+          {
+            "fascia": "Giorno",
+            "canale": "web",
+            "consumo": 10.0
+          },
+          {
+            "fascia": "Giorno",
+            "canale": "web",
+            "consumo": 10.0
+          },
+          {
+            "fascia": "Sera",
+            "canale": "app",
+            "consumo": 25.0
+          },
+          {
+            "fascia": "Notte",
+            "canale": "web",
+            "consumo": 5.0
+          },
+          {
+            "fascia": "Sera",
+            "canale": "store",
+            "consumo": null
+          }
+        ]
+      },
+      "expected": {
+        "target_column": "fascia",
+        "total_records": 5,
+        "counts": [
+          {
+            "value": "Giorno",
+            "count": 2
+          },
+          {
+            "value": "Sera",
+            "count": 2
+          },
+          {
+            "value": "Notte",
+            "count": 1
+          }
+        ]
+      },
+      "actual_type": "count_occurrences",
+      "actual": {
+        "target_column": "fascia",
+        "total_records": 5,
+        "counts": [
+          {
+            "value": "Giorno",
+            "count": 2
+          },
+          {
+            "value": "Sera",
+            "count": 2
+          },
+          {
+            "value": "Notte",
+            "count": 1
+          }
+        ],
+        "unique_values": 3,
+        "related_counts": [
+          {
+            "target_column": "canale",
+            "counts": [
+              {
+                "value": "web",
+                "count": 3
+              },
+              {
+                "value": "app",
+                "count": 1
+              },
+              {
+                "value": "store",
+                "count": 1
+              }
+            ],
+            "unique_values": 3
+          }
+        ],
+        "cross_tabs": [
+          {
+            "primary_column": "fascia",
+            "related_column": "canale",
+            "columns": [
+              "app",
+              "store",
+              "web"
+            ],
+            "rows": [
+              {
+                "value": "Giorno",
+                "total": 2,
+                "counts": {
+                  "app": 0,
+                  "store": 0,
+                  "web": 2
+                },
+                "shares_percent": {
+                  "app": 0.0,
+                  "store": 0.0,
+                  "web": 100.0
+                }
+              },
+              {
+                "value": "Notte",
+                "total": 1,
+                "counts": {
+                  "app": 0,
+                  "store": 0,
+                  "web": 1
+                },
+                "shares_percent": {
+                  "app": 0.0,
+                  "store": 0.0,
+                  "web": 100.0
+                }
+              },
+              {
+                "value": "Sera",
+                "total": 2,
+                "counts": {
+                  "app": 1,
+                  "store": 1,
+                  "web": 0
+                },
+                "shares_percent": {
+                  "app": 50.0,
+                  "store": 50.0,
+                  "web": 0.0
+                }
+              }
+            ],
+            "total_records": 5
+          }
+        ],
+        "semantic_groups": [],
+        "raw_counts": [
+          {
+            "value": "Giorno",
+            "count": 2
+          },
+          {
+            "value": "Sera",
+            "count": 2
+          },
+          {
+            "value": "Notte",
+            "count": 1
+          }
+        ],
+        "analysis_type": "count_occurrences",
+        "plan": {
+          "analysis_type": "count_occurrences",
+          "target_column": "fascia",
+          "group_by_column": null,
+          "value_column": null,
+          "time_column": null,
+          "aggregation": null,
+          "limit": 10,
+          "related_columns": [
+            "canale"
+          ],
+          "semantic_groups": [],
+          "description": "Conteggio occorrenze calcolato dal dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Il conteggio per fascia e il totale dei record coincidono con l’atteso. Le informazioni aggiuntive risultano coerenti."
+      }
+    },
+    {
+      "review_id": "REV-007",
+      "benchmark_id": "energia-sum",
+      "domain": "energia",
+      "category": "numeric_aggregation",
+      "objective": "Verificare aggregazione, metrica e raggruppamento.",
+      "prompt": "Calcola la somma di consumo per fascia",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "fascia",
+          "canale",
+          "consumo"
+        ],
+        "records": [
+          {
+            "fascia": "Giorno",
+            "canale": "web",
+            "consumo": 10.0
+          },
+          {
+            "fascia": "Giorno",
+            "canale": "web",
+            "consumo": 10.0
+          },
+          {
+            "fascia": "Sera",
+            "canale": "app",
+            "consumo": 25.0
+          },
+          {
+            "fascia": "Notte",
+            "canale": "web",
+            "consumo": 5.0
+          },
+          {
+            "fascia": "Sera",
+            "canale": "store",
+            "consumo": null
+          }
+        ]
+      },
+      "expected": {
+        "aggregation": "sum",
+        "group_by_column": "fascia",
+        "value_column": "consumo",
+        "groups": [
+          {
+            "group": "Sera",
+            "value": 25.0
+          },
+          {
+            "group": "Giorno",
+            "value": 20.0
+          },
+          {
+            "group": "Notte",
+            "value": 5.0
+          }
+        ]
+      },
+      "actual_type": "numeric_aggregation",
+      "actual": {
+        "value_column": "consumo",
+        "group_by_column": "fascia",
+        "aggregation": "sum",
+        "groups": [
+          {
+            "group": "Sera",
+            "value": 25.0
+          },
+          {
+            "group": "Giorno",
+            "value": 20.0
+          },
+          {
+            "group": "Notte",
+            "value": 5.0
+          }
+        ],
+        "analysis_type": "numeric_aggregation",
+        "plan": {
+          "analysis_type": "numeric_aggregation",
+          "target_column": null,
+          "group_by_column": "fascia",
+          "value_column": "consumo",
+          "time_column": null,
+          "aggregation": "sum",
+          "limit": 10,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Aggregazione numerica 'sum' calcolata dal dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Somma del consumo per fascia, ordinamento e valori dei gruppi coincidono con l’atteso."
+      }
+    },
+    {
+      "review_id": "REV-008",
+      "benchmark_id": "energia-top",
+      "domain": "energia",
+      "category": "top_n",
+      "objective": "Verificare ordinamento, limite e valore aggregato.",
+      "prompt": "Top 2 fascia per somma di consumo",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "fascia",
+          "canale",
+          "consumo"
+        ],
+        "records": [
+          {
+            "fascia": "Giorno",
+            "canale": "web",
+            "consumo": 10.0
+          },
+          {
+            "fascia": "Giorno",
+            "canale": "web",
+            "consumo": 10.0
+          },
+          {
+            "fascia": "Sera",
+            "canale": "app",
+            "consumo": 25.0
+          },
+          {
+            "fascia": "Notte",
+            "canale": "web",
+            "consumo": 5.0
+          },
+          {
+            "fascia": "Sera",
+            "canale": "store",
+            "consumo": null
+          }
+        ]
+      },
+      "expected": {
+        "aggregation": "sum",
+        "target_column": "fascia",
+        "value_column": "consumo",
+        "top": [
+          {
+            "value": "Sera",
+            "metric": 25.0
+          },
+          {
+            "value": "Giorno",
+            "metric": 20.0
+          }
+        ]
+      },
+      "actual_type": "top_n",
+      "actual": {
+        "target_column": "fascia",
+        "value_column": "consumo",
+        "aggregation": "sum",
+        "top": [
+          {
+            "value": "Sera",
+            "metric": 25.0
+          },
+          {
+            "value": "Giorno",
+            "metric": 20.0
+          }
+        ],
+        "analysis_type": "top_n",
+        "plan": {
+          "analysis_type": "top_n",
+          "target_column": "fascia",
+          "group_by_column": null,
+          "value_column": "consumo",
+          "time_column": null,
+          "aggregation": "sum",
+          "limit": 2,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Top 2 valori calcolati dal dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Il Top 2 per somma di consumo rispetta limite, ordinamento e valori attesi."
+      }
+    },
+    {
+      "review_id": "REV-009",
+      "benchmark_id": "energia-nulls",
+      "domain": "energia",
+      "category": "null_detection",
+      "objective": "Verificare completezza e conteggio dei valori mancanti.",
+      "prompt": "Trova tutti i valori mancanti",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "fascia",
+          "canale",
+          "consumo"
+        ],
+        "records": [
+          {
+            "fascia": "Giorno",
+            "canale": "web",
+            "consumo": 10.0
+          },
+          {
+            "fascia": "Giorno",
+            "canale": "web",
+            "consumo": 10.0
+          },
+          {
+            "fascia": "Sera",
+            "canale": "app",
+            "consumo": 25.0
+          },
+          {
+            "fascia": "Notte",
+            "canale": "web",
+            "consumo": 5.0
+          },
+          {
+            "fascia": "Sera",
+            "canale": "store",
+            "consumo": null
+          }
+        ]
+      },
+      "expected": {
+        "row_count": 5,
+        "total_nulls": 1,
+        "columns_with_nulls": [
+          {
+            "column": "consumo",
+            "null_count": 1,
+            "null_percent": 20.0
+          }
+        ]
+      },
+      "actual_type": "null_detection",
+      "actual": {
+        "row_count": 5,
+        "columns_with_nulls": [
+          {
+            "column": "consumo",
+            "null_count": 1,
+            "null_percent": 20.0
+          }
+        ],
+        "total_nulls": 1,
+        "analysis_type": "null_detection",
+        "plan": {
+          "analysis_type": "null_detection",
+          "target_column": null,
+          "group_by_column": null,
+          "value_column": null,
+          "time_column": null,
+          "aggregation": null,
+          "limit": 10,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Rilevazione valori nulli nel dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Totale dei null, percentuale e colonna interessata coincidono con l’atteso."
+      }
+    },
+    {
+      "review_id": "REV-010",
+      "benchmark_id": "energia-duplicates",
+      "domain": "energia",
+      "category": "duplicate_detection",
+      "objective": "Verificare individuazione e quantificazione dei duplicati.",
+      "prompt": "Individua le righe duplicate",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "fascia",
+          "canale",
+          "consumo"
+        ],
+        "records": [
+          {
+            "fascia": "Giorno",
+            "canale": "web",
+            "consumo": 10.0
+          },
+          {
+            "fascia": "Giorno",
+            "canale": "web",
+            "consumo": 10.0
+          },
+          {
+            "fascia": "Sera",
+            "canale": "app",
+            "consumo": 25.0
+          },
+          {
+            "fascia": "Notte",
+            "canale": "web",
+            "consumo": 5.0
+          },
+          {
+            "fascia": "Sera",
+            "canale": "store",
+            "consumo": null
+          }
+        ]
+      },
+      "expected": {
+        "row_count": 5,
+        "duplicate_rows": 1,
+        "duplicate_groups_rows": 2
+      },
+      "actual_type": "duplicate_detection",
+      "actual": {
+        "row_count": 5,
+        "duplicate_rows": 1,
+        "duplicate_groups_rows": 2,
+        "sample": [
+          {
+            "fascia": "Giorno",
+            "canale": "web",
+            "consumo": 10.0
+          },
+          {
+            "fascia": "Giorno",
+            "canale": "web",
+            "consumo": 10.0
+          }
+        ],
+        "analysis_type": "duplicate_detection",
+        "plan": {
+          "analysis_type": "duplicate_detection",
+          "target_column": null,
+          "group_by_column": null,
+          "value_column": null,
+          "time_column": null,
+          "aggregation": null,
+          "limit": 10,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Rilevazione righe duplicate nel dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Duplicati rilevati e quantificazione delle righe coinvolte coincidono con l’atteso; il campione è coerente."
+      }
+    },
+    {
+      "review_id": "REV-011",
+      "benchmark_id": "allenamento-count",
+      "domain": "allenamento",
+      "category": "count_occurrences",
+      "objective": "Verificare conteggi, categorie e totale dei record.",
+      "prompt": "Conta gli elementi per disciplina",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "disciplina",
+          "canale",
+          "distanza"
+        ],
+        "records": [
+          {
+            "disciplina": "Corsa",
+            "canale": "web",
+            "distanza": 10.0
+          },
+          {
+            "disciplina": "Corsa",
+            "canale": "web",
+            "distanza": 10.0
+          },
+          {
+            "disciplina": "Nuoto",
+            "canale": "app",
+            "distanza": 25.0
+          },
+          {
+            "disciplina": "Bici",
+            "canale": "web",
+            "distanza": 5.0
+          },
+          {
+            "disciplina": "Nuoto",
+            "canale": "store",
+            "distanza": null
+          }
+        ]
+      },
+      "expected": {
+        "target_column": "disciplina",
+        "total_records": 5,
+        "counts": [
+          {
+            "value": "Corsa",
+            "count": 2
+          },
+          {
+            "value": "Nuoto",
+            "count": 2
+          },
+          {
+            "value": "Bici",
+            "count": 1
+          }
+        ]
+      },
+      "actual_type": "count_occurrences",
+      "actual": {
+        "target_column": "disciplina",
+        "total_records": 5,
+        "counts": [
+          {
+            "value": "Corsa",
+            "count": 2
+          },
+          {
+            "value": "Nuoto",
+            "count": 2
+          },
+          {
+            "value": "Bici",
+            "count": 1
+          }
+        ],
+        "unique_values": 3,
+        "related_counts": [
+          {
+            "target_column": "canale",
+            "counts": [
+              {
+                "value": "web",
+                "count": 3
+              },
+              {
+                "value": "app",
+                "count": 1
+              },
+              {
+                "value": "store",
+                "count": 1
+              }
+            ],
+            "unique_values": 3
+          }
+        ],
+        "cross_tabs": [
+          {
+            "primary_column": "disciplina",
+            "related_column": "canale",
+            "columns": [
+              "app",
+              "store",
+              "web"
+            ],
+            "rows": [
+              {
+                "value": "Bici",
+                "total": 1,
+                "counts": {
+                  "app": 0,
+                  "store": 0,
+                  "web": 1
+                },
+                "shares_percent": {
+                  "app": 0.0,
+                  "store": 0.0,
+                  "web": 100.0
+                }
+              },
+              {
+                "value": "Corsa",
+                "total": 2,
+                "counts": {
+                  "app": 0,
+                  "store": 0,
+                  "web": 2
+                },
+                "shares_percent": {
+                  "app": 0.0,
+                  "store": 0.0,
+                  "web": 100.0
+                }
+              },
+              {
+                "value": "Nuoto",
+                "total": 2,
+                "counts": {
+                  "app": 1,
+                  "store": 1,
+                  "web": 0
+                },
+                "shares_percent": {
+                  "app": 50.0,
+                  "store": 50.0,
+                  "web": 0.0
+                }
+              }
+            ],
+            "total_records": 5
+          }
+        ],
+        "semantic_groups": [],
+        "raw_counts": [
+          {
+            "value": "Corsa",
+            "count": 2
+          },
+          {
+            "value": "Nuoto",
+            "count": 2
+          },
+          {
+            "value": "Bici",
+            "count": 1
+          }
+        ],
+        "analysis_type": "count_occurrences",
+        "plan": {
+          "analysis_type": "count_occurrences",
+          "target_column": "disciplina",
+          "group_by_column": null,
+          "value_column": null,
+          "time_column": null,
+          "aggregation": null,
+          "limit": 10,
+          "related_columns": [
+            "canale"
+          ],
+          "semantic_groups": [],
+          "description": "Conteggio occorrenze calcolato dal dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Il conteggio per disciplina e il totale dei record coincidono con l’atteso. Le elaborazioni aggiuntive sono coerenti."
+      }
+    },
+    {
+      "review_id": "REV-012",
+      "benchmark_id": "allenamento-sum",
+      "domain": "allenamento",
+      "category": "numeric_aggregation",
+      "objective": "Verificare aggregazione, metrica e raggruppamento.",
+      "prompt": "Calcola la somma di distanza per disciplina",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "disciplina",
+          "canale",
+          "distanza"
+        ],
+        "records": [
+          {
+            "disciplina": "Corsa",
+            "canale": "web",
+            "distanza": 10.0
+          },
+          {
+            "disciplina": "Corsa",
+            "canale": "web",
+            "distanza": 10.0
+          },
+          {
+            "disciplina": "Nuoto",
+            "canale": "app",
+            "distanza": 25.0
+          },
+          {
+            "disciplina": "Bici",
+            "canale": "web",
+            "distanza": 5.0
+          },
+          {
+            "disciplina": "Nuoto",
+            "canale": "store",
+            "distanza": null
+          }
+        ]
+      },
+      "expected": {
+        "aggregation": "sum",
+        "group_by_column": "disciplina",
+        "value_column": "distanza",
+        "groups": [
+          {
+            "group": "Nuoto",
+            "value": 25.0
+          },
+          {
+            "group": "Corsa",
+            "value": 20.0
+          },
+          {
+            "group": "Bici",
+            "value": 5.0
+          }
+        ]
+      },
+      "actual_type": "numeric_aggregation",
+      "actual": {
+        "value_column": "distanza",
+        "group_by_column": "disciplina",
+        "aggregation": "sum",
+        "groups": [
+          {
+            "group": "Nuoto",
+            "value": 25.0
+          },
+          {
+            "group": "Corsa",
+            "value": 20.0
+          },
+          {
+            "group": "Bici",
+            "value": 5.0
+          }
+        ],
+        "analysis_type": "numeric_aggregation",
+        "plan": {
+          "analysis_type": "numeric_aggregation",
+          "target_column": null,
+          "group_by_column": "disciplina",
+          "value_column": "distanza",
+          "time_column": null,
+          "aggregation": "sum",
+          "limit": 10,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Aggregazione numerica 'sum' calcolata dal dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. La somma della distanza per disciplina e i valori dei gruppi coincidono con l’atteso."
+      }
+    },
+    {
+      "review_id": "REV-013",
+      "benchmark_id": "allenamento-top",
+      "domain": "allenamento",
+      "category": "top_n",
+      "objective": "Verificare ordinamento, limite e valore aggregato.",
+      "prompt": "Top 2 disciplina per somma di distanza",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "disciplina",
+          "canale",
+          "distanza"
+        ],
+        "records": [
+          {
+            "disciplina": "Corsa",
+            "canale": "web",
+            "distanza": 10.0
+          },
+          {
+            "disciplina": "Corsa",
+            "canale": "web",
+            "distanza": 10.0
+          },
+          {
+            "disciplina": "Nuoto",
+            "canale": "app",
+            "distanza": 25.0
+          },
+          {
+            "disciplina": "Bici",
+            "canale": "web",
+            "distanza": 5.0
+          },
+          {
+            "disciplina": "Nuoto",
+            "canale": "store",
+            "distanza": null
+          }
+        ]
+      },
+      "expected": {
+        "aggregation": "sum",
+        "target_column": "disciplina",
+        "value_column": "distanza",
+        "top": [
+          {
+            "value": "Nuoto",
+            "metric": 25.0
+          },
+          {
+            "value": "Corsa",
+            "metric": 20.0
+          }
+        ]
+      },
+      "actual_type": "top_n",
+      "actual": {
+        "target_column": "disciplina",
+        "value_column": "distanza",
+        "aggregation": "sum",
+        "top": [
+          {
+            "value": "Nuoto",
+            "metric": 25.0
+          },
+          {
+            "value": "Corsa",
+            "metric": 20.0
+          }
+        ],
+        "analysis_type": "top_n",
+        "plan": {
+          "analysis_type": "top_n",
+          "target_column": "disciplina",
+          "group_by_column": null,
+          "value_column": "distanza",
+          "time_column": null,
+          "aggregation": "sum",
+          "limit": 2,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Top 2 valori calcolati dal dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Il Top 2 per somma di distanza coincide con l’atteso per valori, ordinamento e limite."
+      }
+    },
+    {
+      "review_id": "REV-014",
+      "benchmark_id": "allenamento-nulls",
+      "domain": "allenamento",
+      "category": "null_detection",
+      "objective": "Verificare completezza e conteggio dei valori mancanti.",
+      "prompt": "Trova tutti i valori mancanti",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "disciplina",
+          "canale",
+          "distanza"
+        ],
+        "records": [
+          {
+            "disciplina": "Corsa",
+            "canale": "web",
+            "distanza": 10.0
+          },
+          {
+            "disciplina": "Corsa",
+            "canale": "web",
+            "distanza": 10.0
+          },
+          {
+            "disciplina": "Nuoto",
+            "canale": "app",
+            "distanza": 25.0
+          },
+          {
+            "disciplina": "Bici",
+            "canale": "web",
+            "distanza": 5.0
+          },
+          {
+            "disciplina": "Nuoto",
+            "canale": "store",
+            "distanza": null
+          }
+        ]
+      },
+      "expected": {
+        "row_count": 5,
+        "total_nulls": 1,
+        "columns_with_nulls": [
+          {
+            "column": "distanza",
+            "null_count": 1,
+            "null_percent": 20.0
+          }
+        ]
+      },
+      "actual_type": "null_detection",
+      "actual": {
+        "row_count": 5,
+        "columns_with_nulls": [
+          {
+            "column": "distanza",
+            "null_count": 1,
+            "null_percent": 20.0
+          }
+        ],
+        "total_nulls": 1,
+        "analysis_type": "null_detection",
+        "plan": {
+          "analysis_type": "null_detection",
+          "target_column": null,
+          "group_by_column": null,
+          "value_column": null,
+          "time_column": null,
+          "aggregation": null,
+          "limit": 10,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Rilevazione valori nulli nel dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Il sistema identifica correttamente il valore mancante, la colonna coinvolta e la percentuale sul totale."
+      }
+    },
+    {
+      "review_id": "REV-015",
+      "benchmark_id": "allenamento-duplicates",
+      "domain": "allenamento",
+      "category": "duplicate_detection",
+      "objective": "Verificare individuazione e quantificazione dei duplicati.",
+      "prompt": "Individua le righe duplicate",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "disciplina",
+          "canale",
+          "distanza"
+        ],
+        "records": [
+          {
+            "disciplina": "Corsa",
+            "canale": "web",
+            "distanza": 10.0
+          },
+          {
+            "disciplina": "Corsa",
+            "canale": "web",
+            "distanza": 10.0
+          },
+          {
+            "disciplina": "Nuoto",
+            "canale": "app",
+            "distanza": 25.0
+          },
+          {
+            "disciplina": "Bici",
+            "canale": "web",
+            "distanza": 5.0
+          },
+          {
+            "disciplina": "Nuoto",
+            "canale": "store",
+            "distanza": null
+          }
+        ]
+      },
+      "expected": {
+        "row_count": 5,
+        "duplicate_rows": 1,
+        "duplicate_groups_rows": 2
+      },
+      "actual_type": "duplicate_detection",
+      "actual": {
+        "row_count": 5,
+        "duplicate_rows": 1,
+        "duplicate_groups_rows": 2,
+        "sample": [
+          {
+            "disciplina": "Corsa",
+            "canale": "web",
+            "distanza": 10.0
+          },
+          {
+            "disciplina": "Corsa",
+            "canale": "web",
+            "distanza": 10.0
+          }
+        ],
+        "analysis_type": "duplicate_detection",
+        "plan": {
+          "analysis_type": "duplicate_detection",
+          "target_column": null,
+          "group_by_column": null,
+          "value_column": null,
+          "time_column": null,
+          "aggregation": null,
+          "limit": 10,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Rilevazione righe duplicate nel dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Il sistema rileva correttamente il duplicato e mostra un campione coerente con i conteggi attesi."
+      }
+    },
+    {
+      "review_id": "REV-016",
+      "benchmark_id": "adversarial-null-mixed",
+      "domain": "quality",
+      "category": "null_detection",
+      "objective": "Verificare completezza e conteggio dei valori mancanti.",
+      "prompt": "Trova i valori mancanti",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "segmento",
+          "valore",
+          "nota"
+        ],
+        "records": [
+          {
+            "segmento": "A",
+            "valore": 10.0,
+            "nota": null
+          },
+          {
+            "segmento": "A",
+            "valore": -5.0,
+            "nota": "ok"
+          },
+          {
+            "segmento": "B",
+            "valore": 0.0,
+            "nota": ""
+          },
+          {
+            "segmento": null,
+            "valore": 25.0,
+            "nota": "ok"
+          },
+          {
+            "segmento": "B",
+            "valore": 0.0,
+            "nota": ""
+          }
+        ]
+      },
+      "expected": {
+        "row_count": 5,
+        "total_nulls": 2
+      },
+      "actual_type": "null_detection",
+      "actual": {
+        "row_count": 5,
+        "columns_with_nulls": [
+          {
+            "column": "segmento",
+            "null_count": 1,
+            "null_percent": 20.0
+          },
+          {
+            "column": "nota",
+            "null_count": 1,
+            "null_percent": 20.0
+          }
+        ],
+        "total_nulls": 2,
+        "analysis_type": "null_detection",
+        "plan": {
+          "analysis_type": "null_detection",
+          "target_column": null,
+          "group_by_column": null,
+          "value_column": null,
+          "time_column": null,
+          "aggregation": null,
+          "limit": 10,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Rilevazione valori nulli nel dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Sono rilevati due null su colonne differenti, con conteggi e percentuali coerenti. Il dettaglio effettivo è più completo dell’atteso."
+      }
+    },
+    {
+      "review_id": "REV-017",
+      "benchmark_id": "adversarial-duplicates-zero",
+      "domain": "quality",
+      "category": "duplicate_detection",
+      "objective": "Verificare individuazione e quantificazione dei duplicati.",
+      "prompt": "Individua le righe duplicate",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "segmento",
+          "valore",
+          "nota"
+        ],
+        "records": [
+          {
+            "segmento": "A",
+            "valore": 10.0,
+            "nota": null
+          },
+          {
+            "segmento": "A",
+            "valore": -5.0,
+            "nota": "ok"
+          },
+          {
+            "segmento": "B",
+            "valore": 0.0,
+            "nota": ""
+          },
+          {
+            "segmento": null,
+            "valore": 25.0,
+            "nota": "ok"
+          },
+          {
+            "segmento": "B",
+            "valore": 0.0,
+            "nota": ""
+          }
+        ]
+      },
+      "expected": {
+        "duplicate_rows": 1,
+        "duplicate_groups_rows": 2
+      },
+      "actual_type": "duplicate_detection",
+      "actual": {
+        "row_count": 5,
+        "duplicate_rows": 1,
+        "duplicate_groups_rows": 2,
+        "sample": [
+          {
+            "segmento": "B",
+            "valore": 0.0,
+            "nota": ""
+          },
+          {
+            "segmento": "B",
+            "valore": 0.0,
+            "nota": ""
+          }
+        ],
+        "analysis_type": "duplicate_detection",
+        "plan": {
+          "analysis_type": "duplicate_detection",
+          "target_column": null,
+          "group_by_column": null,
+          "value_column": null,
+          "time_column": null,
+          "aggregation": null,
+          "limit": 10,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Rilevazione righe duplicate nel dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Il valore numerico zero e la stringa vuota sono trattati correttamente nel rilevamento dei duplicati; i conteggi coincidono con l’atteso."
+      }
+    },
+    {
+      "review_id": "REV-018",
+      "benchmark_id": "adversarial-count-null-category",
+      "domain": "quality",
+      "category": "count_occurrences",
+      "objective": "Verificare conteggi, categorie e totale dei record.",
+      "prompt": "Conta gli elementi per segmento",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "segmento",
+          "valore",
+          "nota"
+        ],
+        "records": [
+          {
+            "segmento": "A",
+            "valore": 10.0,
+            "nota": null
+          },
+          {
+            "segmento": "A",
+            "valore": -5.0,
+            "nota": "ok"
+          },
+          {
+            "segmento": "B",
+            "valore": 0.0,
+            "nota": ""
+          },
+          {
+            "segmento": null,
+            "valore": 25.0,
+            "nota": "ok"
+          },
+          {
+            "segmento": "B",
+            "valore": 0.0,
+            "nota": ""
+          }
+        ]
+      },
+      "expected": {
+        "total_records": 5,
+        "counts": [
+          {
+            "value": "A",
+            "count": 2
+          },
+          {
+            "value": "B",
+            "count": 2
+          },
+          {
+            "value": "N/D",
+            "count": 1
+          }
+        ]
+      },
+      "actual_type": "count_occurrences",
+      "actual": {
+        "target_column": "segmento",
+        "total_records": 5,
+        "counts": [
+          {
+            "value": "A",
+            "count": 2
+          },
+          {
+            "value": "B",
+            "count": 2
+          },
+          {
+            "value": "N/D",
+            "count": 1
+          }
+        ],
+        "unique_values": 2,
+        "related_counts": [
+          {
+            "target_column": "nota",
+            "counts": [
+              {
+                "value": "ok",
+                "count": 2
+              },
+              {
+                "value": "",
+                "count": 2
+              },
+              {
+                "value": "N/D",
+                "count": 1
+              }
+            ],
+            "unique_values": 2
+          }
+        ],
+        "cross_tabs": [
+          {
+            "primary_column": "segmento",
+            "related_column": "nota",
+            "columns": [
+              "",
+              "N/D",
+              "ok"
+            ],
+            "rows": [
+              {
+                "value": "A",
+                "total": 2,
+                "counts": {
+                  "": 0,
+                  "N/D": 1,
+                  "ok": 1
+                },
+                "shares_percent": {
+                  "": 0.0,
+                  "N/D": 50.0,
+                  "ok": 50.0
+                }
+              },
+              {
+                "value": "B",
+                "total": 2,
+                "counts": {
+                  "": 2,
+                  "N/D": 0,
+                  "ok": 0
+                },
+                "shares_percent": {
+                  "": 100.0,
+                  "N/D": 0.0,
+                  "ok": 0.0
+                }
+              },
+              {
+                "value": "N/D",
+                "total": 1,
+                "counts": {
+                  "": 0,
+                  "N/D": 0,
+                  "ok": 1
+                },
+                "shares_percent": {
+                  "": 0.0,
+                  "N/D": 0.0,
+                  "ok": 100.0
+                }
+              }
+            ],
+            "total_records": 5
+          }
+        ],
+        "semantic_groups": [],
+        "raw_counts": [
+          {
+            "value": "A",
+            "count": 2
+          },
+          {
+            "value": "B",
+            "count": 2
+          },
+          {
+            "value": "N/D",
+            "count": 1
+          }
+        ],
+        "analysis_type": "count_occurrences",
+        "plan": {
+          "analysis_type": "count_occurrences",
+          "target_column": "segmento",
+          "group_by_column": null,
+          "value_column": null,
+          "time_column": null,
+          "aggregation": null,
+          "limit": 10,
+          "related_columns": [
+            "nota"
+          ],
+          "semantic_groups": [],
+          "description": "Conteggio occorrenze calcolato dal dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "partial",
+        "rating": 4,
+        "clarity": 3,
+        "usefulness": 4,
+        "notes": "Parziale. I conteggi richiesti sono corretti (A=2, B=2, N/D=1), ma l’output dichiara unique_values=2 pur mostrando tre categorie nell’output normalizzato. La stessa ambiguità compare per la colonna nota. Occorre chiarire se unique_values esclude i null originari oppure allinearlo ai valori visualizzati."
+      }
+    },
+    {
+      "review_id": "REV-019",
+      "benchmark_id": "adversarial-sum-negative",
+      "domain": "quality",
+      "category": "numeric_aggregation",
+      "objective": "Verificare aggregazione, metrica e raggruppamento.",
+      "prompt": "Calcola la somma di valore per segmento",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "segmento",
+          "valore",
+          "nota"
+        ],
+        "records": [
+          {
+            "segmento": "A",
+            "valore": 10.0,
+            "nota": null
+          },
+          {
+            "segmento": "A",
+            "valore": -5.0,
+            "nota": "ok"
+          },
+          {
+            "segmento": "B",
+            "valore": 0.0,
+            "nota": ""
+          },
+          {
+            "segmento": null,
+            "valore": 25.0,
+            "nota": "ok"
+          },
+          {
+            "segmento": "B",
+            "valore": 0.0,
+            "nota": ""
+          }
+        ]
+      },
+      "expected": {
+        "aggregation": "sum",
+        "groups": [
+          {
+            "group": null,
+            "value": 25.0
+          },
+          {
+            "group": "A",
+            "value": 5.0
+          },
+          {
+            "group": "B",
+            "value": 0.0
+          }
+        ]
+      },
+      "actual_type": "numeric_aggregation",
+      "actual": {
+        "value_column": "valore",
+        "group_by_column": "segmento",
+        "aggregation": "sum",
+        "groups": [
+          {
+            "group": null,
+            "value": 25.0
+          },
+          {
+            "group": "A",
+            "value": 5.0
+          },
+          {
+            "group": "B",
+            "value": 0.0
+          }
+        ],
+        "analysis_type": "numeric_aggregation",
+        "plan": {
+          "analysis_type": "numeric_aggregation",
+          "target_column": null,
+          "group_by_column": "segmento",
+          "value_column": "valore",
+          "time_column": null,
+          "aggregation": "sum",
+          "limit": 10,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Aggregazione numerica 'sum' calcolata dal dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. La somma per segmento gestisce correttamente valori negativi, zeri e gruppo nullo; tutti i valori coincidono con l’atteso."
+      }
+    },
+    {
+      "review_id": "REV-020",
+      "benchmark_id": "adversarial-top-ties",
+      "domain": "quality",
+      "category": "top_n",
+      "objective": "Verificare ordinamento, limite e valore aggregato.",
+      "prompt": "Top 2 segmento per somma di valore",
+      "dataset": {
+        "row_count": 5,
+        "columns": [
+          "segmento",
+          "valore",
+          "nota"
+        ],
+        "records": [
+          {
+            "segmento": "A",
+            "valore": 10.0,
+            "nota": null
+          },
+          {
+            "segmento": "A",
+            "valore": -5.0,
+            "nota": "ok"
+          },
+          {
+            "segmento": "B",
+            "valore": 0.0,
+            "nota": ""
+          },
+          {
+            "segmento": null,
+            "valore": 25.0,
+            "nota": "ok"
+          },
+          {
+            "segmento": "B",
+            "valore": 0.0,
+            "nota": ""
+          }
+        ]
+      },
+      "expected": {
+        "aggregation": "sum",
+        "top": [
+          {
+            "value": null,
+            "metric": 25.0
+          },
+          {
+            "value": "A",
+            "metric": 5.0
+          }
+        ]
+      },
+      "actual_type": "top_n",
+      "actual": {
+        "target_column": "segmento",
+        "value_column": "valore",
+        "aggregation": "sum",
+        "top": [
+          {
+            "value": null,
+            "metric": 25.0
+          },
+          {
+            "value": "A",
+            "metric": 5.0
+          }
+        ],
+        "analysis_type": "top_n",
+        "plan": {
+          "analysis_type": "top_n",
+          "target_column": "segmento",
+          "group_by_column": null,
+          "value_column": "valore",
+          "time_column": null,
+          "aggregation": "sum",
+          "limit": 2,
+          "related_columns": [],
+          "semantic_groups": [],
+          "description": "Top 2 valori calcolati dal dataframe."
+        },
+        "status": "computed",
+        "plan_source": "new",
+        "analysis_pattern_id": null,
+        "confidence_score": 0.0,
+        "similarity_score": null,
+        "similarity_method": null
+      },
+      "automatic_result": "passed",
+      "human_feedback": {
+        "outcome": "correct",
+        "rating": 5,
+        "clarity": 5,
+        "usefulness": 5,
+        "notes": "Corretto. Il Top 2 gestisce correttamente il gruppo nullo e restituisce valori e ordinamento attesi. Il nome del caso cita ties, ma il dataset mostrato non evidenzia un vero pareggio nel Top 2: è una debolezza del test, non del risultato."
+      }
+    }
+  ],
+  "human_review_status": "completed",
+  "human_summary": {
+    "total": 20,
+    "outcomes": {
+      "correct": 19,
+      "partial": 1,
+      "incorrect": 0
+    },
+    "average_rating": 4.95
+  }
+}

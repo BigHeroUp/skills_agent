@@ -309,7 +309,12 @@ class AnalysisEngine:
                 {"value": self._json_safe(index), "count": int(value)}
                 for index, value in counts.items()
             ],
-            "unique_values": int(df[column].nunique(dropna=True)),
+            # `counts` normalizza i null come N/D: il conteggio esposto deve
+            # descrivere le categorie visualizzate. La cardinalita non-null
+            # resta disponibile per rendere esplicita la distinzione.
+            "unique_values": int(counts.size),
+            "displayed_unique_values": int(counts.size),
+            "non_null_unique_values": int(df[column].nunique(dropna=True)),
             "related_counts": related_counts,
             "cross_tabs": cross_tabs,
             "semantic_groups": applied_groups,

@@ -13,6 +13,7 @@ data/
 *.db
 *.sqlite
 *.pdf
+validation_lab/deliverables/*_COMPILATA*.docx
 logs/
 data/query_history.db
 data/reports/

@@ -41,6 +41,10 @@ Verifica del 29 luglio 2026:
   Center, export PDF/DOCX, onboarding, hardening sicurezza e performance probe.
 - performance deterministica locale verificata su 10.000, 100.000 e 1.000.000
   righe; i tempi osservati dipendono dall'hardware e non sono soglie SLA.
+- validazione interna single-user importata su 20 casi: 19 corretti, 1 parziale,
+  0 errati, rating medio 4,95;
+- feedback `REV-018` trasformato in bug riproducibile e corretto rendendo
+  esplicita la differenza tra categorie visualizzate e valori non nulli.
 
 ## Vincoli permanenti
 

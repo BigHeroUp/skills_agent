@@ -40,6 +40,9 @@ def test_count_occurrences_by_category_is_deterministic_and_json_safe():
         {"value": "closed", "count": 1},
         {"value": "N/D", "count": 1},
     ]
+    assert payload["deterministic_results"]["unique_values"] == 3
+    assert payload["deterministic_results"]["displayed_unique_values"] == 3
+    assert payload["deterministic_results"]["non_null_unique_values"] == 2
     json.dumps(payload)
 
 
