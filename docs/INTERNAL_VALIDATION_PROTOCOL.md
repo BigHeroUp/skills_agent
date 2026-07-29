@@ -39,3 +39,26 @@ nome ambiguo.
 Il modello di registrazione è
 `validation_lab/internal_validation_template.json` e non deve contenere dati
 personali, righe sorgente, token o informazioni sensibili.
+
+## Campagna compilabile
+
+La campagna pronta per la revisione è generata con:
+
+```bash
+python3 scripts/build_internal_validation_campaign.py
+```
+
+Produce un DOCX con 20 schede e un JSON gemello in
+`validation_lab/deliverables/`. Dopo la compilazione dei campi `[COMPILARE]`,
+il feedback può essere validato e importato con:
+
+```bash
+python3 scripts/import_internal_validation_feedback.py \
+  /path/to/Veraxis_Campagna_Validazione_Interna_compilata.docx \
+  --campaign-json validation_lab/deliverables/Veraxis_Campagna_Validazione_Interna.json \
+  --output validation_lab/internal_feedback.reviewed.json
+```
+
+Il file reviewed deve restare locale se contiene note sensibili. Gli outcome
+`partial` e `incorrect` vanno collegati a test riproducibili prima di aggiornare
+qualsiasi indicatore di qualità.
