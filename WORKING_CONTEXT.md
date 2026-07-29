@@ -18,7 +18,8 @@ Ultimo blocco completato:
 - Milestone 23: segmentazione categoriale multidimensionale;
 - Milestone 24: Kernel Analytical Parity;
 - Milestone 25: Private Beta Readiness;
-- benchmark beta sintetico e riproducibile su 30 casi e 6 domini;
+- benchmark beta sintetico e riproducibile su 40 casi e 10 domini, inclusi
+  10 contratti avversariali;
 - feedback tenant-scoped e metriche aggregate;
 - probe bounded di carico e concorrenza;
 - retention, cancellazione, backup e restore;
@@ -26,13 +27,16 @@ Ultimo blocco completato:
 
 Verifica del 29 luglio 2026:
 
-- benchmark funzionale: 30/30 casi superati;
+- benchmark funzionale: 40/40 casi superati;
 - readiness: 9/10 gate superati;
 - unico gate non superato: accuratezza validata, per assenza dei 10 feedback
   verificati minimi;
 - retention dry-run: nessun record scaduto;
-- regressione completa: 392 test superati, 3 warning non bloccanti relativi
-  all'inferenza automatica del formato data.
+- parsing data esplicito per formati ISO e italiani, senza format guessing;
+- parita Kernel estesa a aggregazioni, top-N, controlli qualita e trend;
+- protocollo di validazione interna single-user disponibile;
+- gate pre-beta e retention dry-run automatizzati in CI;
+- tooltip contestuali disponibili sulle principali funzionalita del portale.
 
 ## Vincoli permanenti
 

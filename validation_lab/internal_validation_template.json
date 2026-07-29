@@ -1,0 +1,16 @@
+{
+  "scope": "internal_single_user",
+  "commit": "REPLACE_WITH_GIT_COMMIT",
+  "evaluations": [
+    {
+      "case_id": "INT-001",
+      "category": "count_occurrences",
+      "dataset_reference": "synthetic-dataset-name",
+      "prompt": "REDACTED_OR_NON_SENSITIVE_PROMPT",
+      "expected_contract_reference": "validation_lab/test_cases/TEST-XXX.md",
+      "outcome": "correct|partial|incorrect",
+      "rating": 1,
+      "notes": "No source rows or personal data"
+    }
+  ]
+}

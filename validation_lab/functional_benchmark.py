@@ -39,7 +39,7 @@ FIXTURES = (
 
 
 def benchmark_cases() -> list[dict[str, Any]]:
-    """Return 30 independently specified intent/result contracts across six domains."""
+    """Return baseline and adversarial independently specified contracts."""
     cases: list[dict[str, Any]] = []
     for fixture in FIXTURES:
         first, second, third = fixture.labels
@@ -116,7 +116,60 @@ def benchmark_cases() -> list[dict[str, Any]]:
                 },
             },
         ])
+    cases.extend(adversarial_cases())
     return cases
+
+
+def adversarial_cases() -> list[dict[str, Any]]:
+    """Exercise dirty values, edge cases, ambiguity and safe abstention."""
+    quality_records = [
+        {"segmento": "A", "valore": 10.0, "nota": None},
+        {"segmento": "A", "valore": -5.0, "nota": "ok"},
+        {"segmento": "B", "valore": 0.0, "nota": ""},
+        {"segmento": None, "valore": 25.0, "nota": "ok"},
+        {"segmento": "B", "valore": 0.0, "nota": ""},
+    ]
+    return [
+        {"id": "adversarial-null-mixed", "domain": "quality", "records": quality_records,
+         "prompt": "Trova i valori mancanti", "expected_type": "null_detection",
+         "expected": {"row_count": 5, "total_nulls": 2}},
+        {"id": "adversarial-duplicates-zero", "domain": "quality", "records": quality_records,
+         "prompt": "Individua le righe duplicate", "expected_type": "duplicate_detection",
+         "expected": {"duplicate_rows": 1, "duplicate_groups_rows": 2}},
+        {"id": "adversarial-count-null-category", "domain": "quality", "records": quality_records,
+         "prompt": "Conta gli elementi per segmento", "expected_type": "count_occurrences",
+         "expected": {"total_records": 5, "counts": [
+             {"value": "A", "count": 2}, {"value": "B", "count": 2}, {"value": "N/D", "count": 1}
+         ]}},
+        {"id": "adversarial-sum-negative", "domain": "quality", "records": quality_records,
+         "prompt": "Calcola la somma di valore per segmento", "expected_type": "numeric_aggregation",
+         "expected": {"aggregation": "sum", "groups": [
+             {"group": None, "value": 25.0}, {"group": "A", "value": 5.0}, {"group": "B", "value": 0.0}
+         ]}},
+        {"id": "adversarial-top-ties", "domain": "quality", "records": quality_records,
+         "prompt": "Top 2 segmento per somma di valore", "expected_type": "top_n",
+         "expected": {"aggregation": "sum", "top": [
+             {"value": None, "metric": 25.0}, {"value": "A", "metric": 5.0}
+         ]}},
+        {"id": "adversarial-unsupported-prediction", "domain": "safety", "records": quality_records,
+         "prompt": "Prevedi con certezza il valore del prossimo anno", "expected_type": "count_occurrences",
+         "expected_status": "unsupported", "expected": {"status": "unsupported"}},
+        {"id": "adversarial-unsupported-causal", "domain": "safety", "records": quality_records,
+         "prompt": "Dimostra che il segmento causa il risultato", "expected_type": "count_occurrences",
+         "expected_status": "unsupported", "expected": {"status": "unsupported"}},
+        {"id": "adversarial-all-null-metric", "domain": "quality",
+         "records": [{"gruppo": "A", "misura": None}, {"gruppo": "B", "misura": None}],
+         "prompt": "Trova tutti i valori mancanti", "expected_type": "null_detection",
+         "expected": {"row_count": 2, "total_nulls": 2}},
+        {"id": "adversarial-unicode-category", "domain": "localization",
+         "records": [{"città": "Forlì"}, {"città": "Forlì"}, {"città": "L'Aquila"}],
+         "prompt": "Conta gli elementi per città", "expected_type": "count_occurrences",
+         "expected": {"counts": [{"value": "Forlì", "count": 2}, {"value": "L'Aquila", "count": 1}]}},
+        {"id": "adversarial-single-row", "domain": "boundaries",
+         "records": [{"categoria": "unica", "valore": 0}],
+         "prompt": "Conta gli elementi per categoria", "expected_type": "count_occurrences",
+         "expected": {"total_records": 1, "counts": [{"value": "unica", "count": 1}]}},
+    ]
 
 
 def _contains(actual: Any, expected: Any) -> bool:
@@ -138,7 +191,9 @@ def run_functional_benchmark() -> dict[str, Any]:
         payload = engine.run(case["prompt"], pd.DataFrame(case["records"]), source_type="benchmark")
         actual = payload["deterministic_results"]
         inferred_type = payload["analysis_plan"]["analysis_type"]
-        passed = inferred_type == case["expected_type"] and _contains(actual, case["expected"])
+        expected_status = case.get("expected_status")
+        status_matches = not expected_status or actual.get("status") == expected_status
+        passed = inferred_type == case["expected_type"] and status_matches and _contains(actual, case["expected"])
         results.append({
             "id": case["id"],
             "domain": case["domain"],

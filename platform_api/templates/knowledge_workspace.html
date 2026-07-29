@@ -6,6 +6,7 @@
   <meta name="csrf-token" content="{{ csrf_token }}">
   <title>Intelligenza della conoscenza · Skills Agent</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='knowledge-workspace.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='tooltips.css') }}">
 </head>
 <body>
   <div class="scanlines" aria-hidden="true"></div>
@@ -15,7 +16,7 @@
       <span><strong>SKILLS AGENT</strong><small>INTELLIGENZA DELLA CONOSCENZA</small></span>
     </a>
     <div class="system-state"><span class="pulse"></span><span id="system-label">SINCRONIZZAZIONE</span></div>
-    <nav><a href="{{ url_for('portal') }}">PORTALE</a><a class="active" href="#">CONOSCENZA</a><a href="{{ url_for('portal_knowledge_export') }}">ESPORTA</a></nav>
+    <nav><a data-tooltip="Torna alla pagina delle analisi." href="{{ url_for('portal') }}">PORTALE</a><a class="active" data-tooltip="Esplora la memoria analitica del tenant." href="#">CONOSCENZA</a><a data-tooltip="Scarica una copia JSON tenant-scoped del Knowledge Graph." href="{{ url_for('portal_knowledge_export') }}">ESPORTA</a></nav>
     <div class="identity"><span>{{ identity.email }}</span><small>{{ {'admin':'amministratore','analyst':'analista','viewer':'lettore'}.get(identity.role, identity.role) }} · {{ identity.tenant_id[:8] }}</small></div>
   </header>
 
@@ -39,15 +40,15 @@
       <aside class="panel controls">
         <div class="panel-title"><span>01</span><h2>CONTROLLO GRAFO</h2></div>
         <label for="search">RICERCA SEMANTICA</label>
-        <div class="input-shell"><input id="search" type="search" placeholder="Nodo, metrica, anomalia…"><button id="search-button" aria-label="Cerca">⌕</button></div>
+        <div class="input-shell"><input id="search" type="search" placeholder="Nodo, metrica, anomalia…"><button id="search-button" data-tooltip="Filtra i nodi per testo e significato." aria-label="Cerca">⌕</button></div>
         <label for="type-filter">TIPO NODO</label><select id="type-filter"><option value="">Tutti i tipi</option></select>
         <div class="legend" id="legend"></div>
         <div class="mini-section"><span>RELAZIONI DOMINANTI</span><div id="relationships" class="bars"></div></div>
-        <button class="ghost-button" id="reset-view">REIMPOSTA VISTA</button>
+        <button class="ghost-button" data-tooltip="Rimuove filtri, selezione e zoom applicati al grafo." id="reset-view">REIMPOSTA VISTA</button>
       </aside>
 
       <section class="panel graph-panel">
-        <div class="panel-title"><span>02</span><h2>MAPPA DELLA MEMORIA</h2><div class="graph-actions"><button id="zoom-out">−</button><button id="zoom-in">+</button></div></div>
+        <div class="panel-title"><span>02</span><h2>MAPPA DELLA MEMORIA</h2><div class="graph-actions"><button data-tooltip="Riduce lo zoom della mappa." id="zoom-out">−</button><button data-tooltip="Ingrandisce la mappa." id="zoom-in">+</button></div></div>
         <div class="graph-stage" id="graph-stage">
           <svg id="knowledge-graph" viewBox="0 0 900 620" role="img" aria-label="Grafo interattivo della conoscenza"></svg>
           <div id="empty-state" class="empty-state" hidden><span class="empty-core"></span><h3>Memoria ancora vuota</h3><p>Esegui un’analisi CSV o Excel dal portale. Il Coordinator popolerà automaticamente Knowledge Graph ed Experience.</p><a href="{{ url_for('portal') }}">AVVIA PRIMA ANALISI</a></div>
@@ -69,14 +70,14 @@
     <section class="lower-grid">
       <section class="panel query-console">
         <div class="panel-title"><span>04</span><h2>CONSOLE DI INTERROGAZIONE</h2><small>DETERMINISTICA · FUNZIONA OFFLINE</small></div>
-        <div class="suggestions"><button>Qual è l’ultima analisi?</button><button>Mostra le anomalie</button><button>Confronta le ultime analisi</button></div>
-        <form id="query-form"><span>&gt;_</span><input id="question" required placeholder="Interroga la memoria analitica…"><button type="submit">ESEGUI</button></form>
+        <div class="suggestions"><button data-tooltip="Recupera l’analisi più recente memorizzata.">Qual è l’ultima analisi?</button><button data-tooltip="Elenca le anomalie supportate da evidenze nel grafo.">Mostra le anomalie</button><button data-tooltip="Confronta le evidenze delle analisi più recenti.">Confronta le ultime analisi</button></div>
+        <form id="query-form"><span>&gt;_</span><input id="question" required placeholder="Interroga la memoria analitica…"><button data-tooltip="Esegue una query deterministica sulla memoria analitica." type="submit">ESEGUI</button></form>
         <div id="query-result" class="terminal-output"><span>READY</span><p>Il motore risponde solo con evidenze presenti nel Knowledge Graph.</p></div>
       </section>
 
       <section class="panel intelligence-panel">
         <div class="panel-title"><span>05</span><h2>INTELLIGENZA DECISIONALE</h2></div>
-        <div class="tabbar"><button class="active" data-tab="experience">ESPERIENZE</button><button data-tab="recommendation">RACCOMANDAZIONI</button><button data-tab="decision">DECISIONI</button><button data-tab="quality">QUALITÀ</button></div>
+        <div class="tabbar"><button class="active" data-tooltip="Pattern riutilizzabili appresi dalle analisi." data-tab="experience">ESPERIENZE</button><button data-tooltip="Azioni suggerite dalle evidenze disponibili." data-tab="recommendation">RACCOMANDAZIONI</button><button data-tooltip="Decisioni tracciate con motivazioni e fonti." data-tab="decision">DECISIONI</button><button data-tooltip="Controlli di completezza e coerenza della conoscenza." data-tab="quality">QUALITÀ</button></div>
         <div id="intelligence-content" class="intelligence-content"></div>
       </section>
 

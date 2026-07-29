@@ -29,6 +29,12 @@ jobs:
         run: python -m compileall -q agents core services ui utils scripts
       - name: Run test suite
         run: python -m pytest -q
+      - name: Run adversarial pre-beta benchmark
+        run: python scripts/run_beta_functional_benchmark.py --output /tmp/veraxis-functional-benchmark.json
+      - name: Verify readiness remains evidence-driven
+        run: python scripts/check_prebeta_gates.py
+      - name: Verify retention policy in dry-run mode
+        run: python scripts/enforce_retention.py --days 90
       - name: Upload diagnostic logs on failure
         if: failure()
         uses: actions/upload-artifact@v4

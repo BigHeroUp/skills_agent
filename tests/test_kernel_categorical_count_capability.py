@@ -52,3 +52,25 @@ def test_kernel_shadow_runner_matches_production_engine():
     assert comparison["matched"] is True
     assert comparison["status"] == "matched"
     assert comparison["mismatched_fields"] == []
+
+
+def test_kernel_shadow_runner_matches_multiple_analysis_contracts():
+    dataframe = pd.DataFrame({
+        "segmento": ["A", "A", "B", "B"],
+        "valore": [10.0, 5.0, 8.0, None],
+        "data": ["2026-01-01", "2026-01-02", "2026-02-01", "2026-02-02"],
+    })
+    questions = (
+        "Calcola la somma di valore per segmento",
+        "Top 2 segmento per somma di valore",
+        "Trova tutti i valori mancanti",
+        "Individua le righe duplicate",
+        "Mostra il trend mensile di valore per data",
+    )
+
+    comparisons = [KernelAnalysisParityRunner().compare(question, dataframe) for question in questions]
+
+    assert all(item["matched"] for item in comparisons)
+    assert {item["kernel"]["analysis_plan"]["analysis_type"] for item in comparisons} == {
+        "numeric_aggregation", "top_n", "null_detection", "duplicate_detection", "time_trend"
+    }

@@ -205,7 +205,29 @@ class SemanticColumnClassifier:
             )
             if excel_ratio >= 0.5:
                 return pd.to_datetime(numeric, unit="D", origin="1899-12-30", errors="coerce")
-        return pd.to_datetime(values, errors="coerce")
+        return self._parse_text_datetime(values)
+
+    def _parse_text_datetime(self, values: pd.Series) -> pd.Series:
+        """Parse common date formats explicitly, without pandas format guessing."""
+        text = values.astype("string").str.strip()
+        parsed = pd.Series(pd.NaT, index=values.index, dtype="datetime64[ns]")
+        formats = (
+            "%Y-%m-%dT%H:%M:%S%z",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d",
+            "%d/%m/%Y %H:%M:%S",
+            "%d/%m/%Y %H:%M",
+            "%d/%m/%Y",
+            "%d-%m-%Y",
+        )
+        for date_format in formats:
+            missing = parsed.isna() & text.notna()
+            if not missing.any():
+                break
+            candidate = pd.to_datetime(text.loc[missing], format=date_format, errors="coerce")
+            parsed.loc[candidate.notna().index[candidate.notna()]] = candidate.dropna()
+        return parsed
 
     def _numeric_compact_dates(self, numeric: pd.Series) -> pd.Series:
         def convert(value):

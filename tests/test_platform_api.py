@@ -214,6 +214,7 @@ def test_portal_register_excel_analysis_and_logout(tmp_path, monkeypatch):
     }, follow_redirects=True)
     assert b"Organizzazione registrata correttamente" in registered.data
     assert b"Nuova analisi" in registered.data
+    assert b'data-tooltip="Carica il dataset' in registered.data
     tenant_id = re.search(rb'<p><code>([^<]+)</code></p>', registered.data).group(1).decode()
 
     csrf = re.search(rb'name="csrf_token" value="([^"]+)"', registered.data).group(1).decode()
@@ -235,6 +236,7 @@ def test_portal_register_excel_analysis_and_logout(tmp_path, monkeypatch):
     assert result_page.status_code == 200
     assert b"Report dell'analisi" in result_page.data
     assert b"Completed report" in result_page.data
+    assert b'data-tooltip="Scarica il report' in result_page.data
     assert client.get(f"/portal/analyses/{analysis_id}/download").status_code == 200
 
     csrf = re.search(rb'name="csrf_token" value="([^"]+)"', submitted.data).group(1).decode()
@@ -322,7 +324,10 @@ def test_tenant_knowledge_workspace_is_visible_queryable_and_isolated(tmp_path, 
     assert page.status_code == 200
     assert b"Spazio di intelligenza della conoscenza" in page.data
     assert b'/portal/static/knowledge-workspace.js' in page.data
+    assert b'/portal/static/tooltips.css' in page.data
+    assert b'data-tooltip="Esegue una query deterministica' in page.data
     assert client.get("/portal/static/knowledge-workspace.js").status_code == 200
+    assert client.get("/portal/static/tooltips.css").status_code == 200
     assert client.get("/portal/api/knowledge/export").headers["Content-Disposition"].endswith(
         "knowledge-intelligence.json"
     )

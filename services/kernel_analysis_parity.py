@@ -25,7 +25,7 @@ class KernelAnalysisParityRunner:
     ) -> dict[str, Any]:
         production = self.production_engine.run(question, dataframe, source_type=source_type)
         response = self.kernel.execute_capability(
-            "analysis.categorical_count",
+            "analysis.deterministic",
             payload={
                 "question": question,
                 "records": dataframe.to_dict(orient="records"),

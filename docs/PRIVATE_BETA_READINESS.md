@@ -28,8 +28,9 @@ approvate. Non inserire dati sorgente, prompt sensibili, token o identificativi 
 python3 scripts/check_beta_readiness.py /path/to/beta_evidence.json
 ```
 
-Il campione funzionale incluso è sintetico e riproducibile: 30 contratti di analisi
-coprono sei domini e cinque intenti per dominio. Ogni risultato viene confrontato con un
+Il campione funzionale incluso è sintetico e riproducibile: 40 contratti di analisi
+coprono dieci domini. I 30 casi baseline coprono cinque intenti in sei domini; altri
+10 casi avversariali verificano dati sporchi, limiti e astensione sicura. Ogni risultato viene confrontato con un
 contratto atteso scritto indipendentemente dall'output del motore:
 
 ```bash
@@ -39,6 +40,10 @@ python3 scripts/run_beta_functional_benchmark.py \
 
 Il benchmark verifica inferenza dell'intento e calcolo deterministico. Non viene contato
 come feedback utente: il gate di accuratezza resta separato per impedire auto-certificazioni.
+
+Quando non sono disponibili tester esterni, il protocollo
+`docs/INTERNAL_VALIDATION_PROTOCOL.md` consente una validazione single-user tracciabile.
+Questa evidenza resta esplicitamente interna e non sostituisce il gate dei feedback beta.
 
 ## Feedback e metriche
 
