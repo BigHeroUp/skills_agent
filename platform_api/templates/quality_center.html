@@ -7,4 +7,5 @@
 <p>Benchmark: {{ evidence.validation_cases.total }} casi, {{ evidence.validation_cases.domains }} domini · Feedback tenant: {{ evidence.feedback.total }}</p>
 <p>Parità Kernel: <b class="{{ 'ok' if kernel_parity == 'matched' else 'ko' }}">{{ kernel_parity }}</b> · Warning correnti: {{ warning_count }}</p></section>
 {% for gate in readiness.gates %}<article class="gate"><div><strong>{{ gate.id }}</strong><br><small>{{ gate.reason }}</small></div><b class="{{ 'ok' if gate.passed else 'ko' }}">{{ 'SUPERATO' if gate.passed else 'DA COMPLETARE' }}</b><small>Osservato: {{ gate.observed }}</small><small>Richiesto: {{ gate.required }}</small></article>{% endfor %}
+<section class="summary"><h2>Storico verifiche</h2>{% for item in quality_history %}<p><small>{{ item.created_at[:19] }}</small> · {{ item.payload.passed }}/{{ item.payload.total }} · Kernel {{ item.payload.kernel_parity }} · feedback {{ item.payload.feedback_total }}</p>{% else %}<p>Nessuna verifica storica.</p>{% endfor %}</section>
 </main></body></html>

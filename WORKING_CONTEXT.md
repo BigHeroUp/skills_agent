@@ -45,6 +45,11 @@ Verifica del 29 luglio 2026:
   0 errati, rating medio 4,95;
 - feedback `REV-018` trasformato in bug riproducibile e corretto rendendo
   esplicita la differenza tra categorie visualizzate e valori non nulli.
+- Milestone 27 completata: seconda campagna avversariale 20/20, stack Docker
+  end-to-end verde, storico Quality Center, rate limiting Redis, security probe
+  e release candidate `0.26.0-rc1`.
+- regressione finale: 409 test superati; percorso Docker end-to-end completato
+  in 1,597 secondi con isolamento tenant verificato.
 
 ## Vincoli permanenti
 
@@ -66,6 +71,10 @@ python3 scripts/run_beta_functional_benchmark.py \
 python3 scripts/check_beta_readiness.py \
   validation_lab/beta_evidence.current.json
 python3 scripts/enforce_retention.py --days 90
+python3 scripts/run_adversarial_campaign_v2.py
+python3 scripts/security_probe.py
+python3 scripts/performance_probe.py --rows 100000
+python3 scripts/docker_e2e_probe.py --base-url http://127.0.0.1:8080
 ```
 
 ## Prossimi step

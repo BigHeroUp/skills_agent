@@ -31,7 +31,7 @@ def test_repository_isolates_analyses_by_tenant_and_backs_up(tmp_path):
     assert repository.list_analyses(first["tenant_id"])[0]["progress"] == 65
     assert repository.list_analyses(second["tenant_id"]) == []
     assert repository.backup(tmp_path / "backup.db").exists()
-    assert repository.readiness()["schema_version"] == 3
+    assert repository.readiness()["schema_version"] == 4
 
     restored = PlatformRepository(f"sqlite:///{tmp_path / 'restored.db'}")
     restored.restore(tmp_path / "backup.db")

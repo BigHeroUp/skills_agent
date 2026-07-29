@@ -279,3 +279,18 @@ Ogni milestone documenta:
   sanitizzato.
 - Probe prestazionale bounded verificato a 10.000, 100.000 e 1.000.000 righe.
 - Glossario di prodotto per uniformare Veraxis, Coordinator e Kernel.
+
+## Milestone 27 - Release Candidate Qualification
+
+- Status: completed
+- Seconda campagna avversariale automatizzata di 20 casi su ingestion, date,
+  Unicode, limiti, null, duplicati e richieste analitiche non supportate.
+- Collaudo Docker end-to-end su gateway, API, PostgreSQL, Redis/RQ e worker,
+  comprensivo di isolamento tenant e soglia temporale bounded.
+- Storico snapshot nel Quality Center per rendere visibile l'evoluzione dei gate.
+- Rate limiting condiviso tramite Redis con fallback locale sicuro.
+- Controlli accessibilità strutturali e verifica visuale multipagina del PDF;
+  verifica strutturale dell'export DOCX.
+- Security probe bounded, versione release candidate, changelog e rollback plan.
+- La beta esterna resta subordinata a feedback multiutente reali e non viene
+  dichiarata pronta da questa milestone.

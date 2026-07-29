@@ -12,7 +12,7 @@ from typing import Any, Iterator
 from uuid import uuid4
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 class PlatformRepository:
@@ -94,6 +94,12 @@ class PlatformRepository:
                 FOREIGN KEY(user_id) REFERENCES users(id)
             )""")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_feedback_tenant_created ON analysis_feedback(tenant_id, created_at)")
+            cursor.execute(f"""CREATE TABLE IF NOT EXISTS quality_snapshots (
+                sequence {identity} PRIMARY KEY{'' if self.backend == 'postgresql' else ' AUTOINCREMENT'},
+                id TEXT UNIQUE NOT NULL, tenant_id TEXT NOT NULL, payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL, FOREIGN KEY(tenant_id) REFERENCES tenants(id)
+            )""")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_quality_tenant_created ON quality_snapshots(tenant_id, created_at)")
             self._ensure_column(cursor, "analyses", "progress", "INTEGER NOT NULL DEFAULT 0")
             self._ensure_column(cursor, "analyses", "cancel_requested", "INTEGER NOT NULL DEFAULT 0")
             cursor.execute(
@@ -253,6 +259,26 @@ class PlatformRepository:
             "average_rating": round(float(aggregate.get("average_rating") or 0.0), 2),
             "outcomes": {str(row["outcome"]): int(row["total"]) for row in normalized_outcomes},
         }
+
+    def record_quality_snapshot(self, tenant_id: str, payload: dict[str, Any]) -> str:
+        snapshot_id=uuid4().hex
+        with self.connect() as connection:
+            connection.cursor().execute(
+                f"INSERT INTO quality_snapshots(id,tenant_id,payload_json,created_at) VALUES ({','.join([self.placeholder]*4)})",
+                (snapshot_id,tenant_id,json.dumps(payload,ensure_ascii=False,default=str),self._now()),
+            )
+        return snapshot_id
+
+    def list_quality_snapshots(self, tenant_id: str, limit: int=20) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            rows=connection.cursor().execute(
+                f"SELECT id,payload_json,created_at FROM quality_snapshots WHERE tenant_id={self.placeholder} ORDER BY sequence DESC LIMIT {self.placeholder}",
+                (tenant_id,max(1,min(int(limit),100))),
+            ).fetchall()
+        result=[]
+        for row in rows:
+            item=self._row(row); item["payload"]=json.loads(item.pop("payload_json")); result.append(item)
+        return result
 
     def analysis_status_summary(self) -> dict[str, int]:
         with self.connect() as connection:

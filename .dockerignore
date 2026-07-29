@@ -9,3 +9,6 @@ logs/*
 data/*
 secrets/*
 validation_lab/*
+!validation_lab/__init__.py
+!validation_lab/beta_readiness.py
+!validation_lab/beta_evidence.current.json

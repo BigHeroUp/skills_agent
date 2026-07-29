@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import secrets
 import threading
-import time
 import json
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
@@ -25,8 +24,9 @@ from services.knowledge_graph.query_engine import KnowledgeGraphQueryEngine
 from services.analysis_preview import build_analysis_preview
 from services.platform.robust_ingestion import load_tabular_upload
 from services.report_exports import build_docx, build_pdf
-from validation_lab.beta_readiness import BetaReadinessEvaluator
+from services.platform.beta_readiness import BetaReadinessEvaluator
 from services.kernel_analysis_parity import KernelAnalysisParityRunner
+from services.platform.rate_limiter import RateLimiter
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -58,7 +58,7 @@ def create_app(
         ),
         PERMANENT_SESSION_LIFETIME=timedelta(minutes=int(os.getenv("SESSION_TIMEOUT_MINUTES", "60"))),
     )
-    request_windows: dict[str, list[float]] = {}
+    rate_limiter = RateLimiter(os.getenv("REDIS_URL", ""))
     executor = ThreadPoolExecutor(max_workers=max(1, int(os.getenv("ANALYSIS_WORKERS", "2"))))
     counters = {"submitted": 0, "completed": 0, "failed": 0}
     counter_lock = threading.Lock()
@@ -117,14 +117,7 @@ def create_app(
         return secrets.compare_digest(str(session.get("csrf_token") or ""), str(supplied or ""))
 
     def rate_limited(scope: str, limit: int, seconds: int = 60) -> bool:
-        key = f"{scope}:{request.remote_addr or 'unknown'}"
-        now = time.monotonic()
-        recent = [stamp for stamp in request_windows.get(key, []) if now - stamp < seconds]
-        request_windows[key] = recent
-        if len(recent) >= limit:
-            return True
-        recent.append(now)
-        return False
+        return rate_limiter.limited(scope, request.remote_addr or "unknown", limit, seconds)
 
     def workspace_paths(identity: Identity):
         return tenant_paths(os.getenv("TENANT_DATA_ROOT", "data/tenants"), identity.tenant_id)
@@ -360,8 +353,15 @@ def create_app(
             pd.DataFrame({"categoria": ["A", "A", "B"]}),
             source_type="quality_center",
         )
+        snapshot={"readiness":readiness["status"],"passed":readiness["passed"],"total":readiness["total"],
+                  "kernel_parity":parity["status"],"warning_count":0,"feedback_total":feedback["total"]}
+        history=repo.list_quality_snapshots(identity.tenant_id,20)
+        if not history or history[0]["payload"] != snapshot:
+            repo.record_quality_snapshot(identity.tenant_id,snapshot)
+            history=repo.list_quality_snapshots(identity.tenant_id,20)
         return render_template("quality_center.html", identity=identity, readiness=readiness,
-                               evidence=evidence, kernel_parity=parity["status"], warning_count=0)
+                               evidence=evidence, kernel_parity=parity["status"], warning_count=0,
+                               quality_history=history)
 
     @app.get("/portal/knowledge")
     def portal_knowledge():
