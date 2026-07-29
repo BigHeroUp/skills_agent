@@ -37,6 +37,10 @@ Verifica del 29 luglio 2026:
 - protocollo di validazione interna single-user disponibile;
 - gate pre-beta e retention dry-run automatizzati in CI;
 - tooltip contestuali disponibili sulle principali funzionalita del portale.
+- Milestone 26 completata con ingestion robusta, anteprima del piano, Quality
+  Center, export PDF/DOCX, onboarding, hardening sicurezza e performance probe.
+- performance deterministica locale verificata su 10.000, 100.000 e 1.000.000
+  righe; i tempi osservati dipendono dall'hardware e non sono soglie SLA.
 
 ## Vincoli permanenti
 

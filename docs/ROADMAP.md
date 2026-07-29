@@ -241,6 +241,16 @@ offline-first di Analytical Intelligence.
   - probe bounded di carico/concorrenza e runbook incidenti;
   - nessuna dichiarazione di readiness senza il campione minimo richiesto.
 
+### Milestone 26 - Pre-Beta Product Hardening
+
+- Status: completed
+- Focus:
+  - validazione interna guidata e ingestion di file realistici;
+  - trasparenza semantica e anteprima del piano;
+  - Quality Center ed export PDF/DOCX;
+  - onboarding, accessibilità e sicurezza applicativa;
+  - performance bounded e consolidamento terminologico.
+
 ## Planning Rule
 
 Ogni milestone futura deve rispettare tre vincoli:

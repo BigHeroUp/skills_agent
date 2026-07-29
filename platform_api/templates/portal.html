@@ -40,12 +40,13 @@
       <div class="grid">
         <section class="card"><h2>Nuova analisi</h2><form method="post" enctype="multipart/form-data" action="{{ url_for('portal_submit_analysis') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <label>Domanda di business</label><textarea name="description" required placeholder="Descrivi conteggi, trend, anomalie, cause e decisioni da analizzare"></textarea>
+          <details><summary>Guida rapida ed esempi</summary><p>Scegli una domanda verificabile: “Conta gli ordini per categoria”, “Calcola la somma dei ricavi per regione”, “Mostra il trend mensile”.</p></details>
+          <label>Domanda di business</label><textarea name="description" list="question-examples" required placeholder="Descrivi conteggi, trend, anomalie, cause e decisioni da analizzare"></textarea><datalist id="question-examples"><option value="Conta gli elementi per categoria"><option value="Calcola la somma del valore per segmento"><option value="Mostra il trend mensile"><option value="Trova valori mancanti e duplicati"></datalist>
           <label>File CSV o Excel</label><input type="file" name="dataset" accept=".csv,.xlsx,.xls" required>
           <label data-tooltip="Aggiunge una spiegazione testuale opzionale; i calcoli restano deterministici."><input style="width:auto" type="checkbox" name="enable_narrative"> Abilita la narrativa opzionale</label>
-          <button type="submit" data-tooltip="Carica il dataset e avvia la pipeline analitica verificabile.">Avvia analisi</button></form></section>
+          <button type="submit" data-tooltip="Carica il dataset e avvia la pipeline analitica verificabile.">Avvia analisi</button> <button type="submit" formaction="{{ url_for('portal_analysis_preview') }}" data-tooltip="Mostra intento, colonne e trasformazioni senza avviare il job.">Anteprima piano</button></form></section>
         <section class="card"><h2>Intelligenza della conoscenza</h2><p>Analisi, storico, Knowledge Graph ed esperienza sono isolati per tenant.</p>
-          <p><code>{{ identity.tenant_id }}</code></p><a class="button" data-tooltip="Esplora grafo, evidenze, esperienze e decisioni del tenant." href="{{ url_for('portal_knowledge') }}">Apri lo spazio della conoscenza</a><form method="post" action="{{ url_for('portal_logout') }}">
+          <p><code>{{ identity.tenant_id }}</code></p><a class="button" data-tooltip="Esplora grafo, evidenze, esperienze e decisioni del tenant." href="{{ url_for('portal_knowledge') }}">Apri lo spazio della conoscenza</a> <a class="button" data-tooltip="Controlla benchmark, gate, feedback e readiness." href="{{ url_for('portal_quality') }}">Centro qualità</a><form method="post" action="{{ url_for('portal_logout') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="danger" data-tooltip="Termina la sessione autenticata." type="submit">Esci</button></form></section>
       </div>
       <section class="card wide"><h2>Storico analisi</h2>{% if auto_refresh %}<p class="live">● Aggiornamento automatico attivo</p>{% endif %}

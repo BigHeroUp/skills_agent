@@ -262,3 +262,20 @@ Ogni milestone documenta:
 - Nota:
   il completamento della milestone abilita il processo di qualificazione, ma la
   beta resta `not_ready` finché le evidenze minime non sono state raccolte.
+
+## Milestone 26 - Pre-Beta Product Hardening
+
+- Status: completed
+- Kit guidato di 20 casi per validazione interna single-user.
+- Ingestion CSV/Excel bounded con rilevamento codifica e separatore, limiti di
+  righe/colonne e protezione da archivi Excel anomali.
+- Anteprima del piano con intento, semantica, confidenza, esclusioni e domande
+  di chiarimento.
+- Quality Center tenant-aware con gate, copertura benchmark, feedback e parità
+  Kernel.
+- Export professionali Markdown, PDF e DOCX.
+- Onboarding contestuale, esempi, tooltip e navigazione accessibile.
+- Rate limiting per login e invio analisi, timeout sessione e filename
+  sanitizzato.
+- Probe prestazionale bounded verificato a 10.000, 100.000 e 1.000.000 righe.
+- Glossario di prodotto per uniformare Veraxis, Coordinator e Kernel.

@@ -35,6 +35,8 @@ jobs:
         run: python scripts/check_prebeta_gates.py
       - name: Verify retention policy in dry-run mode
         run: python scripts/enforce_retention.py --days 90
+      - name: Run bounded performance smoke probe
+        run: python scripts/performance_probe.py --rows 100000
       - name: Upload diagnostic logs on failure
         if: failure()
         uses: actions/upload-artifact@v4

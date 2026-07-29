@@ -238,6 +238,20 @@ def test_portal_register_excel_analysis_and_logout(tmp_path, monkeypatch):
     assert b"Completed report" in result_page.data
     assert b'data-tooltip="Scarica il report' in result_page.data
     assert client.get(f"/portal/analyses/{analysis_id}/download").status_code == 200
+    pdf_export = client.get(f"/portal/analyses/{analysis_id}/export/pdf")
+    docx_export = client.get(f"/portal/analyses/{analysis_id}/export/docx")
+    assert pdf_export.status_code == 200 and pdf_export.data.startswith(b"%PDF")
+    assert docx_export.status_code == 200 and docx_export.data.startswith(b"PK")
+    assert client.get("/portal/quality").status_code == 200
+
+    preview = client.post("/portal/analyses/preview", data={
+        "csrf_token": csrf,
+        "description": "Conta gli elementi per categoria",
+        "dataset": (io.BytesIO(b"categoria,valore\nA,1\nB,2\n"), "preview.csv"),
+    }, content_type="multipart/form-data")
+    assert preview.status_code == 200
+    assert b"Anteprima del piano analitico" in preview.data
+    assert b"Interpretazione delle colonne" in preview.data
 
     csrf = re.search(rb'name="csrf_token" value="([^"]+)"', submitted.data).group(1).decode()
     logged_out = client.post("/portal/logout", data={"csrf_token": csrf}, follow_redirects=True)

@@ -5,8 +5,11 @@ from __future__ import annotations
 import os
 import secrets
 import threading
+import time
+import json
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
+from datetime import timedelta
 from typing import Any
 from pathlib import Path
 
@@ -19,6 +22,11 @@ from services.platform.persistence import PlatformRepository
 from platform_api.jobs import ensure_usable_analysis, execute_analysis_job, serialize_context
 from platform_api.knowledge import answer_workspace_question, build_workspace_payload, tenant_paths
 from services.knowledge_graph.query_engine import KnowledgeGraphQueryEngine
+from services.analysis_preview import build_analysis_preview
+from services.platform.robust_ingestion import load_tabular_upload
+from services.report_exports import build_docx, build_pdf
+from validation_lab.beta_readiness import BetaReadinessEvaluator
+from services.kernel_analysis_parity import KernelAnalysisParityRunner
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -48,7 +56,9 @@ def create_app(
             "SESSION_COOKIE_SECURE",
             os.getenv("PLATFORM_ENV", "development").lower() == "production",
         ),
+        PERMANENT_SESSION_LIFETIME=timedelta(minutes=int(os.getenv("SESSION_TIMEOUT_MINUTES", "60"))),
     )
+    request_windows: dict[str, list[float]] = {}
     executor = ThreadPoolExecutor(max_workers=max(1, int(os.getenv("ANALYSIS_WORKERS", "2"))))
     counters = {"submitted": 0, "completed": 0, "failed": 0}
     counter_lock = threading.Lock()
@@ -105,6 +115,16 @@ def create_app(
         body = request.get_json(silent=True) if request.is_json else {}
         supplied = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token") or (body or {}).get("csrf_token")
         return secrets.compare_digest(str(session.get("csrf_token") or ""), str(supplied or ""))
+
+    def rate_limited(scope: str, limit: int, seconds: int = 60) -> bool:
+        key = f"{scope}:{request.remote_addr or 'unknown'}"
+        now = time.monotonic()
+        recent = [stamp for stamp in request_windows.get(key, []) if now - stamp < seconds]
+        request_windows[key] = recent
+        if len(recent) >= limit:
+            return True
+        recent.append(now)
+        return False
 
     def workspace_paths(identity: Identity):
         return tenant_paths(os.getenv("TENANT_DATA_ROOT", "data/tenants"), identity.tenant_id)
@@ -195,6 +215,8 @@ def create_app(
 
     @app.post("/api/v1/auth/login")
     def login():
+        if rate_limited("api-login", int(os.getenv("LOGIN_RATE_LIMIT", "10"))):
+            return error("Troppi tentativi di accesso", 429)
         body = request.get_json(silent=True) or {}
         user = repo.get_user_by_email(str(body.get("tenant_id") or ""), str(body.get("email") or ""))
         if not user or not auth.verify_password(str(body.get("password") or ""), user["password_hash"]):
@@ -221,6 +243,8 @@ def create_app(
 
     @app.post("/api/v1/analyses")
     def submit_analysis():
+        if rate_limited("api-analysis", int(os.getenv("ANALYSIS_RATE_LIMIT", "20"))):
+            return error("Troppe analisi inviate", 429)
         identity, failure = require_identity({"admin", "analyst"})
         if failure:
             return failure
@@ -302,6 +326,42 @@ def create_app(
             mimetype="text/markdown; charset=utf-8",
             headers={"Content-Disposition": f"attachment; filename=analisi-{analysis_id[:8]}.md"},
         )
+
+    @app.get("/portal/analyses/<analysis_id>/export/<format_name>")
+    def portal_analysis_export(analysis_id: str, format_name: str):
+        identity = portal_identity()
+        if identity is None:
+            return error("Autenticazione richiesta", 401)
+        item = repo.get_analysis(identity.tenant_id, analysis_id)
+        if item is None:
+            return error("Analisi non trovata", 404)
+        report = str((item.get("result") or {}).get("final_report") or "Risultato non disponibile.")
+        title = f"Analisi {analysis_id[:8]} - {item.get('description', '')}"
+        if format_name == "pdf":
+            content, mimetype = build_pdf(report, title), "application/pdf"
+        elif format_name == "docx":
+            content, mimetype = build_docx(report, title), "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        else:
+            return error("Formato export non supportato", 404)
+        return Response(content, mimetype=mimetype, headers={"Content-Disposition": f"attachment; filename=analisi-{analysis_id[:8]}.{format_name}"})
+
+    @app.get("/portal/quality")
+    def portal_quality():
+        identity = portal_identity()
+        if identity is None:
+            return redirect(url_for("portal"))
+        evidence_path = Path(__file__).resolve().parents[1] / "validation_lab/beta_evidence.current.json"
+        evidence = json.loads(evidence_path.read_text(encoding="utf-8")) if evidence_path.exists() else {}
+        feedback = repo.feedback_summary(identity.tenant_id)
+        evidence["feedback"] = {"total": feedback["total"], **feedback.get("outcomes", {})}
+        readiness = BetaReadinessEvaluator().evaluate(evidence)
+        parity = KernelAnalysisParityRunner().compare(
+            "Conta gli elementi per categoria",
+            pd.DataFrame({"categoria": ["A", "A", "B"]}),
+            source_type="quality_center",
+        )
+        return render_template("quality_center.html", identity=identity, readiness=readiness,
+                               evidence=evidence, kernel_parity=parity["status"], warning_count=0)
 
     @app.get("/portal/knowledge")
     def portal_knowledge():
@@ -400,6 +460,8 @@ def create_app(
 
     @app.post("/portal/login")
     def portal_login():
+        if rate_limited("portal-login", int(os.getenv("LOGIN_RATE_LIMIT", "10"))):
+            return "Troppi tentativi di accesso. Riprova tra un minuto.", 429
         if not valid_csrf():
             return "Token CSRF non valido", 400
         user = repo.get_user_by_email(request.form.get("tenant_id", ""), request.form.get("email", ""))
@@ -408,6 +470,7 @@ def create_app(
         else:
             identity = Identity(user["id"], user["tenant_id"], user["email"], user["role"])
             session["access_token"] = auth.issue_token(identity)
+            session.permanent = True
             session["message"] = "Accesso completato."
         return redirect(url_for("portal"))
 
@@ -427,24 +490,18 @@ def create_app(
             return "Ruolo non autorizzato", 403
         if not valid_csrf():
             return "Token CSRF non valido", 400
+        if rate_limited("portal-analysis", int(os.getenv("ANALYSIS_RATE_LIMIT", "20"))):
+            return "Troppe analisi inviate. Riprova tra un minuto.", 429
         uploaded = request.files.get("dataset")
         description = request.form.get("description", "").strip()
         if not uploaded or not description:
             session["message"] = "La richiesta di analisi e il file sono obbligatori."
             return redirect(url_for("portal"))
-        filename = uploaded.filename or "dataset"
+        filename = Path(uploaded.filename or "dataset").name
         try:
-            if filename.lower().endswith(".csv"):
-                frame = pd.read_csv(uploaded.stream)
-                source_type = "csv"
-            elif filename.lower().endswith((".xlsx", ".xls")):
-                frame = pd.read_excel(uploaded.stream)
-                source_type = "excel"
-            else:
-                raise ValueError("Sono supportati soltanto file CSV ed Excel")
             max_records = max(1, int(os.getenv("API_MAX_RECORDS", "100000")))
-            if len(frame) > max_records:
-                raise ValueError(f"Il dataset supera il limite configurato di {max_records} record")
+            loaded = load_tabular_upload(uploaded.read(), filename, max_rows=max_records)
+            frame, source_type = loaded.dataframe, loaded.source_type
             job_id, backend = enqueue_analysis(identity, {
                 "description": description,
                 "records": frame.where(pd.notna(frame), None).to_dict(orient="records"),
@@ -452,10 +509,26 @@ def create_app(
                 "dataset_name": filename,
                 "enable_narrative": request.form.get("enable_narrative") == "on",
             })
-            session["message"] = f"Analisi {job_id[:8]} avviata correttamente."
+            suffix = " " + " ".join(loaded.warnings) if loaded.warnings else ""
+            session["message"] = f"Analisi {job_id[:8]} avviata correttamente.{suffix}"
         except Exception as exc:
             session["message"] = str(exc)
         return redirect(url_for("portal"))
+
+    @app.post("/portal/analyses/preview")
+    def portal_analysis_preview():
+        identity = portal_identity()
+        if identity is None:
+            return redirect(url_for("portal"))
+        if identity.role not in {"admin", "analyst"} or not valid_csrf():
+            return "Richiesta non autorizzata", 403
+        uploaded = request.files.get("dataset")
+        description = request.form.get("description", "").strip()
+        if not uploaded or not description:
+            return "Domanda e dataset sono obbligatori", 400
+        loaded = load_tabular_upload(uploaded.read(), Path(uploaded.filename or "dataset").name,
+                                     max_rows=max(1, int(os.getenv("API_MAX_RECORDS", "100000"))))
+        return render_template("analysis_preview.html", preview=build_analysis_preview(description, loaded.dataframe), warnings=loaded.warnings)
 
     def run_analysis(identity: Identity, job_id: str, body: dict[str, Any]):
         repo.update_analysis(identity.tenant_id, job_id, status="processing")
