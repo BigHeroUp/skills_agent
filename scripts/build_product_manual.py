@@ -375,13 +375,16 @@ def build_content(doc):
     feature(doc, "Download Markdown", "Esportazione testuale del report.", "Scarica il report dell'analisi senza il payload tecnico completo.", "Premere Scarica report Markdown.", "Utenti autorizzati.", "File .md archiviabile e versionabile.", "La condivisione segue le policy del cliente.")
 
     doc.add_heading("10. Feedback e misurazione della qualità", level=1)
-    add_figure(doc, USER_ASSETS / "05_feedback.png", "Figura 7 - Valutazione 1-5, esito e nota facoltativa.", width=5.7)
-    feature(doc, "Feedback tenant-scoped", "Valutazione associata a utente, tenant e analisi.", "Registra rating 1-5, esito correct/partial/incorrect e nota fino a 1.000 caratteri.", "Valutare il risultato dopo un controllo indipendente e premere Salva feedback.", "Utenti autenticati che conoscono il dataset.", "Record aggiornabile dallo stesso utente e metriche aggregate.", "Non premiare la grafica; valutare pertinenza, colonne, aggregazioni e numeri.")
+    add_figure(doc, USER_ASSETS / "05_feedback.png", "Figura 7 - Valutazione, diagnosi e invio alla verifica.", width=5.7)
+    feature(doc, "Feedback tenant-scoped", "Valutazione associata a utente, tenant e analisi.", "Registra rating, esito, origine interna/esterna, motivo, risultato atteso, nota e versione applicativa.", "Valutare il risultato dopo un controllo indipendente e inviarlo alla verifica.", "Utenti autenticati che conoscono il dataset.", "Record aggiornabile; ogni modifica azzera la revisione precedente.", "Non premiare la grafica; valutare pertinenza, colonne, aggregazioni e numeri.")
+    feature(doc, "Verifica indipendente", "Revisione amministrativa separata dall'autore.", "Marca il record verified o rejected, con nota e riferimento a bug/test.", "Aprire il Centro qualità e revisionare la coda con un secondo amministratore.", "Amministratore del tenant diverso dall'autore.", "Audit di reviewer e timestamp; solo gli esterni verificati entrano nel gate.")
     doc.add_heading("Metriche aggregate", level=2)
     for item in [
         "numero totale di feedback",
         "rating medio",
         "conteggi per esito",
+        "feedback esterni verificati e tester distinti",
+        "stadi aggregati del funnel beta",
         "analisi persistite per stato",
         "counter di submission, completamenti e failure del processo corrente",
     ]:
@@ -436,7 +439,10 @@ def build_content(doc):
         ("GET", "/api/v1/analyses", "Lista analisi del tenant"),
         ("GET", "/api/v1/analyses/{id}", "Dettaglio tenant-scoped"),
         ("POST", "/api/v1/analyses/{id}/cancel", "Cancellazione cooperativa"),
-        ("POST", "/api/v1/analyses/{id}/feedback", "Rating, esito e nota"),
+        ("POST", "/api/v1/analyses/{id}/feedback", "Feedback diagnostico"),
+        ("GET", "/api/v1/feedback", "Coda feedback; solo admin"),
+        ("PATCH", "/api/v1/feedback/{id}", "Verifica o esclusione; solo admin"),
+        ("GET", "/api/v1/beta/funnel", "Funnel aggregato; solo admin"),
         ("DELETE", "/api/v1/analyses/{id}", "Eliminazione amministrativa"),
         ("GET", "/api/v1/knowledge", "Read model Knowledge Intelligence"),
         ("POST", "/api/v1/knowledge/query", "Query deterministica del grafo"),
@@ -458,7 +464,7 @@ def build_content(doc):
     feature(doc, "Utenti", "Provisioning degli account tramite API amministrativa.", "Crea utenti nel tenant con ruolo esplicito e password hashata.", "Chiamare POST /api/v1/users con token admin.", "Amministratore del tenant.", "ID utente e associazione tenant.", "L'attuale portale non espone una schermata completa di user management.")
 
     doc.add_heading("15. Lifecycle dei dati, backup e retention", level=1)
-    feature(doc, "Cancellazione analisi", "DELETE amministrativa tenant-scoped.", "Elimina analisi e feedback associati.", "Usare DELETE /api/v1/analyses/{id} con ruolo admin.", "Admin o processo di privacy operations.", "HTTP 204 quando completata.", "Knowledge Graph, Experience, log e backup hanno lifecycle separati.")
+    feature(doc, "Cancellazione analisi", "DELETE amministrativa tenant-scoped.", "Elimina analisi, feedback ed eventi funnel associati.", "Usare DELETE /api/v1/analyses/{id} con ruolo admin.", "Admin o processo di privacy operations.", "HTTP 204 quando completata.", "Knowledge Graph, Experience, log e backup hanno lifecycle separati.")
     feature(doc, "Retention", "Policy batch per job terminali più vecchi della soglia.", "Identifica candidati in dry-run e li elimina solo con --apply.", "Eseguire scripts/enforce_retention.py --days N, verificare, poi aggiungere --apply.", "Operations e data governance.", "Conteggio candidati/eliminati.", "Non applicare senza policy approvata e backup coerente.")
     feature(doc, "Backup SQLite", "Copia consistente del database locale.", "Produce un file di backup fuori dal database attivo.", "Usare scripts/backup_platform.py --output-dir ... .", "Operations.", "Database di backup versionabile esternamente.")
     feature(doc, "Restore SQLite", "Ripristino esplicito da backup.", "Sostituisce il database soltanto con conferma.", "Provare in ambiente isolato con scripts/restore_platform.py ... --confirm.", "Operations e disaster recovery.", "Database ripristinato e verificabile.", "PostgreSQL richiede pg_dump/pg_restore e procedure del cliente.")
@@ -491,7 +497,7 @@ def build_content(doc):
     doc.add_paragraph("Il framework tecnico della private beta è implementato. La commercializzazione generale richiede evidenze sufficienti di qualità sul campo, oltre ai test automatici.")
     gate_rows = [
         ("Campione funzionale", "30 casi / almeno 3 domini", "Superato: 30 casi, 6 domini"),
-        ("Feedback verificati", "almeno 10", "Da raccogliere con utenti reali"),
+        ("Feedback esterni verificati", "almeno 10 / 3 tester", "Da raccogliere con utenti reali"),
         ("Accuratezza", "almeno 80% correct", "Calcolata dopo i feedback"),
         ("Concorrenza", "almeno 5, error rate <=2%", "Gate tecnico superato"),
         ("Isolamento / operations", "tutti superati", "Gate tecnici superati"),

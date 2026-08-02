@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- workflow tenant-scoped per classificare, verificare o escludere feedback beta;
+- motivi diagnostici, risultato atteso, versione analizzata e riferimento a bug/test;
+- modalità beta guidata con dataset sintetici e domande precompilate;
+- funnel beta aggregato su accesso, piano, analisi, risultato e feedback;
+- API amministrative per coda feedback, revisione e funnel aggregato.
+
+### Changed
+
+- il gate di accuratezza usa soltanto feedback esterni verificati e richiede
+  almeno tre tester distinti;
+- la modifica di un feedback già revisionato lo riporta automaticamente in
+  stato `pending`;
+- lo schema di piattaforma passa alla versione 5; i feedback storici migrano
+  come `unclassified` e non vengono conteggiati nel gate.
+
 ## 0.26.0-rc1 - 2026-07-29
 
 ### Added

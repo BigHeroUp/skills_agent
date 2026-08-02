@@ -76,6 +76,10 @@ Primary endpoints:
 | GET | `/api/v1/analyses` | authenticated |
 | GET | `/api/v1/analyses/{id}` | authenticated, tenant-scoped |
 | POST | `/api/v1/analyses/{id}/cancel` | admin, analyst |
+| POST | `/api/v1/analyses/{id}/feedback` | authenticated, tenant-scoped |
+| GET | `/api/v1/feedback` | admin, tenant-scoped |
+| PATCH | `/api/v1/feedback/{id}` | admin reviewer, tenant-scoped |
+| GET | `/api/v1/beta/funnel` | admin, aggregate tenant-scoped |
 | GET | `/health/live` | infrastructure |
 | GET | `/health/ready` | infrastructure |
 | GET | `/metrics` | infrastructure |
@@ -161,3 +165,15 @@ large graphs are bounded server-side and can be narrowed by type or search.
 Bearer clients use `GET /api/v1/knowledge` and
 `POST /api/v1/knowledge/query`; browser sessions use CSRF-protected portal
 endpoints.
+
+## Milestone 28 — Beta Feedback Operations
+
+Il portale conserva feedback diagnostici con origine, reason code, risultato atteso e
+versione applicativa. La revisione è separata dall'autore: un amministratore dello stesso
+tenant può verificare o escludere il record e collegarlo a un bug/test. Il gate di
+accuratezza considera solo feedback esterni verificati e richiede almeno tre tester
+distinti.
+
+`/portal/beta` guida il tester con dataset sintetici e domande suggerite. Il funnel
+salva soltanto eventi allowlistati e identificativi tecnici deduplicati per sessione;
+Quality Center, API e Prometheus espongono esclusivamente aggregati.

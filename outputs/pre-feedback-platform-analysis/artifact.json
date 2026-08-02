@@ -1,0 +1,529 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "Cosa aggiungere prima dei 10 feedback",
+    "description": "Priorità di prodotto per rendere i prossimi feedback beta verificabili, diagnostici e utilizzabili per il gate di readiness.",
+    "generatedAt": "2026-08-02T12:00:00+02:00",
+    "cards": [
+      {
+        "id": "readiness",
+        "description": "Gate tecnici e di prodotto già superati prima della raccolta beta esterna.",
+        "dataset": "headline",
+        "sourceId": "headline_query",
+        "metrics": [
+          {
+            "label": "Gate readiness superati",
+            "field": "gates_passed",
+            "format": "number",
+            "unit": "/ 10"
+          }
+        ]
+      },
+      {
+        "id": "benchmark",
+        "description": "Contratti del benchmark funzionale riproducibile superati.",
+        "dataset": "headline",
+        "sourceId": "headline_query",
+        "metrics": [
+          {
+            "label": "Benchmark funzionale",
+            "field": "benchmark_passed",
+            "format": "number",
+            "unit": "/ 40"
+          }
+        ]
+      },
+      {
+        "id": "regression",
+        "description": "Test della regressione completa superati nel ricollaudo finale.",
+        "dataset": "headline",
+        "sourceId": "headline_query",
+        "metrics": [
+          {
+            "label": "Regressione completa",
+            "field": "regression_tests",
+            "format": "number",
+            "unit": " test"
+          }
+        ]
+      },
+      {
+        "id": "feedback_target",
+        "description": "Campione minimo di feedback beta indipendenti richiesto dal gate residuo.",
+        "dataset": "headline",
+        "sourceId": "headline_query",
+        "metrics": [
+          {
+            "label": "Feedback verificati richiesti",
+            "field": "feedback_target",
+            "format": "number"
+          }
+        ]
+      }
+    ],
+    "charts": [
+      {
+        "id": "readiness_gates",
+        "title": "Stato dei gate di private beta",
+        "subtitle": "1 = superato, 0 = da completare; snapshot documentato al 2 agosto 2026.",
+        "type": "bar",
+        "dataset": "readiness_gates",
+        "sourceId": "readiness_query",
+        "encodings": {
+          "x": {
+            "field": "gate",
+            "type": "ordinal",
+            "label": "Gate"
+          },
+          "y": {
+            "field": "passed",
+            "type": "quantitative",
+            "label": "Stato",
+            "format": "number"
+          }
+        },
+        "yAxisTitle": "Superato",
+        "valueFormat": "number",
+        "layout": "full"
+      }
+    ],
+    "tables": [
+      {
+        "id": "feedback_contract",
+        "title": "Copertura del contratto feedback attuale",
+        "subtitle": "Campi persistiti oggi e informazioni mancanti per dimostrare che il campione è indipendente e verificato.",
+        "dataset": "feedback_contract",
+        "sourceId": "feedback_contract_query",
+        "defaultSort": {
+          "field": "ordine",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "ordine",
+            "label": "#",
+            "type": "number"
+          },
+          {
+            "field": "elemento",
+            "label": "Elemento",
+            "type": "text"
+          },
+          {
+            "field": "stato",
+            "label": "Stato attuale",
+            "type": "text"
+          },
+          {
+            "field": "implicazione",
+            "label": "Implicazione",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "id": "priority_plan",
+        "title": "Priorità prima del campione beta",
+        "subtitle": "Ordine consigliato; la taglia è relativa e non rappresenta una stima temporale.",
+        "dataset": "priority_plan",
+        "sourceId": "priority_plan_query",
+        "defaultSort": {
+          "field": "ordine",
+          "direction": "asc"
+        },
+        "columns": [
+          {
+            "field": "ordine",
+            "label": "#",
+            "type": "number"
+          },
+          {
+            "field": "aggiunta",
+            "label": "Aggiunta",
+            "type": "text"
+          },
+          {
+            "field": "risultato",
+            "label": "Risultato concreto",
+            "type": "text"
+          },
+          {
+            "field": "momento",
+            "label": "Quando",
+            "type": "text"
+          },
+          {
+            "field": "taglia",
+            "label": "Taglia relativa",
+            "type": "text"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "working_context",
+        "label": "Stato corrente e prossimi step",
+        "path": "WORKING_CONTEXT.md"
+      },
+      {
+        "id": "feedback_store",
+        "label": "Schema e persistenza del feedback",
+        "path": "services/platform/persistence.py"
+      },
+      {
+        "id": "readiness_evaluator",
+        "label": "Valutatore deterministico della beta readiness",
+        "path": "validation_lab/beta_readiness.py"
+      },
+      {
+        "id": "feedback_ui",
+        "label": "Modulo feedback nella pagina risultato",
+        "path": "platform_api/templates/analysis_result.html"
+      },
+      {
+        "id": "rc_report",
+        "label": "Rapporto di validazione della release candidate",
+        "path": "docs/RC_VALIDATION_REPORT.md"
+      },
+      {
+        "id": "repository_synthesis",
+        "label": "Sintesi delle evidenze di readiness e del flusso feedback",
+        "path": "docs/MILESTONES.md"
+      },
+      {
+        "id": "headline_query",
+        "label": "Metriche headline estratte dalle evidenze correnti",
+        "path": "WORKING_CONTEXT.md"
+      },
+      {
+        "id": "readiness_query",
+        "label": "Snapshot dei gate di readiness",
+        "path": "WORKING_CONTEXT.md"
+      },
+      {
+        "id": "feedback_contract_query",
+        "label": "Revisione del contratto feedback persistito",
+        "path": "services/platform/persistence.py"
+      },
+      {
+        "id": "priority_plan_query",
+        "label": "Piano di priorità derivato dalla revisione del repository",
+        "path": "docs/MILESTONES.md"
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "body": "# Cosa aggiungere prima dei 10 feedback"
+      },
+      {
+        "id": "executive_summary",
+        "type": "markdown",
+        "sourceId": "working_context",
+        "body": "## Executive Summary\n\n- **Costruire una sola micro-milestone: Beta Feedback Operations.** La piattaforma ha già superato 9 gate su 10; aggiungere nuove capacità analitiche ora aumenterebbe il perimetro da validare senza rimuovere il vero blocco.\n- **Chiudere per prima la catena di verifica.** I prossimi 10 feedback devono essere distinguibili da quelli interni, attribuiti a tester distinti, revisionabili e conteggiati dal gate soltanto dopo verifica.\n- **Rendere ogni feedback diagnostico.** Oltre a rating ed esito, servono motivo strutturato, risultato atteso e collegamento automatico a versione, analisi e caso riproducibile.\n- **Aggiungere guida e telemetria solo in funzione del test.** Una modalità beta guidata e un piccolo funnel aggregato aiutano a ottenere feedback completi; tutto il resto può aspettare il campione reale."
+      },
+      {
+        "id": "headline_metrics",
+        "type": "metric-strip",
+        "cardIds": [
+          "readiness",
+          "benchmark",
+          "regression",
+          "feedback_target"
+        ]
+      },
+      {
+        "id": "readiness_focus",
+        "type": "markdown",
+        "sourceId": "working_context",
+        "body": "## Nove gate sono già verdi; il decimo dipende dal campione esterno\n\nLa piattaforma ha chiuso i gate riproducibili, operativi e di sicurezza. La sola accuratezza validata resta a zero finché non esiste un campione sufficiente di feedback verificati.\n\n**Implicazione:** il lavoro pre-campione deve migliorare la raccolta e l'ammissibilità dell'evidenza, non espandere la superficie analitica."
+      },
+      {
+        "id": "readiness_chart",
+        "type": "chart",
+        "chartId": "readiness_gates",
+        "layout": "full"
+      },
+      {
+        "id": "verification_risk",
+        "type": "markdown",
+        "sourceId": "feedback_store",
+        "body": "## Il rischio non è trovare 10 click, ma dimostrare 10 feedback validi\n\n**Il record attuale conserva bene il nucleo minimo:** utente, analisi, rating, esito e nota. Tuttavia non contiene origine interna/esterna, stato di verifica, revisore, momento della verifica, categoria del problema o collegamento a un caso di regressione.\n\nQuesto lascia una distanza tra ciò che il prodotto registra e ciò che la documentazione chiama *feedback verificati e indipendenti*. Se tale distanza viene colmata dopo la raccolta, una parte del campione potrebbe dover essere ricostruita manualmente o esclusa."
+      },
+      {
+        "id": "feedback_contract_table",
+        "type": "table",
+        "tableId": "feedback_contract",
+        "layout": "full"
+      },
+      {
+        "id": "gate_logic",
+        "type": "markdown",
+        "sourceId": "readiness_evaluator",
+        "body": "## Il gate deve contare soltanto evidenze ammissibili\n\nIl valutatore calcola oggi l'accuratezza come `correct / total` e richiede almeno 10 record. La parola “verificati” è presente nella motivazione del gate, ma non è rappresentata nel payload valutato.\n\n**Implicazione:** introdurre un aggregato `verified_external_feedback` — o un contratto equivalente — evita che feedback interni, duplicati logici o ancora da revisionare rendano verde il gate per errore."
+      },
+      {
+        "id": "recommended_milestone",
+        "type": "markdown",
+        "body": "## La micro-milestone consigliata ha quattro pezzi\n\nL'ordine seguente protegge la qualità del campione e limita il lavoro prima dell'apprendimento reale. Le taglie sono relative: servono a mantenere il perimetro stretto, non sono stime in giorni."
+      },
+      {
+        "id": "priority_table",
+        "type": "table",
+        "tableId": "priority_plan",
+        "layout": "full"
+      },
+      {
+        "id": "scope_guardrail",
+        "type": "markdown",
+        "sourceId": "rc_report",
+        "body": "## Cosa non aggiungerei ancora\n\n**Rimanderei nuove famiglie di analisi, editing del Knowledge Graph, marketplace, app mobile, chat LLM generalista e personalizzazioni estetiche profonde.** La release candidate ha già superato regressione, benchmark, campagna avversariale, sicurezza, Docker end-to-end e collaudi visuali disponibili. Queste feature introdurrebbero nuove variabili proprio mentre serve misurare il comportamento del prodotto attuale."
+      },
+      {
+        "id": "next_steps",
+        "type": "markdown",
+        "body": "## Sequenza operativa raccomandata\n\n1. Estendere schema e API del feedback con `source`, `verification_status`, `verified_by`, `verified_at`, `reason_code`, `expected_result` e riferimento al commit/versione dell'analisi.\n2. Aggiornare il Quality Center con coda di revisione e contatori separati: raccolti, verificati esterni, corretti, parziali, errati, tester distinti.\n3. Cambiare il gate affinché usi soltanto feedback esterni verificati e mostri esplicitamente numeratore, denominatore e tester unici.\n4. Rendere il modulo post-risultato più diagnostico e aggiungere una breve modalità beta guidata con checklist e copertura degli intenti.\n5. Invitare i tester; aggiungere il funnel aggregato solo se non ritarda l'avvio o se i primi utenti non completano il percorso."
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## Domande da decidere prima dell'implementazione\n\n- Un tester può contribuire con più analisi oppure il gate deve imporre anche un minimo di utenti distinti?\n- Chi può verificare un feedback: solo admin del tenant, un reviewer di piattaforma o entrambi?\n- Il risultato atteso può essere salvato integralmente oppure deve essere limitato e sanitizzato come la nota?\n- La campagna deve coprire quote minime per intento e dominio, oltre al totale di 10?"
+      },
+      {
+        "id": "caveats",
+        "type": "markdown",
+        "sourceId": "feedback_ui",
+        "body": "## Caveat e assunzioni\n\nQuesta è una priorità di prodotto ricavata dal repository al 2 agosto 2026, non da dati di utilizzo esterni ancora disponibili. La modalità feedback esiste già nella pagina risultato: la raccomandazione è estenderne tracciabilità e capacità diagnostica, non ricostruirla. Le taglie relative dipendono dalla strategia di migrazione SQLite/PostgreSQL e dal livello di automazione scelto per la revisione."
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-08-02T12:00:00+02:00",
+    "status": "ready",
+    "datasets": {
+      "headline": [
+        {
+          "gates_passed": 9,
+          "benchmark_passed": 40,
+          "regression_tests": 409,
+          "feedback_target": 10
+        }
+      ],
+      "readiness_gates": [
+        {
+          "gate": "Casi",
+          "passed": 1,
+          "required": ">= 30"
+        },
+        {
+          "gate": "Domini",
+          "passed": 1,
+          "required": ">= 3"
+        },
+        {
+          "gate": "Accuratezza",
+          "passed": 0,
+          "required": ">= 80% con >= 10 feedback"
+        },
+        {
+          "gate": "Isolamento",
+          "passed": 1,
+          "required": "superato"
+        },
+        {
+          "gate": "Astensione",
+          "passed": 1,
+          "required": "superato"
+        },
+        {
+          "gate": "Concorrenza",
+          "passed": 1,
+          "required": ">= 5 e <= 2% errori"
+        },
+        {
+          "gate": "Backup",
+          "passed": 1,
+          "required": "superato"
+        },
+        {
+          "gate": "Retention",
+          "passed": 1,
+          "required": "superato"
+        },
+        {
+          "gate": "Monitoring",
+          "passed": 1,
+          "required": "superato"
+        },
+        {
+          "gate": "Bug critici",
+          "passed": 1,
+          "required": "0 aperti"
+        }
+      ],
+      "feedback_contract": [
+        {
+          "ordine": 1,
+          "elemento": "Utente e analisi",
+          "stato": "Presente",
+          "implicazione": "Consente attribuzione tenant-scoped e impedisce un secondo record dello stesso utente sulla stessa analisi."
+        },
+        {
+          "ordine": 2,
+          "elemento": "Rating, esito e nota",
+          "stato": "Presente",
+          "implicazione": "Misura qualità percepita e accuratezza di base, con nota libera limitata."
+        },
+        {
+          "ordine": 3,
+          "elemento": "Origine interna o esterna",
+          "stato": "Assente",
+          "implicazione": "Il dato non distingue automaticamente validazione interna e tester beta indipendenti."
+        },
+        {
+          "ordine": 4,
+          "elemento": "Stato di verifica",
+          "stato": "Assente",
+          "implicazione": "Il sistema non separa feedback raccolti, revisionati, approvati o esclusi."
+        },
+        {
+          "ordine": 5,
+          "elemento": "Motivo strutturato e risultato atteso",
+          "stato": "Solo nota libera",
+          "implicazione": "La diagnosi e la trasformazione in test riproducibile richiedono lavoro manuale."
+        },
+        {
+          "ordine": 6,
+          "elemento": "Versione e collegamento a bug/test",
+          "stato": "Assente dal record feedback",
+          "implicazione": "È più difficile dimostrare su quale build è avvenuta la valutazione e seguire la correzione."
+        }
+      ],
+      "priority_plan": [
+        {
+          "ordine": 1,
+          "aggiunta": "Catena di feedback verificato",
+          "risultato": "Provenienza interna/esterna, reviewer, stato, timestamp, tester distinti e gate basato solo su feedback ammissibili.",
+          "momento": "Prima del primo tester",
+          "taglia": "Media"
+        },
+        {
+          "ordine": 2,
+          "aggiunta": "Feedback diagnostico",
+          "risultato": "Reason code, risultato atteso, versione dell'analisi e azione per creare un caso riproducibile.",
+          "momento": "Prima del primo tester",
+          "taglia": "Piccola–media"
+        },
+        {
+          "ordine": 3,
+          "aggiunta": "Modalità beta guidata",
+          "risultato": "Checklist breve, dataset di esempio, copertura intenti e invito al feedback nella stessa sessione.",
+          "momento": "Prima o insieme agli inviti",
+          "taglia": "Piccola"
+        },
+        {
+          "ordine": 4,
+          "aggiunta": "Funnel beta aggregato",
+          "risultato": "Visibilità su accesso, upload, anteprima piano, completamento, apertura risultato e invio feedback senza dati sensibili.",
+          "momento": "Se non ritarda gli inviti",
+          "taglia": "Media"
+        }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "working_context",
+      "label": "Stato corrente e prossimi step",
+      "path": "WORKING_CONTEXT.md"
+    },
+    {
+      "id": "feedback_store",
+      "label": "Schema e persistenza del feedback",
+      "path": "services/platform/persistence.py"
+    },
+    {
+      "id": "readiness_evaluator",
+      "label": "Valutatore deterministico della beta readiness",
+      "path": "validation_lab/beta_readiness.py"
+    },
+    {
+      "id": "feedback_ui",
+      "label": "Modulo feedback nella pagina risultato",
+      "path": "platform_api/templates/analysis_result.html"
+    },
+    {
+      "id": "rc_report",
+      "label": "Rapporto di validazione della release candidate",
+      "path": "docs/RC_VALIDATION_REPORT.md"
+    },
+    {
+      "id": "repository_synthesis",
+      "label": "Sintesi delle evidenze di readiness e del flusso feedback",
+      "path": "docs/MILESTONES.md"
+    },
+    {
+      "id": "headline_query",
+      "label": "Metriche headline estratte dalle evidenze correnti",
+      "path": "WORKING_CONTEXT.md",
+      "query": {
+        "engine": "sqlite",
+        "language": "sql",
+        "description": "Materializza i quattro valori headline revisionati dalla documentazione corrente.",
+        "sql": "SELECT 9 AS gates_passed, 40 AS benchmark_passed, 409 AS regression_tests, 10 AS feedback_target",
+        "executed_at": "2026-08-02T12:00:00+02:00",
+        "metric_definitions": {
+          "gates_passed": "Numero di gate di private beta superati sui dieci valutati.",
+          "benchmark_passed": "Contratti del benchmark funzionale superati sui quaranta eseguiti.",
+          "regression_tests": "Test superati nella regressione completa del ricollaudo.",
+          "feedback_target": "Feedback beta indipendenti verificati richiesti come campione minimo."
+        }
+      }
+    },
+    {
+      "id": "readiness_query",
+      "label": "Snapshot dei gate di readiness",
+      "path": "WORKING_CONTEXT.md",
+      "query": {
+        "engine": "sqlite",
+        "language": "sql",
+        "description": "Materializza lo stato binario dei dieci gate documentati nel ricollaudo corrente.",
+        "sql": "SELECT 'Casi' AS gate, 1 AS passed, '>= 30' AS required UNION ALL SELECT 'Domini', 1, '>= 3' UNION ALL SELECT 'Accuratezza', 0, '>= 80% con >= 10 feedback' UNION ALL SELECT 'Isolamento', 1, 'superato' UNION ALL SELECT 'Astensione', 1, 'superato' UNION ALL SELECT 'Concorrenza', 1, '>= 5 e <= 2% errori' UNION ALL SELECT 'Backup', 1, 'superato' UNION ALL SELECT 'Retention', 1, 'superato' UNION ALL SELECT 'Monitoring', 1, 'superato' UNION ALL SELECT 'Bug critici', 1, '0 aperti'",
+        "executed_at": "2026-08-02T12:00:00+02:00",
+        "metric_definitions": {
+          "passed": "Indicatore binario: 1 se il gate è superato, 0 se resta da completare."
+        }
+      }
+    },
+    {
+      "id": "feedback_contract_query",
+      "label": "Revisione del contratto feedback persistito",
+      "path": "services/platform/persistence.py",
+      "query": {
+        "engine": "sqlite",
+        "language": "sql",
+        "description": "Materializza la revisione campo per campo del record feedback corrente.",
+        "sql": "SELECT 1 AS ordine, 'Utente e analisi' AS elemento, 'Presente' AS stato, 'Consente attribuzione tenant-scoped e impedisce un secondo record dello stesso utente sulla stessa analisi.' AS implicazione UNION ALL SELECT 2, 'Rating, esito e nota', 'Presente', 'Misura qualità percepita e accuratezza di base, con nota libera limitata.' UNION ALL SELECT 3, 'Origine interna o esterna', 'Assente', 'Il dato non distingue automaticamente validazione interna e tester beta indipendenti.' UNION ALL SELECT 4, 'Stato di verifica', 'Assente', 'Il sistema non separa feedback raccolti, revisionati, approvati o esclusi.' UNION ALL SELECT 5, 'Motivo strutturato e risultato atteso', 'Solo nota libera', 'La diagnosi e la trasformazione in test riproducibile richiedono lavoro manuale.' UNION ALL SELECT 6, 'Versione e collegamento a bug/test', 'Assente dal record feedback', 'È più difficile dimostrare su quale build è avvenuta la valutazione e seguire la correzione.'",
+        "executed_at": "2026-08-02T12:00:00+02:00"
+      }
+    },
+    {
+      "id": "priority_plan_query",
+      "label": "Piano di priorità derivato dalla revisione del repository",
+      "path": "docs/MILESTONES.md",
+      "query": {
+        "engine": "sqlite",
+        "language": "sql",
+        "description": "Materializza l'ordine delle aggiunte raccomandate; la taglia è relativa e non temporale.",
+        "sql": "SELECT 1 AS ordine, 'Catena di feedback verificato' AS aggiunta, 'Provenienza interna/esterna, reviewer, stato, timestamp, tester distinti e gate basato solo su feedback ammissibili.' AS risultato, 'Prima del primo tester' AS momento, 'Media' AS taglia UNION ALL SELECT 2, 'Feedback diagnostico', 'Reason code, risultato atteso, versione dell''analisi e azione per creare un caso riproducibile.', 'Prima del primo tester', 'Piccola–media' UNION ALL SELECT 3, 'Modalità beta guidata', 'Checklist breve, dataset di esempio, copertura intenti e invito al feedback nella stessa sessione.', 'Prima o insieme agli inviti', 'Piccola' UNION ALL SELECT 4, 'Funnel beta aggregato', 'Visibilità su accesso, upload, anteprima piano, completamento, apertura risultato e invio feedback senza dati sensibili.', 'Se non ritarda gli inviti', 'Media'",
+        "executed_at": "2026-08-02T12:00:00+02:00"
+      }
+    }
+  ],
+  "package_info": {}
+}

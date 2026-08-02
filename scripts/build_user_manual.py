@@ -379,7 +379,7 @@ def add_manual(doc):
 
     doc.add_heading("9. Valutazione e feedback beta", level=1)
     add_figure(doc, "05_feedback.png", "Figura 6 - Modulo di feedback al fondo della pagina risultato.", width=5.7)
-    doc.add_paragraph("Il feedback è la parte più importante della private beta. Salvalo soltanto dopo aver confrontato il risultato con il file o con un calcolo indipendente.")
+    doc.add_paragraph("Il feedback è la parte più importante della private beta. Salvalo soltanto dopo aver confrontato il risultato con il file o con un calcolo indipendente. Indica se la prova è interna o esterna; per esiti Parziale o Errato scegli il motivo e descrivi il risultato atteso. Il feedback resterà Da verificare finché un amministratore diverso dall'autore non lo revisiona.")
     doc.add_heading("Come scegliere l'esito", level=2)
     verdicts = [
         ("Corretto", "Risponde alla domanda, usa le colonne giuste e i valori principali coincidono con il controllo."),
@@ -471,8 +471,8 @@ def add_manual(doc):
         "Ho verificato che il report risponda alla domanda originale.",
         "Ho ricalcolato almeno il numero principale in modo indipendente.",
         "Ho scelto Corretto, Parziale o Errato secondo i criteri del manuale.",
-        "Ho assegnato un voto coerente e scritto una nota concreta.",
-        "Ho salvato il feedback.",
+        "Ho assegnato un voto coerente, scelto il motivo e scritto il risultato atteso quando necessario.",
+        "Ho inviato il feedback alla verifica.",
         "Ho comunicato eventuali problemi critici al responsabile.",
     ]
     for item in checks:

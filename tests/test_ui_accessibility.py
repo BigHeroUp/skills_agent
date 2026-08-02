@@ -6,7 +6,7 @@ TEMPLATES = ROOT / "platform_api" / "templates"
 
 
 def test_primary_pages_declare_italian_language_and_viewport():
-    for name in ("portal.html", "analysis_result.html", "knowledge_workspace.html", "quality_center.html"):
+    for name in ("portal.html", "analysis_result.html", "knowledge_workspace.html", "quality_center.html", "beta_guide.html"):
         content = (TEMPLATES / name).read_text()
         assert '<html lang="it"' in content
         assert 'name="viewport"' in content

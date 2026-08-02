@@ -58,6 +58,13 @@ def execute_analysis_job(
             result=serialize_context(context),
         )
         repository.update_progress(identity.tenant_id, job_id, 100, "completed")
+        try:
+            repository.record_beta_analysis_completed(
+                identity.tenant_id, identity.user_id, job_id
+            )
+        except Exception:
+            # Product telemetry must never turn a completed analysis into a failed job.
+            pass
         return {"status": "completed", "analysis_id": job_id}
     except AnalysisCancelled:
         repository.update_analysis(identity.tenant_id, job_id, status="cancelled")

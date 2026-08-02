@@ -10,7 +10,8 @@ modalità parallela finché la parità non è dimostrata su un perimetro più am
 |---|---:|
 | Casi riproducibili | 30 |
 | Domini distinti | 3 |
-| Feedback verificati | 10 |
+| Feedback esterni verificati | 10 |
+| Tester esterni distinti | 3 |
 | Accuratezza validata | 80% |
 | Concorrenza probe | 5 |
 | Error rate probe | massimo 2% |
@@ -45,12 +46,35 @@ Quando non sono disponibili tester esterni, il protocollo
 `docs/INTERNAL_VALIDATION_PROTOCOL.md` consente una validazione single-user tracciabile.
 Questa evidenza resta esplicitamente interna e non sostituisce il gate dei feedback beta.
 
-## Feedback e metriche
+## Feedback verificabile e metriche
 
 Ogni utente autenticato può valutare una propria analisi con rating 1–5, esito
-`correct`, `partial` o `incorrect` e una nota limitata a 1.000 caratteri. Il record è
-tenant-scoped e aggiornabile dallo stesso utente. `/metrics` espone soltanto aggregati:
-volumi per stato, numero feedback, rating medio ed esiti, senza tenant, email o note.
+`correct`, `partial` o `incorrect`, origine interna/esterna, motivo diagnostico,
+risultato atteso e nota limitata. Il record conserva anche la versione applicativa
+valutata. Il record è tenant-scoped e aggiornabile dallo stesso utente.
+
+I feedback nuovi entrano in stato `pending`. Un amministratore dello stesso tenant,
+diverso dall'autore, può marcarli `verified` o `rejected` e collegarli a un bug o test
+riproducibile. Ogni modifica dell'autore azzera la revisione precedente e riporta il
+record in `pending`. I feedback storici migrati sono `unclassified` e non contribuiscono
+al gate.
+
+Il gate `validated_accuracy` usa soltanto record con origine `external` e stato
+`verified`. Richiede almeno 10 record, accuratezza `correct / verified_external_total`
+almeno all'80% e almeno tre utenti distinti. Il Quality Center mostra raccolti,
+verificati, tester distinti, accuratezza e coda di revisione. `/metrics` espone soltanto
+aggregati, senza tenant, email, note o risultati attesi.
+
+## Modalità beta guidata e funnel
+
+`/portal/beta` offre due dataset sintetici scaricabili, domande suggerite e una checklist
+per anteprima, esecuzione, controllo e feedback. Il funnel tenant-scoped registra solo
+event type allowlistati, identificativi tecnici e un session id casuale. Non conserva
+prompt, righe del dataset o testo del feedback.
+
+Gli stadi aggregati sono accesso, anteprima piano, analisi avviata, analisi completata,
+risultato aperto e feedback inviato. Gli amministratori possono leggere gli aggregati da
+`GET /api/v1/beta/funnel`.
 
 ## Carico e concorrenza
 
@@ -83,7 +107,7 @@ python3 scripts/enforce_retention.py --days 90
 python3 scripts/enforce_retention.py --days 90 --apply
 ```
 
-La cancellazione elimina anche i feedback associati. Knowledge Graph, Experience, log e
+La cancellazione elimina anche i feedback e gli eventi funnel associati. Knowledge Graph, Experience, log e
 backup hanno lifecycle separati e devono essere inclusi nella policy dell'organizzazione.
 
 ## Backup e restore

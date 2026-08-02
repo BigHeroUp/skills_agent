@@ -48,8 +48,20 @@ Verifica del 29 luglio 2026:
 - Milestone 27 completata: seconda campagna avversariale 20/20, stack Docker
   end-to-end verde, storico Quality Center, rate limiting Redis, security probe
   e release candidate `0.26.0-rc1`.
-- regressione finale: 409 test superati; percorso Docker end-to-end completato
-  in 1,597 secondi con isolamento tenant verificato.
+- Milestone 28 completata: beta guidata con dataset sintetici, feedback
+  diagnostici classificati, verifica indipendente, separazione tra evidenze
+  esterne e interne e funnel operativo tenant-scoped.
+
+Verifica del 2 agosto 2026:
+
+- regressione finale: 415 test superati;
+- benchmark funzionale 40/40 e campagna avversariale V2 20/20;
+- security probe verde su tutti i 6 controlli;
+- stack Docker/PostgreSQL schema 5: probe end-to-end completato in 1,626
+  secondi, inclusi RQ, isolamento tenant e workflow feedback verificato;
+- readiness ancora 9/10: il gate di accuratezza resta intenzionalmente rosso
+  finche non sono disponibili 10 feedback esterni verificati, accuratezza
+  almeno 80% e almeno 3 tester distinti.
 
 ## Vincoli permanenti
 
@@ -79,11 +91,15 @@ python3 scripts/docker_e2e_probe.py --base-url http://127.0.0.1:8080
 
 ## Prossimi step
 
-1. Raccogliere almeno 10 feedback verificati da utenti beta autenticati.
-2. Calcolare l'accuratezza validata e raggiungere la soglia minima dell'80%.
-3. Aggiornare l'artefatto locale delle evidenze senza dati personali o
+1. Attivare almeno 3 tester beta esterni e amministratori distinti per la
+   verifica, usando la modalita guidata dal portale.
+2. Raccogliere almeno 10 feedback esterni verificati e raggiungere
+   un'accuratezza minima dell'80%.
+3. Monitorare il funnel beta nel Quality Center e intervenire sugli abbandoni
+   tra avvio, completamento, apertura del risultato e invio del feedback.
+4. Aggiornare l'artefatto locale delle evidenze senza dati personali o
    sensibili e rieseguire `check_beta_readiness.py`.
-4. Correggere i casi classificati `partial` o `incorrect`, collegandoli a casi
+5. Correggere i casi classificati `partial` o `incorrect`, collegandoli a casi
    riproducibili nel Validation Lab, e rieseguire la regressione.
-5. Autorizzare l'apertura della private beta soltanto quando tutti i gate sono
+6. Autorizzare l'apertura della private beta soltanto quando tutti i gate sono
    verdi e i bug critici aperti sono zero.
