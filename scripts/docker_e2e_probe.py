@@ -13,9 +13,9 @@ def call(base,path,method="GET",body=None,token=None):
 
 def main():
     parser=argparse.ArgumentParser(); parser.add_argument("--base-url",default="http://127.0.0.1:8080"); parser.add_argument("--timeout",type=int,default=90); parser.add_argument("--max-seconds",type=float,default=30); args=parser.parse_args()
-    suffix=uuid4().hex[:10]; password="E2e-validation-password-26!"
-    _,first=call(args.base_url,"/api/v1/auth/register","POST",{"organization":f"E2E {suffix}","email":f"e2e-{suffix}@example.test","password":password})
-    _,second=call(args.base_url,"/api/v1/auth/register","POST",{"organization":f"E2E other {suffix}","email":f"other-{suffix}@example.test","password":password})
+    suffix=uuid4().hex[:10]; probe_credential="E2e-validation-password-26!"
+    _,first=call(args.base_url,"/api/v1/auth/register","POST",{"organization":f"E2E {suffix}","email":f"e2e-{suffix}@example.test","password":probe_credential})
+    _,second=call(args.base_url,"/api/v1/auth/register","POST",{"organization":f"E2E other {suffix}","email":f"other-{suffix}@example.test","password":probe_credential})
     token=first["access_token"]; other_token=second["access_token"]
     started=time.monotonic()
     _,submitted=call(args.base_url,"/api/v1/analyses","POST",{"description":"Somma valore per categoria","records":[{"categoria":"A","valore":10},{"categoria":"A","valore":5},{"categoria":"B","valore":7}],"source_type":"csv"},token)

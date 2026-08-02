@@ -33,3 +33,26 @@ ambiente che li esponga. Questo limite non viene convertito in un esito positivo
 Servono almeno 10 feedback verificati provenienti da utenti beta indipendenti,
 accuratezza validata almeno all'80% e zero bug critici aperti prima di autorizzare
 la private beta.
+
+## Ricollaudo del 2 agosto 2026
+
+- regressione completa: 409/409 test superati;
+- benchmark funzionale: 40/40 casi superati;
+- campagna avversariale V2: 20/20 casi superati;
+- Docker E2E: superato in 1,578 secondi, inclusi RQ, risultato deterministico,
+  Product Intelligence e isolamento tenant;
+- backup e restore PostgreSQL: schema e conteggi delle sei tabelle applicative
+  identici nell'ambiente temporaneo isolato;
+- security probe: 6/6 controlli superati;
+- performance: 100.000 righe in 0,007 secondi, picco 2,03 MB;
+- DOCX: collaudo visuale manuale completato in Pages senza tagli,
+  sovrapposizioni o anomalie di impaginazione;
+- DOCX: 41 righe di intestazione tabella marcate semanticamente e audit di
+  accessibilita concluso con zero rilievi ad alta, media o bassa severita;
+- UI: collaudo visuale manuale del portale locale completato senza anomalie di
+  layout, leggibilita o adattamento della finestra.
+
+Il browser controllabile da Codex e LibreOffice non erano disponibili. Per
+questo ricollaudo, le verifiche visuali UI e DOCX sono state eseguite
+manualmente dall'operatore rispettivamente nel browser locale e in Pages. Il
+gate dei feedback beta indipendenti resta invariato.
