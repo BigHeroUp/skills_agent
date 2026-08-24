@@ -294,3 +294,17 @@ Ogni milestone documenta:
 - Security probe bounded, versione release candidate, changelog e rollback plan.
 - La beta esterna resta subordinata a feedback multiutente reali e non viene
   dichiarata pronta da questa milestone.
+
+## Milestone 28 - Beta Feedback Operations
+
+- Status: completed
+- Schema v5 con provenienza, stato di verifica, reviewer, motivi diagnostici,
+  risultato atteso, versione applicativa e riferimento a bug/test.
+- Revisione amministrativa tenant-scoped con divieto di auto-verifica e reset
+  automatico a `pending` dopo ogni modifica dell'autore.
+- Gate di accuratezza basato esclusivamente su almeno 10 feedback esterni
+  verificati, accuratezza minima dell'80% e almeno tre tester distinti.
+- Modalità beta guidata con dataset sintetici, domande precompilate e checklist.
+- Funnel beta aggregato e deduplicato per sessione, senza prompt, righe o note.
+- API, Quality Center, metriche Prometheus, migrazione v4 e test di isolamento
+  aggiornati end-to-end.

@@ -251,6 +251,24 @@ offline-first di Analytical Intelligence.
   - onboarding, accessibilità e sicurezza applicativa;
   - performance bounded e consolidamento terminologico.
 
+### Milestone 27 - Release Candidate Qualification
+
+- Status: completed
+- Focus:
+  - campagna avversariale V2 e regressione release candidate;
+  - Docker end-to-end, backup/restore, sicurezza e rate limiting Redis;
+  - storico del Quality Center e collaudi visuali/accessibilità.
+
+### Milestone 28 - Beta Feedback Operations
+
+- Status: completed
+- Focus:
+  - feedback esterno verificabile e diagnostico;
+  - reviewer indipendente dall'autore e gate su evidenza ammissibile;
+  - modalità beta guidata con dataset sintetici;
+  - funnel aggregato privacy-preserving;
+  - compatibilità schema v4 e isolamento tenant.
+
 ## Planning Rule
 
 Ogni milestone futura deve rispettare tre vincoli:

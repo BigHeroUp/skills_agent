@@ -1,6 +1,6 @@
 {
   "validation_cases": {"total": 0, "domains": 0},
-  "feedback": {"total": 0, "correct": 0, "partial": 0, "incorrect": 0},
+  "feedback": {"total": 0, "correct": 0, "partial": 0, "incorrect": 0, "verified_external_total": 0, "verified_external_correct": 0, "verified_external_partial": 0, "verified_external_incorrect": 0, "distinct_external_testers": 0},
   "load_test": {"concurrency": 0, "requests": 0, "error_rate": 1.0, "p95_ms": null},
   "operations": {"backup_restore_passed": false, "retention_delete_passed": false, "monitoring_passed": false},
   "safety": {"tenant_isolation_passed": false, "unsupported_requests_passed": false, "open_critical_bugs": 0}

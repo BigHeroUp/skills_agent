@@ -149,6 +149,56 @@ def create_app(
         "completed": "Completata",
         "failed": "Non riuscita",
     }
+    feedback_reason_labels = {
+        "no_issue": "Nessun problema",
+        "calculation_error": "Calcolo errato",
+        "intent_mismatch": "Domanda interpretata male",
+        "missing_evidence": "Evidenze mancanti",
+        "unclear_output": "Risultato poco chiaro",
+        "performance": "Tempi o affidabilità",
+        "unsupported_request": "Richiesta non supportata",
+        "other": "Altro",
+    }
+    feedback_source_labels = {
+        "external": "Tester beta esterno",
+        "internal": "Validazione interna",
+        "unclassified": "Storico non classificato",
+    }
+    feedback_verification_labels = {
+        "pending": "Da verificare",
+        "verified": "Verificato",
+        "rejected": "Escluso",
+    }
+    funnel_labels = {
+        "portal_accessed": "Accesso al portale",
+        "plan_previewed": "Anteprima del piano",
+        "analysis_started": "Analisi avviata",
+        "analysis_completed": "Analisi completata",
+        "result_viewed": "Risultato aperto",
+        "feedback_submitted": "Feedback inviato",
+    }
+
+    def platform_build_version() -> str:
+        version = os.getenv("PLATFORM_VERSION", "0.27.0-dev").strip() or "unknown"
+        commit = os.getenv("APP_COMMIT_SHA", "").strip()[:12]
+        return f"{version}+{commit}" if commit else version
+
+    def beta_session_id() -> str:
+        return session.setdefault("beta_session_id", secrets.token_urlsafe(18))
+
+    def record_portal_event(
+        identity: Identity, event_type: str, analysis_id: str = ""
+    ) -> None:
+        try:
+            repo.record_beta_funnel_event(
+                identity.tenant_id,
+                identity.user_id,
+                beta_session_id(),
+                event_type,
+                analysis_id,
+            )
+        except Exception:
+            app.logger.warning("Beta funnel event could not be recorded", exc_info=True)
 
     def enqueue_analysis(identity: Identity, body: dict[str, Any]) -> tuple[str, str]:
         body = dict(body)
@@ -160,6 +210,21 @@ def create_app(
         if requested_source_type not in {"csv", "excel"}:
             body["source_type"] = "csv"
         job_id = repo.create_analysis(identity.tenant_id, identity.user_id, body)
+        beta_session = str(body.get("_beta_session_id") or "").strip()
+        if beta_session:
+            try:
+                repo.record_beta_funnel_event(
+                    identity.tenant_id,
+                    identity.user_id,
+                    beta_session,
+                    "analysis_started",
+                    job_id,
+                )
+            except Exception:
+                app.logger.warning("Beta start event could not be recorded", exc_info=True)
+        execution_body = {
+            key: value for key, value in body.items() if not str(key).startswith("_")
+        }
         with counter_lock:
             counters["submitted"] += 1
         if job_queue is not None:
@@ -168,7 +233,7 @@ def create_app(
                 execute_analysis_job,
                 asdict(identity),
                 job_id,
-                body,
+                execution_body,
                 job_id=job_id,
                 description=f"analysis:{job_id}",
                 retry=Retry(max=2, interval=[10, 30]),
@@ -176,7 +241,7 @@ def create_app(
                 failure_ttl=604800,
             )
             return job_id, "redis_rq"
-        executor.submit(run_analysis, identity, job_id, body)
+        executor.submit(run_analysis, identity, job_id, execution_body)
         return job_id, "local_fallback"
 
     @app.get("/")
@@ -256,10 +321,13 @@ def create_app(
     def portal():
         identity = portal_identity()
         analyses = repo.list_analyses(identity.tenant_id, 50) if identity else []
+        if identity:
+            record_portal_event(identity, "portal_accessed")
         return render_template(
             "portal.html",
             identity=identity,
             analyses=analyses,
+            suggested_question=str(request.args.get("question") or "").strip()[:500],
             csrf_token=csrf_token(),
             message=session.pop("message", ""),
             self_registration=os.getenv("ALLOW_SELF_REGISTRATION", "true").lower() in {"1", "true", "yes"},
@@ -276,14 +344,68 @@ def create_app(
         item = repo.get_analysis(identity.tenant_id, analysis_id)
         if item is None:
             return "Analisi non trovata", 404
+        if item.get("status") == "completed":
+            record_portal_event(identity, "result_viewed", analysis_id)
         return render_template(
             "analysis_result.html",
             identity=identity,
             analysis=item,
             result=item.get("result") or {},
+            feedback=repo.get_analysis_feedback(
+                identity.tenant_id, analysis_id, identity.user_id
+            ),
+            feedback_reason_labels=feedback_reason_labels,
+            feedback_source_labels=feedback_source_labels,
+            feedback_verification_labels=feedback_verification_labels,
             status_label=status_labels.get(item.get("status"), item.get("status", "—")),
             auto_refresh=item.get("status") in {"queued", "processing", "cancelling"},
             csrf_token=csrf_token(),
+        )
+
+    @app.get("/portal/beta")
+    def portal_beta_guide():
+        identity = portal_identity()
+        if identity is None:
+            session["message"] = "Accedi per avviare la modalità beta guidata."
+            return redirect(url_for("portal"))
+        record_portal_event(identity, "portal_accessed")
+        return render_template(
+            "beta_guide.html",
+            identity=identity,
+            funnel=repo.beta_funnel_summary(identity.tenant_id),
+            funnel_labels=funnel_labels,
+        )
+
+    @app.get("/portal/beta/sample/<dataset_name>")
+    def portal_beta_sample(dataset_name: str):
+        identity = portal_identity()
+        if identity is None:
+            return error("Autenticazione richiesta", 401)
+        samples = {
+            "sales": (
+                "beta-sales.csv",
+                "mese,regione,categoria,ricavi\n"
+                "2026-01,Nord,Software,1200\n2026-01,Sud,Servizi,800\n"
+                "2026-02,Nord,Software,1500\n2026-02,Sud,Servizi,950\n"
+                "2026-03,Nord,Software,1750\n2026-03,Sud,Servizi,900\n"
+                "2026-04,Nord,Software,2100\n2026-04,Sud,Servizi,1100\n",
+            ),
+            "quality": (
+                "beta-quality.csv",
+                "ordine,stato,giorni_consegna,cliente\n"
+                "A-001,consegnato,2,Alfa\nA-002,consegnato,3,Beta\n"
+                "A-003,in_ritardo,12,Gamma\nA-003,in_ritardo,12,Gamma\n"
+                "A-004,consegnato,,Delta\nA-005,annullato,-1,Epsilon\n",
+            ),
+        }
+        selected = samples.get(dataset_name)
+        if selected is None:
+            return error("Dataset beta non trovato", 404)
+        filename, content = selected
+        return Response(
+            content,
+            mimetype="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
 
     @app.post("/portal/analyses/<analysis_id>/feedback")
@@ -299,8 +421,13 @@ def create_app(
                 rating=int(request.form.get("rating", "0")),
                 outcome=request.form.get("outcome", ""),
                 notes=request.form.get("notes", ""),
+                feedback_source=request.form.get("feedback_source", "external"),
+                reason_code=request.form.get("reason_code", ""),
+                expected_result=request.form.get("expected_result", ""),
+                analysis_version=platform_build_version(),
             )
-            session["message"] = "Feedback registrato."
+            record_portal_event(identity, "feedback_submitted", analysis_id)
+            session["message"] = "Feedback registrato e inviato alla verifica."
         except ValueError as exc:
             session["message"] = str(exc)
         return redirect(url_for("portal_analysis_result", analysis_id=analysis_id))
@@ -346,22 +473,64 @@ def create_app(
         evidence_path = Path(__file__).resolve().parents[1] / "validation_lab/beta_evidence.current.json"
         evidence = json.loads(evidence_path.read_text(encoding="utf-8")) if evidence_path.exists() else {}
         feedback = repo.feedback_summary(identity.tenant_id)
-        evidence["feedback"] = {"total": feedback["total"], **feedback.get("outcomes", {})}
+        evidence["feedback"] = {
+            "total": feedback["total"],
+            **feedback.get("outcomes", {}),
+            "verified_external_total": feedback["verified_external_total"],
+            "verified_external_correct": feedback["verified_external_correct"],
+            "verified_external_partial": feedback["verified_external_partial"],
+            "verified_external_incorrect": feedback["verified_external_incorrect"],
+            "distinct_external_testers": feedback["distinct_external_testers"],
+        }
         readiness = BetaReadinessEvaluator().evaluate(evidence)
         parity = KernelAnalysisParityRunner().compare(
             "Conta gli elementi per categoria",
             pd.DataFrame({"categoria": ["A", "A", "B"]}),
             source_type="quality_center",
         )
+        funnel = repo.beta_funnel_summary(identity.tenant_id)
         snapshot={"readiness":readiness["status"],"passed":readiness["passed"],"total":readiness["total"],
-                  "kernel_parity":parity["status"],"warning_count":0,"feedback_total":feedback["total"]}
+                  "kernel_parity":parity["status"],"warning_count":0,"feedback_total":feedback["total"],
+                  "verified_external_feedback":feedback["verified_external_total"],
+                  "distinct_external_testers":feedback["distinct_external_testers"]}
         history=repo.list_quality_snapshots(identity.tenant_id,20)
         if not history or history[0]["payload"] != snapshot:
             repo.record_quality_snapshot(identity.tenant_id,snapshot)
             history=repo.list_quality_snapshots(identity.tenant_id,20)
         return render_template("quality_center.html", identity=identity, readiness=readiness,
-                               evidence=evidence, kernel_parity=parity["status"], warning_count=0,
+                               evidence=evidence, feedback=feedback,
+                               feedback_items=repo.list_analysis_feedback(identity.tenant_id, limit=50)
+                               if identity.role == "admin" else [],
+                               feedback_reason_labels=feedback_reason_labels,
+                               feedback_source_labels=feedback_source_labels,
+                               feedback_verification_labels=feedback_verification_labels,
+                               funnel=funnel, funnel_labels=funnel_labels, csrf_token=csrf_token(),
+                               message=session.pop("message", ""),
+                               kernel_parity=parity["status"], warning_count=0,
                                quality_history=history)
+
+    @app.post("/portal/feedback/<feedback_id>/review")
+    def portal_review_feedback(feedback_id: str):
+        identity = portal_identity()
+        if identity is None:
+            return redirect(url_for("portal"))
+        if identity.role != "admin":
+            return "Ruolo non autorizzato", 403
+        if not valid_csrf():
+            return "Token CSRF non valido", 400
+        try:
+            repo.review_analysis_feedback(
+                identity.tenant_id,
+                feedback_id,
+                identity.user_id,
+                verification_status=request.form.get("verification_status", ""),
+                reviewer_notes=request.form.get("reviewer_notes", ""),
+                issue_reference=request.form.get("issue_reference", ""),
+            )
+            session["message"] = "Revisione del feedback salvata."
+        except ValueError as exc:
+            session["message"] = str(exc)
+        return redirect(url_for("portal_quality"))
 
     @app.get("/portal/knowledge")
     def portal_knowledge():
@@ -508,6 +677,7 @@ def create_app(
                 "source_type": source_type,
                 "dataset_name": filename,
                 "enable_narrative": request.form.get("enable_narrative") == "on",
+                "_beta_session_id": beta_session_id(),
             })
             suffix = " " + " ".join(loaded.warnings) if loaded.warnings else ""
             session["message"] = f"Analisi {job_id[:8]} avviata correttamente.{suffix}"
@@ -528,6 +698,7 @@ def create_app(
             return "Domanda e dataset sono obbligatori", 400
         loaded = load_tabular_upload(uploaded.read(), Path(uploaded.filename or "dataset").name,
                                      max_rows=max(1, int(os.getenv("API_MAX_RECORDS", "100000"))))
+        record_portal_event(identity, "plan_previewed")
         return render_template("analysis_preview.html", preview=build_analysis_preview(description, loaded.dataframe), warnings=loaded.warnings)
 
     def run_analysis(identity: Identity, job_id: str, body: dict[str, Any]):
@@ -555,6 +726,12 @@ def create_app(
             repo.update_analysis(
                 identity.tenant_id, job_id, status="completed", result=serialize_context(context)
             )
+            try:
+                repo.record_beta_analysis_completed(
+                    identity.tenant_id, identity.user_id, job_id
+                )
+            except Exception:
+                app.logger.warning("Beta completion event could not be recorded", exc_info=True)
             with counter_lock:
                 counters["completed"] += 1
         except Exception as exc:
@@ -588,10 +765,55 @@ def create_app(
                 identity.tenant_id, analysis_id, identity.user_id,
                 rating=int(body.get("rating", 0)), outcome=str(body.get("outcome") or ""),
                 notes=str(body.get("notes") or ""),
+                feedback_source=str(body.get("feedback_source") or "external"),
+                reason_code=str(body.get("reason_code") or ""),
+                expected_result=str(body.get("expected_result") or ""),
+                analysis_version=platform_build_version(),
             )
         except ValueError as exc:
             return error(str(exc), 400)
         return jsonify({"feedback": feedback, "summary": repo.feedback_summary(identity.tenant_id)}), 201
+
+    @app.get("/api/v1/feedback")
+    def list_feedback():
+        identity, failure = require_identity({"admin"})
+        if failure:
+            return failure
+        try:
+            items = repo.list_analysis_feedback(
+                identity.tenant_id,
+                verification_status=request.args.get("verification_status") or None,
+                limit=request.args.get("limit", 100),
+            )
+        except ValueError as exc:
+            return error(str(exc), 400)
+        return jsonify({"items": items, "summary": repo.feedback_summary(identity.tenant_id)})
+
+    @app.patch("/api/v1/feedback/<feedback_id>")
+    def review_feedback(feedback_id: str):
+        identity, failure = require_identity({"admin"})
+        if failure:
+            return failure
+        body = request.get_json(silent=True) or {}
+        try:
+            feedback = repo.review_analysis_feedback(
+                identity.tenant_id,
+                feedback_id,
+                identity.user_id,
+                verification_status=str(body.get("verification_status") or ""),
+                reviewer_notes=str(body.get("reviewer_notes") or ""),
+                issue_reference=str(body.get("issue_reference") or ""),
+            )
+        except ValueError as exc:
+            return error(str(exc), 400)
+        return jsonify({"feedback": feedback, "summary": repo.feedback_summary(identity.tenant_id)})
+
+    @app.get("/api/v1/beta/funnel")
+    def beta_funnel():
+        identity, failure = require_identity({"admin"})
+        if failure:
+            return failure
+        return jsonify(repo.beta_funnel_summary(identity.tenant_id))
 
     @app.delete("/api/v1/analyses/<analysis_id>")
     def delete_analysis(analysis_id: str):
@@ -654,10 +876,22 @@ def create_app(
         lines.extend([
             f"skills_agent_feedback_total {feedback['total']}",
             f"skills_agent_feedback_average_rating {feedback['average_rating']}",
+            f"skills_agent_feedback_verified_external_total {feedback['verified_external_total']}",
+            f"skills_agent_feedback_verified_external_accuracy {feedback['verified_external_accuracy']}",
+            f"skills_agent_feedback_distinct_external_testers {feedback['distinct_external_testers']}",
         ])
         lines.extend(
             f"skills_agent_feedback_outcome_total{{outcome=\"{outcome}\"}} {value}"
             for outcome, value in sorted(feedback["outcomes"].items())
+        )
+        lines.extend(
+            f"skills_agent_feedback_verification_total{{status=\"{status}\"}} {value}"
+            for status, value in sorted(feedback["verification_statuses"].items())
+        )
+        funnel = repo.beta_funnel_summary()
+        lines.extend(
+            f"skills_agent_beta_funnel_sessions{{event=\"{event}\"}} {values['sessions']}"
+            for event, values in funnel["stages"].items()
         )
         lines.extend(
             f"skills_agent_persisted_analyses_status_total{{status=\"{status}\"}} {value}"
@@ -669,7 +903,7 @@ def create_app(
     def openapi():
         return jsonify({
             "openapi": "3.0.3",
-            "info": {"title": "Skills Agent API", "version": "1.0.0"},
+            "info": {"title": "Skills Agent API", "version": "1.1.0"},
             "paths": {
                 "/api/v1/auth/register": {"post": {"summary": "Create tenant and admin"}},
                 "/api/v1/auth/login": {"post": {"summary": "Issue access token"}},
@@ -680,6 +914,9 @@ def create_app(
                 },
                 "/api/v1/analyses/{analysis_id}": {"get": {"summary": "Get tenant analysis"}},
                 "/api/v1/analyses/{analysis_id}/feedback": {"post": {"summary": "Record analysis feedback"}},
+                "/api/v1/feedback": {"get": {"summary": "List tenant feedback for review"}},
+                "/api/v1/feedback/{feedback_id}": {"patch": {"summary": "Verify or reject feedback"}},
+                "/api/v1/beta/funnel": {"get": {"summary": "Get aggregate tenant beta funnel"}},
                 "/api/v1/analyses/{analysis_id}/cancel": {"post": {"summary": "Cancel analysis"}},
                 "/api/v1/knowledge": {"get": {"summary": "Get tenant Knowledge Intelligence workspace"}},
                 "/api/v1/knowledge/query": {"post": {"summary": "Query the tenant Knowledge Graph"}},

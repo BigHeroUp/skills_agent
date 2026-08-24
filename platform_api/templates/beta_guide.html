@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Modalità beta guidata · Veraxis</title>
+  <style>
+    :root{color-scheme:dark;--bg:#071018;--panel:#10212d;--line:#285064;--cyan:#5ce8ff;--green:#59f5bd;--amber:#ffc86b}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -20%,#16495e,transparent 45%),var(--bg);color:#eaf8fc;font:15px/1.55 system-ui,sans-serif}
+    main{max-width:1040px;margin:0 auto;padding:30px 20px 60px}a{color:var(--cyan)}.button{display:inline-block;margin:6px 8px 6px 0;padding:10px 14px;border-radius:8px;background:var(--cyan);color:#00151b;text-decoration:none;font-weight:800}
+    .hero,.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:18px}.hero{background:linear-gradient(120deg,#10212d,#163e50)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}.step{border-left:4px solid var(--cyan)}code,small{color:#afd2df}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px;border-bottom:1px solid var(--line)}th{color:#93ddef}.ok{color:var(--green)}.note{border-left:4px solid var(--amber);padding:10px 12px;background:#302817}
+  </style>
+</head>
+<body><main>
+  <section class="hero"><p><a href="{{ url_for('portal') }}">← Torna al portale</a></p><h1>Modalità beta guidata</h1><p>Completa un percorso breve e verificabile: scarica un dataset sintetico, formula la domanda proposta, controlla il risultato e invia un feedback diagnostico.</p><p class="note">Non inserire dati personali, credenziali o informazioni aziendali sensibili nei feedback.</p></section>
+
+  <div class="grid">
+    <section class="card step"><h2>1. Scegli uno scenario</h2><p><strong>Vendite e trend</strong>: aggregazioni per regione, categoria e mese.</p><a class="button" href="{{ url_for('portal_beta_sample', dataset_name='sales') }}">Scarica beta-sales.csv</a><a class="button" href="{{ url_for('portal', question='Calcola i ricavi per regione e mostra il trend mensile') }}">Prepara la domanda</a></section>
+    <section class="card step"><h2>2. Prova la qualità dati</h2><p><strong>Ordini e anomalie</strong>: duplicati, null, ritardi e valori negativi.</p><a class="button" href="{{ url_for('portal_beta_sample', dataset_name='quality') }}">Scarica beta-quality.csv</a><a class="button" href="{{ url_for('portal', question='Trova valori mancanti, duplicati e tempi di consegna anomali') }}">Prepara la domanda</a></section>
+    <section class="card step"><h2>3. Controlla prima di inviare</h2><ol><li>Apri l'anteprima del piano.</li><li>Verifica intento, colonne ed esclusioni.</li><li>Avvia l'analisi.</li><li>Confronta report e risultati deterministici con il CSV.</li></ol></section>
+    <section class="card step"><h2>4. Lascia evidenza utile</h2><ol><li>Scegli esito e rating.</li><li>Se parziale o errato, indica il motivo.</li><li>Descrivi il risultato atteso.</li><li>Invia il feedback alla verifica.</li></ol><a class="button" href="{{ url_for('portal_quality') }}">Apri il Centro qualità</a></section>
+  </div>
+
+  <section class="card"><h2>Avanzamento aggregato del tenant</h2><p>Il funnel usa sessioni tecniche aggregate e non conserva prompt, file o note.</p><table><thead><tr><th>Passaggio</th><th>Sessioni</th><th>Utenti</th></tr></thead><tbody>{% for event, values in funnel.stages.items() %}<tr><td>{{ funnel_labels.get(event,event) }}</td><td>{{ values.sessions }}</td><td>{{ values.users }}</td></tr>{% endfor %}</tbody></table></section>
+</main></body></html>

@@ -367,6 +367,13 @@ restore, probe bounded di concorrenza e gate deterministici basati su evidenze.
 Il framework non dichiara automaticamente la piattaforma pronta: senza il
 campione minimo di casi e feedback lo stato resta `not_ready`.
 
+La Milestone 28 rende quel campione verificabile. I feedback distinguono origine
+interna/esterna, diagnosi, risultato atteso e versione; un amministratore diverso
+dall'autore li verifica o li esclude nel Quality Center. Il gate usa soltanto
+feedback esterni verificati e richiede almeno tre tester distinti. La modalità
+`/portal/beta` offre dataset sintetici e checklist, mentre un funnel aggregato
+misura il percorso dal portale al feedback senza conservare prompt, righe o note.
+
 ## Querying the Knowledge Graph
 
 The local graph can be queried deterministically without OpenAI through the

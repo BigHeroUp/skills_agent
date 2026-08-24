@@ -24,13 +24,28 @@ class BetaReadinessEvaluator:
         load = evidence.get("load_test") or {}
         operations = evidence.get("operations") or {}
         safety = evidence.get("safety") or {}
-        total_feedback = int(feedback.get("total", 0) or 0)
-        correct = int(feedback.get("correct", 0) or 0)
-        accuracy = correct / total_feedback if total_feedback else 0.0
+        verified_feedback = int(feedback.get("verified_external_total", 0) or 0)
+        verified_correct = int(feedback.get("verified_external_correct", 0) or 0)
+        distinct_testers = int(feedback.get("distinct_external_testers", 0) or 0)
+        accuracy = verified_correct / verified_feedback if verified_feedback else 0.0
         gates = [
             self._gate("validation_cases", int(cases.get("total", 0) or 0) >= 30, cases.get("total", 0), ">= 30", "Serve un campione riproducibile sufficiente."),
             self._gate("domain_coverage", int(cases.get("domains", 0) or 0) >= 3, cases.get("domains", 0), ">= 3", "La beta deve coprire domini differenti."),
-            self._gate("validated_accuracy", total_feedback >= 10 and accuracy >= 0.8, round(accuracy, 4), ">= 0.80 con >= 10 feedback", "La qualità deve essere misurata da feedback verificati."),
+            self._gate(
+                "validated_accuracy",
+                verified_feedback >= 10 and accuracy >= 0.8 and distinct_testers >= 3,
+                {
+                    "accuracy": round(accuracy, 4),
+                    "verified_external_feedback": verified_feedback,
+                    "distinct_external_testers": distinct_testers,
+                },
+                {
+                    "accuracy": ">= 0.80",
+                    "verified_external_feedback": ">= 10",
+                    "distinct_external_testers": ">= 3",
+                },
+                "La qualità deve essere misurata soltanto da feedback esterni verificati e da tester distinti.",
+            ),
             self._gate("tenant_isolation", bool(safety.get("tenant_isolation_passed")), safety.get("tenant_isolation_passed"), True, "Nessuna risorsa deve attraversare il tenant boundary."),
             self._gate("unsupported_requests", bool(safety.get("unsupported_requests_passed")), safety.get("unsupported_requests_passed"), True, "Le richieste non supportate devono produrre astensione o errore chiaro."),
             self._gate("load_concurrency", int(load.get("concurrency", 0) or 0) >= 5 and float(load.get("error_rate", 1) if load.get("error_rate") is not None else 1) <= 0.02, {"concurrency": load.get("concurrency", 0), "error_rate": load.get("error_rate", 1)}, {"concurrency": ">= 5", "error_rate": "<= 0.02"}, "Il percorso asincrono deve reggere concorrenza controllata."),

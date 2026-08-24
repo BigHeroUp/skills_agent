@@ -12,7 +12,30 @@ from typing import Any, Iterator
 from uuid import uuid4
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
+
+FEEDBACK_OUTCOMES = {"correct", "partial", "incorrect"}
+FEEDBACK_SOURCES = {"external", "internal"}
+FEEDBACK_VERIFICATION_STATUSES = {"pending", "verified", "rejected"}
+FEEDBACK_REASON_CODES = {
+    "no_issue",
+    "calculation_error",
+    "intent_mismatch",
+    "missing_evidence",
+    "unclear_output",
+    "performance",
+    "unsupported_request",
+    "other",
+}
+BETA_FUNNEL_ORDER = (
+    "portal_accessed",
+    "plan_previewed",
+    "analysis_started",
+    "analysis_completed",
+    "result_viewed",
+    "feedback_submitted",
+)
+BETA_FUNNEL_EVENTS = set(BETA_FUNNEL_ORDER)
 
 
 class PlatformRepository:
@@ -87,11 +110,17 @@ class PlatformRepository:
                 sequence {identity} PRIMARY KEY{'' if self.backend == 'postgresql' else ' AUTOINCREMENT'},
                 id TEXT UNIQUE NOT NULL, tenant_id TEXT NOT NULL, analysis_id TEXT NOT NULL,
                 user_id TEXT NOT NULL, rating INTEGER NOT NULL, outcome TEXT NOT NULL,
-                notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                notes TEXT NOT NULL DEFAULT '', feedback_source TEXT NOT NULL DEFAULT 'unclassified',
+                verification_status TEXT NOT NULL DEFAULT 'pending', verified_by TEXT,
+                verified_at TEXT, reviewer_notes TEXT NOT NULL DEFAULT '',
+                reason_code TEXT NOT NULL DEFAULT 'other', expected_result TEXT NOT NULL DEFAULT '',
+                analysis_version TEXT NOT NULL DEFAULT 'unknown', issue_reference TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
                 UNIQUE(tenant_id, analysis_id, user_id),
                 FOREIGN KEY(tenant_id) REFERENCES tenants(id),
                 FOREIGN KEY(analysis_id) REFERENCES analyses(id),
-                FOREIGN KEY(user_id) REFERENCES users(id)
+                FOREIGN KEY(user_id) REFERENCES users(id),
+                FOREIGN KEY(verified_by) REFERENCES users(id)
             )""")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_feedback_tenant_created ON analysis_feedback(tenant_id, created_at)")
             cursor.execute(f"""CREATE TABLE IF NOT EXISTS quality_snapshots (
@@ -100,8 +129,28 @@ class PlatformRepository:
                 created_at TEXT NOT NULL, FOREIGN KEY(tenant_id) REFERENCES tenants(id)
             )""")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_quality_tenant_created ON quality_snapshots(tenant_id, created_at)")
+            cursor.execute(f"""CREATE TABLE IF NOT EXISTS beta_funnel_events (
+                sequence {identity} PRIMARY KEY{'' if self.backend == 'postgresql' else ' AUTOINCREMENT'},
+                id TEXT UNIQUE NOT NULL, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL,
+                session_id TEXT NOT NULL, event_type TEXT NOT NULL,
+                analysis_id TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+                UNIQUE(tenant_id, session_id, event_type, analysis_id),
+                FOREIGN KEY(tenant_id) REFERENCES tenants(id),
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )""")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_beta_funnel_tenant_event ON beta_funnel_events(tenant_id, event_type, created_at)")
             self._ensure_column(cursor, "analyses", "progress", "INTEGER NOT NULL DEFAULT 0")
             self._ensure_column(cursor, "analyses", "cancel_requested", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(cursor, "analysis_feedback", "feedback_source", "TEXT NOT NULL DEFAULT 'unclassified'")
+            self._ensure_column(cursor, "analysis_feedback", "verification_status", "TEXT NOT NULL DEFAULT 'pending'")
+            self._ensure_column(cursor, "analysis_feedback", "verified_by", "TEXT")
+            self._ensure_column(cursor, "analysis_feedback", "verified_at", "TEXT")
+            self._ensure_column(cursor, "analysis_feedback", "reviewer_notes", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(cursor, "analysis_feedback", "reason_code", "TEXT NOT NULL DEFAULT 'other'")
+            self._ensure_column(cursor, "analysis_feedback", "expected_result", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(cursor, "analysis_feedback", "analysis_version", "TEXT NOT NULL DEFAULT 'unknown'")
+            self._ensure_column(cursor, "analysis_feedback", "issue_reference", "TEXT NOT NULL DEFAULT ''")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_feedback_tenant_verification ON analysis_feedback(tenant_id, verification_status, feedback_source)")
             cursor.execute(
                 f"INSERT INTO schema_migrations(version, applied_at) VALUES ({self.placeholder}, {self.placeholder}) ON CONFLICT(version) DO NOTHING",
                 (SCHEMA_VERSION, self._now()),
@@ -143,7 +192,11 @@ class PlatformRepository:
     def create_analysis(self, tenant_id: str, user_id: str, request: dict[str, Any]) -> str:
         analysis_id, now = uuid4().hex, self._now()
         records = request.get("records") if isinstance(request.get("records"), list) else []
-        persisted_request = {key: value for key, value in request.items() if key != "records"}
+        persisted_request = {
+            key: value
+            for key, value in request.items()
+            if key != "records" and not str(key).startswith("_")
+        }
         persisted_request["record_count"] = len(records)
         persisted_request["columns"] = sorted({str(key) for row in records if isinstance(row, dict) for key in row})
         values = (
@@ -221,22 +274,79 @@ class PlatformRepository:
             ).fetchall()
         return [self._row(row) for row in rows]
 
-    def record_analysis_feedback(self, tenant_id: str, analysis_id: str, user_id: str, *, rating: int, outcome: str, notes: str = "") -> dict[str, Any]:
+    def record_analysis_feedback(
+        self,
+        tenant_id: str,
+        analysis_id: str,
+        user_id: str,
+        *,
+        rating: int,
+        outcome: str,
+        notes: str = "",
+        feedback_source: str = "external",
+        reason_code: str = "",
+        expected_result: str = "",
+        analysis_version: str = "unknown",
+    ) -> dict[str, Any]:
         if int(rating) not in range(1, 6):
             raise ValueError("Rating must be between 1 and 5")
-        if outcome not in {"correct", "partial", "incorrect"}:
+        if outcome not in FEEDBACK_OUTCOMES:
             raise ValueError("Unsupported feedback outcome")
+        if feedback_source not in FEEDBACK_SOURCES:
+            raise ValueError("Unsupported feedback source")
+        normalized_reason = str(reason_code or "").strip()
+        normalized_expected_result = str(expected_result or "").strip()
+        if outcome == "correct" and not normalized_reason:
+            normalized_reason = "no_issue"
+        elif outcome != "correct" and not normalized_reason:
+            raise ValueError("Partial or incorrect feedback requires a diagnostic reason")
+        if normalized_reason not in FEEDBACK_REASON_CODES:
+            raise ValueError("Unsupported feedback reason")
+        if outcome == "correct":
+            normalized_reason = "no_issue"
+        elif normalized_reason == "no_issue":
+            raise ValueError("Partial or incorrect feedback requires a diagnostic reason")
+        if outcome != "correct" and not normalized_expected_result:
+            raise ValueError("Partial or incorrect feedback requires the expected result")
         if self.get_analysis(tenant_id, analysis_id) is None:
             raise ValueError("Analysis not found")
         now, feedback_id = self._now(), uuid4().hex
+        values = (
+            feedback_id,
+            tenant_id,
+            analysis_id,
+            user_id,
+            int(rating),
+            outcome,
+            str(notes or "").strip()[:1000],
+            feedback_source,
+            "pending",
+            None,
+            None,
+            "",
+            normalized_reason,
+            normalized_expected_result[:2000],
+            str(analysis_version or "unknown").strip()[:128] or "unknown",
+            "",
+            now,
+            now,
+        )
         with self.connect() as connection:
             cursor = connection.cursor()
             cursor.execute(
-                f"""INSERT INTO analysis_feedback(id,tenant_id,analysis_id,user_id,rating,outcome,notes,created_at,updated_at)
-                VALUES ({','.join([self.placeholder] * 9)})
+                f"""INSERT INTO analysis_feedback(
+                    id,tenant_id,analysis_id,user_id,rating,outcome,notes,feedback_source,
+                    verification_status,verified_by,verified_at,reviewer_notes,reason_code,
+                    expected_result,analysis_version,issue_reference,created_at,updated_at
+                ) VALUES ({','.join([self.placeholder] * 18)})
                 ON CONFLICT(tenant_id,analysis_id,user_id) DO UPDATE SET
-                    rating=excluded.rating,outcome=excluded.outcome,notes=excluded.notes,updated_at=excluded.updated_at""",
-                (feedback_id, tenant_id, analysis_id, user_id, int(rating), outcome, str(notes or "").strip()[:1000], now, now),
+                    rating=excluded.rating,outcome=excluded.outcome,notes=excluded.notes,
+                    feedback_source=excluded.feedback_source,verification_status='pending',
+                    verified_by=NULL,verified_at=NULL,reviewer_notes='',
+                    reason_code=excluded.reason_code,expected_result=excluded.expected_result,
+                    analysis_version=excluded.analysis_version,issue_reference='',
+                    updated_at=excluded.updated_at""",
+                values,
             )
             row = cursor.execute(
                 f"SELECT * FROM analysis_feedback WHERE tenant_id={self.placeholder} AND analysis_id={self.placeholder} AND user_id={self.placeholder}",
@@ -244,20 +354,261 @@ class PlatformRepository:
             ).fetchone()
         return self._row(row)
 
+    def get_analysis_feedback(
+        self, tenant_id: str, analysis_id: str, user_id: str
+    ) -> dict[str, Any] | None:
+        with self.connect() as connection:
+            row = connection.cursor().execute(
+                f"SELECT * FROM analysis_feedback WHERE tenant_id={self.placeholder} AND analysis_id={self.placeholder} AND user_id={self.placeholder}",
+                (tenant_id, analysis_id, user_id),
+            ).fetchone()
+        return self._row(row)
+
+    def list_analysis_feedback(
+        self,
+        tenant_id: str,
+        *,
+        verification_status: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        clauses = [f"f.tenant_id={self.placeholder}"]
+        params: list[Any] = [tenant_id]
+        if verification_status:
+            if verification_status not in FEEDBACK_VERIFICATION_STATUSES:
+                raise ValueError("Unsupported verification status")
+            clauses.append(f"f.verification_status={self.placeholder}")
+            params.append(verification_status)
+        params.append(max(1, min(int(limit), 200)))
+        with self.connect() as connection:
+            rows = connection.cursor().execute(
+                f"""SELECT f.*, u.email AS user_email, a.description AS analysis_description
+                    FROM analysis_feedback f
+                    JOIN users u ON u.id=f.user_id AND u.tenant_id=f.tenant_id
+                    JOIN analyses a ON a.id=f.analysis_id AND a.tenant_id=f.tenant_id
+                    WHERE {' AND '.join(clauses)}
+                    ORDER BY f.sequence DESC LIMIT {self.placeholder}""",
+                tuple(params),
+            ).fetchall()
+        return [self._row(row) for row in rows]
+
+    def review_analysis_feedback(
+        self,
+        tenant_id: str,
+        feedback_id: str,
+        reviewer_id: str,
+        *,
+        verification_status: str,
+        reviewer_notes: str = "",
+        issue_reference: str = "",
+    ) -> dict[str, Any]:
+        if verification_status not in {"verified", "rejected"}:
+            raise ValueError("Review status must be verified or rejected")
+        with self.connect() as connection:
+            cursor = connection.cursor()
+            existing = cursor.execute(
+                f"SELECT * FROM analysis_feedback WHERE tenant_id={self.placeholder} AND id={self.placeholder}",
+                (tenant_id, feedback_id),
+            ).fetchone()
+            feedback = self._row(existing)
+            if feedback is None:
+                raise ValueError("Feedback not found")
+            if feedback["user_id"] == reviewer_id:
+                raise ValueError("A feedback author cannot verify their own evidence")
+            reviewed_at = self._now()
+            cursor.execute(
+                f"""UPDATE analysis_feedback SET verification_status={self.placeholder},
+                    verified_by={self.placeholder},verified_at={self.placeholder},
+                    reviewer_notes={self.placeholder},issue_reference={self.placeholder},
+                    updated_at={self.placeholder}
+                    WHERE tenant_id={self.placeholder} AND id={self.placeholder}""",
+                (
+                    verification_status,
+                    reviewer_id,
+                    reviewed_at,
+                    str(reviewer_notes or "").strip()[:1000],
+                    str(issue_reference or "").strip()[:255],
+                    reviewed_at,
+                    tenant_id,
+                    feedback_id,
+                ),
+            )
+            row = cursor.execute(
+                f"SELECT * FROM analysis_feedback WHERE tenant_id={self.placeholder} AND id={self.placeholder}",
+                (tenant_id, feedback_id),
+            ).fetchone()
+        return self._row(row)
+
     def feedback_summary(self, tenant_id: str | None = None) -> dict[str, Any]:
         where, params = "", ()
         if tenant_id:
             where, params = f" WHERE tenant_id={self.placeholder}", (tenant_id,)
+        verified_clause = "feedback_source='external' AND verification_status='verified'"
+        verified_where = f" WHERE {verified_clause}"
+        if tenant_id:
+            verified_where += f" AND tenant_id={self.placeholder}"
         with self.connect() as connection:
             cursor = connection.cursor()
-            aggregate = cursor.execute(f"SELECT COUNT(*) AS total, AVG(rating) AS average_rating FROM analysis_feedback{where}", params).fetchone()
-            outcomes = cursor.execute(f"SELECT outcome, COUNT(*) AS total FROM analysis_feedback{where} GROUP BY outcome", params).fetchall()
-        aggregate = self._row(aggregate) or {}
-        normalized_outcomes = [self._row(row) for row in outcomes]
+            aggregate = cursor.execute(
+                f"SELECT COUNT(*) AS total, AVG(rating) AS average_rating FROM analysis_feedback{where}",
+                params,
+            ).fetchone()
+            outcomes = cursor.execute(
+                f"SELECT outcome, COUNT(*) AS total FROM analysis_feedback{where} GROUP BY outcome",
+                params,
+            ).fetchall()
+            verification = cursor.execute(
+                f"SELECT verification_status, COUNT(*) AS total FROM analysis_feedback{where} GROUP BY verification_status",
+                params,
+            ).fetchall()
+            sources = cursor.execute(
+                f"SELECT feedback_source, COUNT(*) AS total FROM analysis_feedback{where} GROUP BY feedback_source",
+                params,
+            ).fetchall()
+            reasons = cursor.execute(
+                f"SELECT reason_code, COUNT(*) AS total FROM analysis_feedback{where} GROUP BY reason_code",
+                params,
+            ).fetchall()
+            verified_aggregate = cursor.execute(
+                f"""SELECT COUNT(*) AS total, AVG(rating) AS average_rating,
+                    COUNT(DISTINCT user_id) AS distinct_testers
+                    FROM analysis_feedback{verified_where}""",
+                params,
+            ).fetchone()
+            verified_outcomes = cursor.execute(
+                f"""SELECT outcome, COUNT(*) AS total FROM analysis_feedback{verified_where}
+                    GROUP BY outcome""",
+                params,
+            ).fetchall()
+        aggregate_item = self._row(aggregate) or {}
+        verified_item = self._row(verified_aggregate) or {}
+        normalized_outcomes = {
+            str(item["outcome"]): int(item["total"])
+            for item in (self._row(row) for row in outcomes)
+        }
+        normalized_verified = {
+            str(item["outcome"]): int(item["total"])
+            for item in (self._row(row) for row in verified_outcomes)
+        }
+        verified_total = int(verified_item.get("total") or 0)
+        verified_correct = int(normalized_verified.get("correct", 0))
         return {
-            "total": int(aggregate.get("total") or 0),
-            "average_rating": round(float(aggregate.get("average_rating") or 0.0), 2),
-            "outcomes": {str(row["outcome"]): int(row["total"]) for row in normalized_outcomes},
+            "total": int(aggregate_item.get("total") or 0),
+            "average_rating": round(float(aggregate_item.get("average_rating") or 0.0), 2),
+            "outcomes": normalized_outcomes,
+            "verification_statuses": {
+                str(item["verification_status"]): int(item["total"])
+                for item in (self._row(row) for row in verification)
+            },
+            "sources": {
+                str(item["feedback_source"]): int(item["total"])
+                for item in (self._row(row) for row in sources)
+            },
+            "reason_codes": {
+                str(item["reason_code"]): int(item["total"])
+                for item in (self._row(row) for row in reasons)
+            },
+            "verified_external_total": verified_total,
+            "verified_external_correct": verified_correct,
+            "verified_external_partial": int(normalized_verified.get("partial", 0)),
+            "verified_external_incorrect": int(normalized_verified.get("incorrect", 0)),
+            "verified_external_outcomes": normalized_verified,
+            "verified_external_average_rating": round(
+                float(verified_item.get("average_rating") or 0.0), 2
+            ),
+            "verified_external_accuracy": round(
+                verified_correct / verified_total if verified_total else 0.0, 4
+            ),
+            "distinct_external_testers": int(verified_item.get("distinct_testers") or 0),
+        }
+
+    def record_beta_funnel_event(
+        self,
+        tenant_id: str,
+        user_id: str,
+        session_id: str,
+        event_type: str,
+        analysis_id: str = "",
+    ) -> bool:
+        if event_type not in BETA_FUNNEL_EVENTS:
+            raise ValueError("Unsupported beta funnel event")
+        normalized_session = str(session_id or "").strip()[:128]
+        if not normalized_session:
+            raise ValueError("Beta session id is required")
+        normalized_analysis = str(analysis_id or "").strip()[:64]
+        with self.connect() as connection:
+            cursor = connection.cursor()
+            cursor.execute(
+                f"""INSERT INTO beta_funnel_events(
+                    id,tenant_id,user_id,session_id,event_type,analysis_id,created_at
+                ) VALUES ({','.join([self.placeholder] * 7)})
+                ON CONFLICT(tenant_id,session_id,event_type,analysis_id) DO NOTHING""",
+                (
+                    uuid4().hex,
+                    tenant_id,
+                    user_id,
+                    normalized_session,
+                    event_type,
+                    normalized_analysis,
+                    self._now(),
+                ),
+            )
+            return cursor.rowcount == 1
+
+    def record_beta_analysis_completed(
+        self, tenant_id: str, user_id: str, analysis_id: str
+    ) -> bool:
+        with self.connect() as connection:
+            row = connection.cursor().execute(
+                f"""SELECT session_id FROM beta_funnel_events
+                    WHERE tenant_id={self.placeholder} AND user_id={self.placeholder}
+                    AND analysis_id={self.placeholder} AND event_type='analysis_started'
+                    ORDER BY sequence DESC LIMIT 1""",
+                (tenant_id, user_id, analysis_id),
+            ).fetchone()
+        item = self._row(row)
+        if item is None:
+            return False
+        return self.record_beta_funnel_event(
+            tenant_id,
+            user_id,
+            item["session_id"],
+            "analysis_completed",
+            analysis_id,
+        )
+
+    def beta_funnel_summary(self, tenant_id: str | None = None) -> dict[str, Any]:
+        where, params = "", ()
+        if tenant_id:
+            where, params = f" WHERE tenant_id={self.placeholder}", (tenant_id,)
+        with self.connect() as connection:
+            rows = connection.cursor().execute(
+                f"""SELECT event_type, COUNT(*) AS events,
+                    COUNT(DISTINCT session_id) AS sessions,
+                    COUNT(DISTINCT user_id) AS users
+                    FROM beta_funnel_events{where} GROUP BY event_type""",
+                params,
+            ).fetchall()
+        observed = {item["event_type"]: item for item in (self._row(row) for row in rows)}
+        stages = {
+            event: {
+                "events": int((observed.get(event) or {}).get("events") or 0),
+                "sessions": int((observed.get(event) or {}).get("sessions") or 0),
+                "users": int((observed.get(event) or {}).get("users") or 0),
+            }
+            for event in BETA_FUNNEL_ORDER
+        }
+
+        def conversion(numerator: str, denominator: str) -> float:
+            base = stages[denominator]["sessions"]
+            return round(stages[numerator]["sessions"] / base, 4) if base else 0.0
+
+        return {
+            "stages": stages,
+            "conversion": {
+                "started_to_completed": conversion("analysis_completed", "analysis_started"),
+                "completed_to_result_viewed": conversion("result_viewed", "analysis_completed"),
+                "result_viewed_to_feedback": conversion("feedback_submitted", "result_viewed"),
+            },
         }
 
     def record_quality_snapshot(self, tenant_id: str, payload: dict[str, Any]) -> str:
@@ -292,6 +643,7 @@ class PlatformRepository:
         with self.connect() as connection:
             cursor = connection.cursor()
             cursor.execute(f"DELETE FROM analysis_feedback WHERE tenant_id={self.placeholder} AND analysis_id={self.placeholder}", (tenant_id, analysis_id))
+            cursor.execute(f"DELETE FROM beta_funnel_events WHERE tenant_id={self.placeholder} AND analysis_id={self.placeholder}", (tenant_id, analysis_id))
             cursor.execute(f"DELETE FROM analyses WHERE tenant_id={self.placeholder} AND id={self.placeholder}", (tenant_id, analysis_id))
             return cursor.rowcount == 1
 

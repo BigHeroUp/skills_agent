@@ -179,6 +179,70 @@ def test_feedback_metrics_and_admin_delete_are_tenant_scoped(tmp_path, monkeypat
     assert client.delete(f"/api/v1/analyses/{analysis_id}", headers=first_headers).status_code == 204
 
 
+def test_external_feedback_review_api_requires_independent_tenant_admin(tmp_path, monkeypatch):
+    monkeypatch.setenv("ALLOW_SELF_REGISTRATION", "true")
+    repository = PlatformRepository(f"sqlite:///{tmp_path / 'feedback-review.db'}")
+    app = create_app(repository, AuthService("r" * 32), coordinator_factory=FakeCoordinator)
+    client = app.test_client()
+    admin = _register(client, "Review Corp", "admin@review.test")
+    other = _register(client, "Other Corp", "admin@other.test")
+    admin_headers = {"Authorization": f"Bearer {admin['access_token']}"}
+    other_headers = {"Authorization": f"Bearer {other['access_token']}"}
+
+    created_user = client.post("/api/v1/users", json={
+        "email": "tester@review.test", "password": "tester-password-1", "role": "analyst",
+    }, headers=admin_headers)
+    assert created_user.status_code == 201
+    tester_login = client.post("/api/v1/auth/login", json={
+        "tenant_id": admin["identity"]["tenant_id"],
+        "email": "tester@review.test", "password": "tester-password-1",
+    }).get_json()
+    tester_headers = {"Authorization": f"Bearer {tester_login['access_token']}"}
+    created = client.post("/api/v1/analyses", json={
+        "description": "Verify the total", "records": [{"value": 10}],
+    }, headers=tester_headers)
+    analysis_id = created.get_json()["id"]
+    for _ in range(50):
+        if repository.get_analysis(admin["identity"]["tenant_id"], analysis_id)["status"] == "completed":
+            break
+        time.sleep(0.01)
+
+    submitted = client.post(f"/api/v1/analyses/{analysis_id}/feedback", json={
+        "rating": 3,
+        "outcome": "partial",
+        "feedback_source": "external",
+        "reason_code": "missing_evidence",
+        "expected_result": "Show the total and its source rows",
+        "notes": "The result needs a clearer denominator",
+    }, headers=tester_headers)
+    assert submitted.status_code == 201
+    feedback_id = submitted.get_json()["feedback"]["id"]
+    assert submitted.get_json()["summary"]["verified_external_total"] == 0
+    assert client.get("/api/v1/feedback", headers=tester_headers).status_code == 403
+    assert client.get("/api/v1/feedback", headers=other_headers).get_json()["items"] == []
+    assert client.patch(f"/api/v1/feedback/{feedback_id}", json={
+        "verification_status": "verified",
+    }, headers=other_headers).status_code == 400
+
+    pending = client.get(
+        "/api/v1/feedback?verification_status=pending", headers=admin_headers
+    ).get_json()
+    assert pending["items"][0]["expected_result"] == "Show the total and its source rows"
+    reviewed = client.patch(f"/api/v1/feedback/{feedback_id}", json={
+        "verification_status": "verified",
+        "reviewer_notes": "Reproduced against the CSV",
+        "issue_reference": "REV-022",
+    }, headers=admin_headers)
+    assert reviewed.status_code == 200
+    summary = reviewed.get_json()["summary"]
+    assert summary["verified_external_total"] == 1
+    assert summary["verified_external_partial"] == 1
+    assert summary["distinct_external_testers"] == 1
+    metrics = client.get("/metrics").data
+    assert b"skills_agent_feedback_verified_external_total 1" in metrics
+    assert b'skills_agent_feedback_verification_total{status="verified"} 1' in metrics
+
+
 def test_api_limits_payload_and_adds_security_headers(tmp_path, monkeypatch):
     monkeypatch.setenv("ALLOW_SELF_REGISTRATION", "true")
     monkeypatch.setenv("API_MAX_RECORDS", "1")
@@ -242,7 +306,10 @@ def test_portal_register_excel_analysis_and_logout(tmp_path, monkeypatch):
     docx_export = client.get(f"/portal/analyses/{analysis_id}/export/docx")
     assert pdf_export.status_code == 200 and pdf_export.data.startswith(b"%PDF")
     assert docx_export.status_code == 200 and docx_export.data.startswith(b"PK")
-    assert client.get("/portal/quality").status_code == 200
+    beta_page = client.get("/portal/beta")
+    assert beta_page.status_code == 200
+    assert b"Modalit\xc3\xa0 beta guidata" in beta_page.data
+    assert client.get("/portal/beta/sample/sales").headers["Content-Disposition"].endswith("beta-sales.csv")
 
     preview = client.post("/portal/analyses/preview", data={
         "csrf_token": csrf,
@@ -252,6 +319,27 @@ def test_portal_register_excel_analysis_and_logout(tmp_path, monkeypatch):
     assert preview.status_code == 200
     assert b"Anteprima del piano analitico" in preview.data
     assert b"Interpretazione delle colonne" in preview.data
+
+    feedback_csrf = re.search(rb'name="csrf_token" value="([^"]+)"', result_page.data).group(1).decode()
+    submitted_feedback = client.post(f"/portal/analyses/{analysis_id}/feedback", data={
+        "csrf_token": feedback_csrf,
+        "rating": "5",
+        "outcome": "correct",
+        "feedback_source": "external",
+        "reason_code": "no_issue",
+        "expected_result": "",
+        "notes": "Clear and correct",
+    }, follow_redirects=True)
+    assert b"Da verificare" in submitted_feedback.data
+    funnel = repository.beta_funnel_summary(tenant_id)
+    assert funnel["stages"]["analysis_started"]["sessions"] == 1
+    assert funnel["stages"]["analysis_completed"]["sessions"] == 1
+    assert funnel["stages"]["result_viewed"]["sessions"] == 1
+    assert funnel["stages"]["feedback_submitted"]["sessions"] == 1
+    quality = client.get("/portal/quality")
+    assert quality.status_code == 200
+    assert b"Coda di verifica feedback" in quality.data
+    assert b"Serve un altro amministratore" in quality.data
 
     csrf = re.search(rb'name="csrf_token" value="([^"]+)"', submitted.data).group(1).decode()
     logged_out = client.post("/portal/logout", data={"csrf_token": csrf}, follow_redirects=True)
