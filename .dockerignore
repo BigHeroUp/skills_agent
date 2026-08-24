@@ -2,8 +2,13 @@
 .github
 .env
 .env.production
+.venv
+**/.venv
+.idea
+.DS_Store
 .pytest_cache
 __pycache__
+**/__pycache__
 *.pyc
 logs/*
 data/*
